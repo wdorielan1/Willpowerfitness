@@ -1,0 +1,10 @@
+{
+  "name": "Will Power Fitness",
+  "short_name": "Will Power",
+  "description": "Wake Up. Show Up. Lift.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0d",
+  "theme_color": "#0b0b0d",
+  "icons": [{ "src": "logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
