@@ -4,10 +4,8 @@ import { useApp } from '../store'
 import { TAGLINE } from '../data'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
-const APPLE_ID = import.meta.env.VITE_APPLE_CLIENT_ID as string | undefined
-const APPLE_REDIRECT = (import.meta.env.VITE_APPLE_REDIRECT_URI as string | undefined) ?? (typeof location !== 'undefined' ? location.origin : '')
 
-function decodeJwt(token: string): { email: string; name?: string; sub?: string } {
+function decodeJwt(token: string): { email: string; name?: string } {
   const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
   return JSON.parse(decodeURIComponent(escape(atob(payload))))
 }
@@ -21,7 +19,6 @@ export default function Auth() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [demoGoogle, setDemoGoogle] = useState(false)
-  const [demoApple, setDemoApple] = useState(false)
   const gbtn = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -44,36 +41,6 @@ export default function Auth() {
     document.head.appendChild(s)
     return () => { s.remove() }
   }, [googleIn])
-
-  useEffect(() => {
-    if (!APPLE_ID) return
-    const s = document.createElement('script')
-    s.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js'
-    s.async = true
-    s.onload = () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).AppleID?.auth.init({ clientId: APPLE_ID, scope: 'name email', redirectURI: APPLE_REDIRECT, usePopup: true })
-    }
-    document.head.appendChild(s)
-    return () => { s.remove() }
-  }, [])
-
-  const appleSignIn = async () => {
-    setErr(null)
-    if (!APPLE_ID) { setDemoApple(true); return }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r = await (window as any).AppleID.auth.signIn()
-      const u = decodeJwt(r.authorization.id_token)
-      // Apple only sends the name on the very first sign-in; email may be a private relay address.
-      const first = r.user?.name?.firstName as string | undefined
-      const email = u.email ?? `${u.sub}@apple.id`
-      googleIn(email, first ?? email.split('@')[0])
-    } catch (e) {
-      const code = (e as { error?: string })?.error
-      if (code !== 'popup_closed_by_user') setErr('Apple sign-in failed. Try again or use email.')
-    }
-  }
 
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault()
@@ -103,16 +70,6 @@ export default function Auth() {
         </form>
       ) : (
         <button className="google full" onClick={() => setDemoGoogle(true)}>Continue with Google</button>
-      )}
-
-      {demoApple ? (
-        <form className="card" onSubmit={(ev) => { ev.preventDefault(); if (/^\S+@\S+\.\S+$/.test(email)) googleIn(email, email.split('@')[0]); else setErr('Enter a valid email.') }}>
-          <label>Email (demo Apple sign-in)<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@icloud.com" autoFocus /></label>
-          <p className="small mute">Real Sign in with Apple turns on once VITE_APPLE_CLIENT_ID is configured.</p>
-          <button className="primary">Continue</button>
-        </form>
-      ) : (
-        <button className="apple full" onClick={appleSignIn}><span aria-hidden></span> Continue with Apple</button>
       )}
 
       <div className="divider">or use email</div>
