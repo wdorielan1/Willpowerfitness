@@ -25,7 +25,8 @@ const tabs = [
 ] as const
 
 export default function App() {
-  const { email, data } = useApp()
+  const { email, data, loading } = useApp()
+  if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
   if (!email) return <Auth />
   if (!data.profile) return <Onboarding />
   return (

@@ -12,6 +12,16 @@ npm run dev      # http://localhost:5173 (use your phone on the same network)
 npm run build
 ```
 
+## Backend setup (real shared crews)
+1. Create a free project at supabase.com.
+2. SQL Editor → paste and run `supabase/schema.sql`.
+3. Authentication → Providers → enable **Google** (needs a Google Cloud OAuth client; redirect URL is shown in Supabase). Add your site URL under Authentication → URL Configuration.
+4. Copy the project URL and anon key from Project Settings → API into `.env`:
+   `VITE_SUPABASE_URL=...` and `VITE_SUPABASE_ANON_KEY=...`
+5. `npm run dev`. Accounts, check-ins, streaks, crews and messages are now shared between real users; personal data (logs, weights, profile) syncs across devices.
+
+Without these keys the app runs local-only with sample community data.
+
 ## Beta notes
 - Data is stored on-device (localStorage) per account. Community members, counts and leaderboards are **sample data** until a backend exists.
 - Google Sign-In: set `VITE_GOOGLE_CLIENT_ID` (see `.env.example`). Without it, a demo Gmail flow is used.

@@ -4,9 +4,10 @@ import { useCheckin } from '../actions'
 import { dayTypeFor, fmtTime, streak, todayISO } from '../engine'
 import { ENCOURAGEMENTS } from '../data'
 import { roster, stats, useCrew } from './Crew'
+import { useLiveCrew } from '../cloud'
 
 export default function Dashboard() {
-  const { data } = useApp()
+  const { data, userId } = useApp()
   const p = data.profile!
   const ci = useCheckin()
   const crew = useCrew()
@@ -14,8 +15,9 @@ export default function Dashboard() {
   const day = dayTypeFor(today, p, data.logs)
   const rest = day === 'Rest/Cardio'
   const s = streak(data)
-  const g = crew ? stats(crew, ci.done) : null
-  const who = crew ? roster(crew, today, ci.going ? { name: data.name || 'You', going: true, done: ci.done } : undefined) : []
+  const live = useLiveCrew(crew?.id ?? null, userId)
+  const g = !crew ? null : live ? { pct: live.members ? Math.round((live.done / live.members) * 100) : 0, done: live.done, members: live.members } : stats(crew, ci.done)
+  const who = !crew ? [] : live ? live.people.map((x) => ({ ...x, name: x.mine ? `${x.name} (you)` : x.name })) : roster(crew, today, ci.going ? { name: data.name || 'You', going: true, done: ci.done } : undefined)
   const quote = ENCOURAGEMENTS[new Date().getDate() % ENCOURAGEMENTS.length]
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -50,6 +52,7 @@ export default function Dashboard() {
           <div className="bar"><i style={{ width: `${g.pct}%` }} /></div>
           <p className="small mute">{g.done} of {g.members} members checked in</p>
           <h3>Training today</h3>
+          {live && who.length === 0 && <p className="small mute">Nobody has checked in yet. Be the first.</p>}
           <div className="people">
             {who.map((w) => (
               <div className="person" key={w.name}>

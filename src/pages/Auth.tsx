@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Logo } from '../App'
 import { useApp } from '../store'
 import { TAGLINE } from '../data'
+import { cloudEnabled } from '../cloud'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 
@@ -11,7 +12,7 @@ function decodeJwt(token: string): { email: string; name?: string } {
 }
 
 export default function Auth() {
-  const { signUp, logIn, googleIn } = useApp()
+  const { signUp, logIn, googleIn, googleOAuth } = useApp()
   const [mode, setMode] = useState<'signup' | 'login'>('signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -22,7 +23,7 @@ export default function Auth() {
   const gbtn = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!CLIENT_ID) return
+    if (!CLIENT_ID || cloudEnabled) return
     const s = document.createElement('script')
     s.src = 'https://accounts.google.com/gsi/client'
     s.async = true
@@ -60,7 +61,9 @@ export default function Auth() {
         <p className="mute">The accountability community for people who need help showing up. Free during beta.</p>
       </div>
 
-      {CLIENT_ID ? (
+      {cloudEnabled ? (
+        <button className="google full" onClick={async () => { const r = await googleOAuth(); if (r) setErr(r) }}>Continue with Google</button>
+      ) : CLIENT_ID ? (
         <div ref={gbtn} style={{ display: 'grid', justifyItems: 'center' }} />
       ) : demoGoogle ? (
         <form className="card" onSubmit={(ev) => { ev.preventDefault(); if (/@gmail\.com$/i.test(email)) googleIn(email, email.split('@')[0]); else setErr('Enter a Gmail address.') }}>

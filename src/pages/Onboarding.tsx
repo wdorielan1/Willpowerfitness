@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
+import { joinCrewCloud } from '../cloud'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES } from '../data'
 import type { Gear, Goal, Level, Profile } from '../types'
 
@@ -12,7 +13,7 @@ const empty: Profile = {
 }
 
 export default function Onboarding() {
-  const { data, update } = useApp()
+  const { data, update, userId } = useApp()
   const nav = useNavigate()
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
@@ -27,6 +28,7 @@ export default function Onboarding() {
       ...d, profile: p, joined: chosen ? [chosen] : [], primary: chosen,
       weights: [...d.weights, { date: todayISO(), lbs: p.weight }].slice(-1),
     }))
+    if (userId && chosen) void joinCrewCloud(chosen, userId, data.name || 'Member', 0)
     nav('/')
   }
 
