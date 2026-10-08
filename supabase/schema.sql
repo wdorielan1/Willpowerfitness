@@ -1,4 +1,5 @@
--- Will Power Fitness: run this once in Supabase -> SQL Editor.
+-- Will Power Fitness: paste the contents of this file into Supabase -> SQL Editor and Run.
+-- Safe to run more than once.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users on delete cascade,
@@ -53,22 +54,34 @@ alter table public.crew_checkins  enable row level security;
 alter table public.crew_messages  enable row level security;
 
 -- profiles: strictly private
+drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for all to authenticated
   using (auth.uid() = id) with check (auth.uid() = id);
 
 -- crews: everyone signed in can see; you create your own
+drop policy if exists "read crews" on public.crews;
 create policy "read crews" on public.crews for select to authenticated using (true);
+drop policy if exists "create crew" on public.crews;
 create policy "create crew" on public.crews for insert to authenticated with check (auth.uid() = created_by);
 
 -- members / check-ins / messages: visible to signed-in users, writable only as yourself
+drop policy if exists "read members" on public.crew_members;
 create policy "read members" on public.crew_members for select to authenticated using (true);
+drop policy if exists "join" on public.crew_members;
 create policy "join" on public.crew_members for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "update own membership" on public.crew_members;
 create policy "update own membership" on public.crew_members for update to authenticated using (auth.uid() = user_id);
+drop policy if exists "leave" on public.crew_members;
 create policy "leave" on public.crew_members for delete to authenticated using (auth.uid() = user_id);
 
+drop policy if exists "read checkins" on public.crew_checkins;
 create policy "read checkins" on public.crew_checkins for select to authenticated using (true);
+drop policy if exists "write own checkin" on public.crew_checkins;
 create policy "write own checkin" on public.crew_checkins for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "update own checkin" on public.crew_checkins;
 create policy "update own checkin" on public.crew_checkins for update to authenticated using (auth.uid() = user_id);
 
+drop policy if exists "read messages" on public.crew_messages;
 create policy "read messages" on public.crew_messages for select to authenticated using (true);
+drop policy if exists "post message" on public.crew_messages;
 create policy "post message" on public.crew_messages for insert to authenticated with check (auth.uid() = user_id);
