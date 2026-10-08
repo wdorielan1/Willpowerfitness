@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Logo } from '../App'
 import { useApp } from '../store'
 import { TAGLINE } from '../data'
@@ -13,7 +14,8 @@ function decodeJwt(token: string): { email: string; name?: string } {
 
 export default function Auth() {
   const { signUp, logIn, googleIn, googleOAuth } = useApp()
-  const [mode, setMode] = useState<'signup' | 'login'>('signup')
+  const [params] = useSearchParams()
+  const [mode, setMode] = useState<'signup' | 'login'>(params.get('m') === 'login' ? 'login' : 'signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
@@ -54,6 +56,7 @@ export default function Auth() {
 
   return (
     <div className="auth">
+      <Link to="/" className="small mute">← Back</Link>
       <div className="logo">
         <Logo size={84} />
         <h1>WILL POWER FITNESS</h1>

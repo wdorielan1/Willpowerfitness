@@ -11,6 +11,7 @@ import Nutrition from './pages/Nutrition'
 import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
 import Go from './pages/Go'
+import Landing from './pages/Landing'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power Fitness" />
@@ -27,7 +28,14 @@ const tabs = [
 export default function App() {
   const { email, data, loading } = useApp()
   if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
-  if (!email) return <Auth />
+  if (!email) {
+    return (
+      <Routes>
+        <Route path="/join" element={<Auth />} />
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    )
+  }
   if (!data.profile) return <Onboarding />
   return (
     <div className="shell">
