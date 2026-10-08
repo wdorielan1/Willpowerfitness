@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Logo } from '../App'
 
-// TODO(owner): replace before launch.
-const CONTACT_EMAIL = '[your contact email]'
+const CONTACT_EMAIL = 'wdorielan1@gmail.com'
 const UPDATED = 'October 8, 2026'
 
 export default function Privacy() {
