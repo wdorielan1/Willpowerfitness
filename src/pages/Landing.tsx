@@ -103,7 +103,7 @@ export default function Landing() {
       </section>
 
       <footer className="site-foot small mute">
-        <Logo size={22} /> © {new Date().getFullYear()} Will Power Fitness
+        <Logo size={22} /> © {new Date().getFullYear()} Will Power Fitness · <Link to="/privacy" className="mute" style={{ textDecoration: 'underline' }}>Privacy</Link>
       </footer>
     </div>
   )

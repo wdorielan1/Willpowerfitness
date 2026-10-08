@@ -1,4 +1,5 @@
-import { NavLink, Navigate, Route, Routes, Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Navigate, Route, Routes, Link, useLocation } from 'react-router-dom'
 import { useApp } from './store'
 import Auth from './pages/Auth'
 import Onboarding from './pages/Onboarding'
@@ -12,6 +13,7 @@ import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
+import Privacy from './pages/Privacy'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power Fitness" />
@@ -25,20 +27,31 @@ const tabs = [
   ['/nutrition', 'Fuel', '🍽'],
 ] as const
 
+function ScrollTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 export default function App() {
   const { email, data, loading } = useApp()
   if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
   if (!email) {
     return (
+      <>
+      <ScrollTop />
       <Routes>
         <Route path="/join" element={<Auth />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="*" element={<Landing />} />
       </Routes>
+      </>
     )
   }
   if (!data.profile) return <Onboarding />
   return (
     <div className="shell">
+      <ScrollTop />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
         <nav className="top-links">
@@ -56,6 +69,7 @@ export default function App() {
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/shortcuts" element={<Shortcuts />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/go/:action" element={<Go />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

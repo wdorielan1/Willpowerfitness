@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { DAY_NAMES, GOALS, LEVELS } from '../data'
 import { fmtTime } from '../engine'
@@ -27,6 +28,7 @@ export default function Profile() {
         <p className="small mute">Will Power is free during beta. Pro, premium 5 AM Club, paid challenges and coaching are coming later.</p>
         <span className="tag ok">Free beta</span>
       </section>
+      <Link to="/privacy" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Privacy Policy</Link>
       <button className="ghost" onClick={logOut}>Log out</button>
     </>
   )
