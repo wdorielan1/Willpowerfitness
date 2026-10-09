@@ -10,7 +10,7 @@ const dataKey = (email: string) => `wpf.data.${email}`
 export const blankData = (name: string): AppData => ({
   name, profile: null, joined: [], primary: null, checkins: {}, logs: [], cardio: [], weights: [],
   swaps: {}, short: {}, drafts: {}, meals: {}, messages: [], custom: [], partner: false,
-  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, settings: DEFAULT_SETTINGS,
+  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, posts: [], steps: [], challengesJoined: [], settings: DEFAULT_SETTINGS,
 })
 
 /** Saved data wins, but any setting added in a newer version falls back to its default. */

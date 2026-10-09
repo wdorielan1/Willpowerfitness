@@ -3,6 +3,7 @@ import { supabase } from './cloud'
 import type { Photo } from './types'
 
 const BUCKET = 'progress-photos'
+export const CREW_BUCKET = 'crew-photos'
 const DB = 'wpf-photos'
 
 // ---------- on-device storage (fallback when the cloud bucket isn't available) ----------
@@ -36,10 +37,10 @@ export async function compress(src: Blob, max = 1280): Promise<Blob> {
 
 export interface SaveResult { path?: string; where: 'cloud' | 'device' }
 
-export async function savePhotoBlob(id: string, blob: Blob, userId: string | null): Promise<SaveResult> {
+export async function savePhotoBlob(id: string, blob: Blob, userId: string | null, bucket = BUCKET, folder = userId ?? ''): Promise<SaveResult> {
   if (supabase && userId) {
-    const path = `${userId}/${id}.jpg`
-    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+    const path = `${folder}/${id}.jpg`
+    const { error } = await supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
     if (!error) return { path, where: 'cloud' }
     console.warn('photo upload failed, keeping on device:', error.message)
   }
@@ -47,13 +48,13 @@ export async function savePhotoBlob(id: string, blob: Blob, userId: string | nul
   return { where: 'device' }
 }
 
-export async function deletePhotoBlob(p: Photo) {
-  if (p.path && supabase) await supabase.storage.from(BUCKET).remove([p.path])
+export async function deletePhotoBlob(p: { id: string; path?: string }, bucket = BUCKET) {
+  if (p.path && supabase) await supabase.storage.from(bucket).remove([p.path])
   try { await idb('readwrite', (s) => s.delete(p.id)) } catch { /* nothing stored locally */ }
 }
 
 /** Resolve displayable URLs for a list of photos. */
-export function usePhotoUrls(photos: Photo[]) {
+export function usePhotoUrls(photos: { id: string; path?: string }[], bucket = BUCKET) {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const key = photos.map((p) => p.id + (p.path ?? '')).join('|')
   useEffect(() => {
@@ -63,7 +64,7 @@ export function usePhotoUrls(photos: Photo[]) {
       const out: Record<string, string> = {}
       const cloud = photos.filter((p) => p.path)
       if (cloud.length && supabase) {
-        const { data } = await supabase.storage.from(BUCKET).createSignedUrls(cloud.map((p) => p.path!), 3600)
+        const { data } = await supabase.storage.from(bucket).createSignedUrls(cloud.map((p) => p.path!), 3600)
         data?.forEach((d, i) => { if (d.signedUrl) out[cloud[i].id] = d.signedUrl })
       }
       for (const p of photos.filter((x) => !x.path)) {

@@ -13,6 +13,8 @@ import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
+import Friends from './pages/Friends'
+import Challenges, { ChallengeSync } from './pages/Challenges'
 import Settings from './pages/Settings'
 import { RestTimerProvider } from './RestTimer'
 import { WorkoutGuard } from './components'
@@ -41,6 +43,7 @@ function ScrollTop() {
 
 export default function App() {
   const { email, data, loading } = useApp()
+  const loc = useLocation()
   if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
   if (!email) {
     return (
@@ -61,6 +64,7 @@ export default function App() {
     <div className="shell">
       <ScrollTop />
       <WorkoutGuard />
+      <ChallengeSync />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
         <nav className="top-links">
@@ -75,6 +79,8 @@ export default function App() {
           <Route path="/crew" element={<Communities />} />
           <Route path="/workout" element={<Workout />} />
           <Route path="/progress" element={<Progress />} />
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/friends" element={<Friends />} />
           <Route path="/log" element={<QuickLog />} />
           <Route path="/photos" element={<Photos />} />
           <Route path="/import" element={<ImportHistory />} />
@@ -90,7 +96,7 @@ export default function App() {
       </main>
       <nav className="tabbar">
         {tabs.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'on' : '')}>
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && ['/challenges', '/friends'].includes(loc.pathname)) ? 'on' : '')}>
             <span>{icon}</span>{label}
           </NavLink>
         ))}

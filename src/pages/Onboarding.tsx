@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
-import { joinCrewCloud } from '../cloud'
+import { followCloud, handleToUser, joinCrewCloud } from '../cloud'
+import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
@@ -29,7 +30,10 @@ export default function Onboarding() {
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
   const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
 
-  const sugg = suggestCrews(p, COMMUNITIES as CommunityDef[])
+  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null } | null } catch { return null } })()
+  const invitedCrew = invite?.crew ? allCommunities(data.custom).find((c) => c.id === invite.crew) : undefined
+  const base = suggestCrews(p, COMMUNITIES as CommunityDef[])
+  const sugg = invitedCrew ? [{ crew: invitedCrew, score: 99, reasons: ['A friend invited you'] }, ...base.filter((s) => s.crew.id !== invitedCrew.id)] : base
   const finish = () => {
     const chosen = p.wantsCommunity && pick !== 'solo' ? pick ?? sugg[0]?.crew.id ?? null : null
     update((d) => ({
@@ -37,6 +41,8 @@ export default function Onboarding() {
       weights: [...d.weights, { date: todayISO(), lbs: p.weight }].slice(-1),
     }))
     if (userId && chosen) void joinCrewCloud(chosen, userId, data.name || 'Member', 0)
+    if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) })
+    try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }
     nav('/')
   }
 

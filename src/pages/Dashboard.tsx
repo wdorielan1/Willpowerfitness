@@ -80,7 +80,7 @@ export default function Dashboard() {
           <Link to="/crew" className="btn ghost">Browse crews (optional)</Link>
         </section>
       )}
-      {crew && <Qotd crewId={crew.id} live={live} />}
+      {crew && <Qotd crewId={crew.id} />}
 
       <div className="grid2">
         <Link to="/log" className="stat"><b>＋</b><span>Log cardio or body weight</span></Link>

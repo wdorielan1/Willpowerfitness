@@ -62,6 +62,7 @@ export default function Settings() {
 
       <section className="card">
         <h2>Workout</h2>
+        <Toggle label="Share finished workouts to my crew" hint="Posts a quick summary to your crew’s feed when you finish." on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
         <Toggle label="Ask how hard my last set felt (RPE)" hint="One quick rating at the end of each exercise. Helps the app decide when to add weight." on={s.rpeEnabled} onClick={() => setS({ rpeEnabled: !s.rpeEnabled })} />
         <h3>Workout length</h3>
         <p className="small mute">If your workout clock is still running after this long, we ask “still working out?” and end it automatically 30 minutes later if you don’t answer.</p>

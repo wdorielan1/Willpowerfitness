@@ -15,6 +15,10 @@ function decodeJwt(token: string): { email: string; name?: string } {
 export default function Auth() {
   const { signUp, logIn, googleIn, googleOAuth } = useApp()
   const [params] = useSearchParams()
+  useEffect(() => {
+    const ref = params.get('ref'), crew = params.get('crew')
+    if (ref || crew) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew })) } catch { /* storage unavailable */ } }
+  }, [params])
   const [mode, setMode] = useState<'signup' | 'login'>(params.get('m') === 'login' ? 'login' : 'signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')

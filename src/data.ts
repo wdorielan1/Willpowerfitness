@@ -158,6 +158,7 @@ export const ENCOURAGEMENTS = [
 
 export const DEFAULT_SETTINGS: Settings = {
   rest: { small: 45, medium: 75, large: 120, keyBonus: 30 },
+  autoShare: false,
   rpeEnabled: true,
   maxWorkoutHours: 5,
   autoTimer: true,

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useCallback } from 'react'
+import type { CrewPost, PostKind } from './types'
 import { todayISO } from './engine'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -81,25 +82,43 @@ export async function createCrewCloud(id: string, userId: string, name: string, 
   await supabase?.from('crews').insert({ id, name, time, vibe, created_by: userId })
 }
 export async function fetchCrews() {
-  const r = await supabase?.from('crews').select('id,name,time,vibe')
-  return (r?.data ?? []) as { id: string; name: string; time: string; vibe: string }[]
+  const r = await supabase?.from('crews').select('id,name,time,vibe,created_at')
+  return (r?.data ?? []).map((x) => ({ id: x.id as string, name: x.name as string, time: x.time as string, vibe: x.vibe as string, created: Date.parse(x.created_at as string) }))
 }
 
-/** Member counts + today's completions for every crew (one pair of queries). */
+export const INACTIVE_DAYS = 35
+
+export interface CrewCount { members: number; done: number; active: number; lastActive: number | null }
+
+/** Member counts, today's completions and real activity for every crew (a few light queries).
+ *  "active" = people who checked in or posted in the last 35 days. Nothing is inflated. */
 export function useCrewCounts() {
-  const [counts, setCounts] = useState<Record<string, { members: number; done: number }>>({})
+  const [counts, setCounts] = useState<Record<string, CrewCount>>({})
   useEffect(() => {
     if (!supabase) return
     let alive = true
     const load = async () => {
-      const [m, c] = await Promise.all([
+      const cutoff = new Date(Date.now() - INACTIVE_DAYS * 86400000).toISOString()
+      const [m, c, a, p] = await Promise.all([
         supabase.from('crew_members').select('crew_id'),
         supabase.from('crew_checkins').select('crew_id').eq('day', todayISO()).eq('done', true),
+        supabase.from('crew_checkins').select('crew_id,user_id,updated_at').gte('updated_at', cutoff),
+        supabase.from('crew_posts').select('crew_id,user_id,created_at').gte('created_at', cutoff),
       ])
       if (!alive) return
-      const out: Record<string, { members: number; done: number }> = {}
-      for (const r of m.data ?? []) (out[r.crew_id as string] ??= { members: 0, done: 0 }).members++
-      for (const r of c.data ?? []) (out[r.crew_id as string] ??= { members: 0, done: 0 }).done++
+      const out: Record<string, CrewCount> = {}
+      const get = (id: string) => (out[id] ??= { members: 0, done: 0, active: 0, lastActive: null })
+      for (const r of m.data ?? []) get(r.crew_id as string).members++
+      for (const r of c.data ?? []) get(r.crew_id as string).done++
+      const people: Record<string, Set<string>> = {}
+      const seen = (crew: string, user: string, at: string) => {
+        const row = get(crew); const ts = Date.parse(at)
+        ;(people[crew] ??= new Set()).add(user)
+        if (!row.lastActive || ts > row.lastActive) row.lastActive = ts
+      }
+      for (const r of a.data ?? []) seen(r.crew_id as string, r.user_id as string, r.updated_at as string)
+      for (const r of p.data ?? []) seen(r.crew_id as string, r.user_id as string, r.created_at as string)
+      for (const [id, set] of Object.entries(people)) get(id).active = set.size
       setCounts(out)
     }
     void load()
@@ -107,4 +126,103 @@ export function useCrewCounts() {
     return () => { alive = false; clearInterval(id) }
   }, [])
   return counts
+}
+
+// ---------------- crew feed ----------------
+export async function createPostCloud(p: { crewId: string; userId: string; name: string; kind: PostKind; text: string; imagePath?: string; meta?: Record<string, unknown> }) {
+  const { error } = await supabase!.from('crew_posts').insert({ crew_id: p.crewId, user_id: p.userId, name: p.name, kind: p.kind, text: p.text, image_path: p.imagePath ?? null, meta: p.meta ?? {} })
+  return error?.message ?? null
+}
+export async function deletePostCloud(id: string) { await supabase?.from('crew_posts').delete().eq('id', id) }
+export async function deleteMyPostsCloud(crewId: string, userId: string) { await supabase?.from('crew_posts').delete().eq('crew_id', crewId).eq('user_id', userId) }
+export async function toggleLikeCloud(postId: string, userId: string, liked: boolean) {
+  if (liked) await supabase?.from('crew_post_likes').delete().eq('post_id', postId).eq('user_id', userId)
+  else await supabase?.from('crew_post_likes').insert({ post_id: postId, user_id: userId })
+}
+
+/** The feed for one crew (newest first). Null when the backend isn't configured. */
+export function useCrewFeed(crewId: string | null, userId: string | null) {
+  const [posts, setPosts] = useState<CrewPost[]>([])
+  const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
+  useEffect(() => {
+    if (!supabase || !crewId) return
+    let alive = true
+    const load = async () => {
+      const { data: rows } = await supabase.from('crew_posts').select('id,user_id,name,kind,text,image_path,meta,created_at').eq('crew_id', crewId).order('created_at', { ascending: false }).limit(40)
+      const ids = (rows ?? []).map((r) => r.id as number)
+      const { data: likes } = ids.length ? await supabase.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
+      if (!alive) return
+      setPosts((rows ?? []).map((r) => {
+        const l = (likes ?? []).filter((x) => x.post_id === r.id)
+        return {
+          id: String(r.id), crewId, userId: r.user_id as string, name: r.name as string, kind: r.kind as PostKind, text: r.text as string,
+          imagePath: (r.image_path as string | null) ?? undefined, meta: (r.meta as Record<string, unknown>) ?? {}, ts: Date.parse(r.created_at as string),
+          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId),
+        }
+      }))
+    }
+    void load()
+    const id = setInterval(load, 15000)
+    return () => { alive = false; clearInterval(id) }
+  }, [crewId, userId, tick])
+  return supabase ? { posts, refresh } : null
+}
+
+// ---------------- challenges ----------------
+export interface ChallengeRow { userId: string; name: string; score: number }
+export async function pushScore(cohort: string, userId: string, name: string, score: number) {
+  await supabase?.from('challenge_scores').upsert({ cohort, user_id: userId, name, score, updated_at: new Date().toISOString() })
+}
+export function useLeaderboard(cohort: string | null, userId: string | null) {
+  const [rows, setRows] = useState<(ChallengeRow & { mine: boolean })[]>([])
+  useEffect(() => {
+    if (!supabase || !cohort) return
+    let alive = true
+    const load = async () => {
+      const { data } = await supabase.from('challenge_scores').select('user_id,name,score').eq('cohort', cohort).order('score', { ascending: false }).limit(25)
+      if (alive) setRows((data ?? []).map((r) => ({ userId: r.user_id as string, name: (r.name as string).split(' ')[0], score: Number(r.score), mine: r.user_id === userId })))
+    }
+    void load()
+    const id = setInterval(load, 20000)
+    return () => { alive = false; clearInterval(id) }
+  }, [cohort, userId])
+  return rows
+}
+
+// ---------------- friends ----------------
+export interface PublicProfile { userId: string; handle: string; name: string }
+export const sha256 = async (text: string) => {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text.trim().toLowerCase()))
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+export async function saveMyDiscovery(userId: string, p: { handle: string; name: string; findByHandle: boolean; findByEmail: boolean; email: string | null }) {
+  const email_hash = p.findByEmail && p.email ? await sha256(p.email) : null
+  const { error } = await supabase!.from('public_profiles').upsert({ user_id: userId, handle: p.handle.toLowerCase(), name: p.name, discoverable_handle: p.findByHandle, discoverable_email: p.findByEmail, email_hash, updated_at: new Date().toISOString() })
+  return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
+}
+export async function findByHandle(q: string): Promise<PublicProfile[]> {
+  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_handle', true).ilike('handle', `${q.toLowerCase().replace(/[^a-z0-9_]/g, '')}%`).limit(10)
+  return (data ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string }))
+}
+export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
+  const hashes = await Promise.all(emails.map(sha256))
+  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_email', true).in('email_hash', hashes).limit(50)
+  return (data ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string }))
+}
+export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
+export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
+export async function fetchFriends(userId: string): Promise<(PublicProfile & { crews: string[] })[]> {
+  const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
+  const ids = (f ?? []).map((r) => r.friend_id as string)
+  if (!ids.length) return []
+  const [{ data: profs }, { data: mem }] = await Promise.all([
+    supabase!.from('public_profiles').select('user_id,handle,name').in('user_id', ids),
+    supabase!.from('crew_members').select('user_id,crew_id').in('user_id', ids),
+  ])
+  return (profs ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string, crews: (mem ?? []).filter((m) => m.user_id === r.user_id).map((m) => m.crew_id as string) }))
+}
+export async function handleToUser(handle: string): Promise<string | null> {
+  const { data } = await supabase!.from('public_profiles').select('user_id').eq('handle', handle.toLowerCase()).maybeSingle()
+  return (data?.user_id as string) ?? null
 }

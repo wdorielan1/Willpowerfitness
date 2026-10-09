@@ -46,10 +46,18 @@ export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string,
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
 export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }
-export interface CustomCommunity { id: string; name: string; time: string; vibe: string }
+export type PostKind = 'post' | 'qotd' | 'workout' | 'photo'
+export interface CrewPost {
+  id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
+  imagePath?: string; imageId?: string // cloud storage path, or local image id
+  meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean
+}
+export interface StepLog { date: string; steps: number }
+export interface CustomCommunity { id: string; name: string; time: string; vibe: string; created?: number }
 
 export interface Settings {
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
+  autoShare: boolean // post finished workouts to my crew
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set
@@ -79,6 +87,12 @@ export interface AppData {
   started: Record<string, number> // date -> start timestamp
   photos: Photo[]
   qotd: Record<string, { answer?: string; skipped?: boolean }> // `${crew}|${date}`
+  posts: CrewPost[] // used when running without the cloud backend
+  steps: StepLog[]
+  challengesJoined: string[] // challenge cohort ids
+  handle?: string
+  findByHandle?: boolean
+  findByEmail?: boolean
   settings: Settings
   extendHours: Record<string, number> // date -> extra hours the user said to keep going
   ts?: number // last local change, used to pick the newest copy when syncing

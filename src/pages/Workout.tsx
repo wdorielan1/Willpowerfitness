@@ -7,6 +7,7 @@ import { SPLIT, WARMUP } from '../data'
 import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, generateWorkout, recommend, restFor, swapOptions, todayISO } from '../engine'
 import { imgUrl, mediaFor } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
+import { usePostActions } from './Feed'
 import type { AppData, DayType, LogEntry, SetEntry } from '../types'
 
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
@@ -92,6 +93,7 @@ export default function Workout() {
   const { data, update } = useApp()
   const ci = useCheckin()
   const timer = useRestTimer()
+  const { post: postToCrew } = usePostActions(data.primary ?? '')
   const nav = useNavigate()
   const p = data.profile!
   const today = todayISO()
@@ -204,6 +206,12 @@ export default function Workout() {
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
+    if (data.settings.autoShare && data.primary && entries.length) {
+      const sets = entries.reduce((a, e) => a + e.sets.length, 0)
+      const volume = Math.round(entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0))
+      const mins = started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : 0
+      void postToCrew({ kind: 'workout', text: `Finished ${plan.day}${mins ? ` in ${mins} min` : ''}`, meta: { sets, volume, exercises: entries.length } })
+    }
     setSaved(true)
     setTimeout(() => nav('/'), 900)
   }

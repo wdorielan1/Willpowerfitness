@@ -7,7 +7,9 @@ import { todayISO } from '../engine'
 export default function QuickLog() {
   const { data, update } = useApp()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('t') === 'weight' ? 'weight' : 'cardio'
+  const t = params.get('t')
+  const tab = t === 'weight' ? 'weight' : t === 'steps' ? 'steps' : 'cardio'
+  const [steps, setSteps] = useState('')
   const [kind, setKind] = useState(CARDIO_KINDS[2])
   const [mins, setMins] = useState('')
   const [note, setNote] = useState('')
@@ -25,6 +27,12 @@ export default function QuickLog() {
     update((d) => ({ ...d, weights: [...d.weights.filter((w) => w.date !== today), { date: today, lbs: Number(lbs) }] }))
     setLbs(''); setMsg('Body weight logged.')
   }
+  const saveSteps = () => {
+    const n = Math.round(Number(steps.replace(/,/g, '')))
+    if (!(n > 0)) return
+    update((d) => ({ ...d, steps: [...d.steps.filter((s) => s.date !== today), { date: today, steps: n }] }))
+    setSteps(''); setMsg('Steps saved.')
+  }
   const recent = data.cardio.slice(-3).reverse()
 
   return (
@@ -33,6 +41,7 @@ export default function QuickLog() {
       <div className="tabs">
         <button className={tab === 'cardio' ? 'on' : ''} onClick={() => { setParams({ t: 'cardio' }); setMsg('') }}>Cardio</button>
         <button className={tab === 'weight' ? 'on' : ''} onClick={() => { setParams({ t: 'weight' }); setMsg('') }}>Body weight</button>
+        <button className={tab === 'steps' ? 'on' : ''} onClick={() => { setParams({ t: 'steps' }); setMsg('') }}>Steps</button>
       </div>
       {tab === 'cardio' ? (
         <section className="card">
@@ -41,6 +50,12 @@ export default function QuickLog() {
           <label>Notes<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Speed, incline, how it felt" /></label>
           <button className="primary" onClick={saveCardio}>Save cardio</button>
           {recent.map((c, i) => <div key={i} className="small mute">{c.date} · {c.kind} · {c.minutes} min</div>)}
+        </section>
+      ) : tab === 'steps' ? (
+        <section className="card">
+          <label>Today’s steps<input inputMode="numeric" value={steps} onChange={(e) => setSteps(e.target.value)} placeholder={String(data.steps.find((s) => s.date === today)?.steps ?? '8,000')} /></label>
+          <button className="primary" onClick={saveSteps}>Save steps</button>
+          <p className="small mute">Enter your total for today (your phone’s Health app shows it). Saving again replaces today’s number.</p>
         </section>
       ) : (
         <section className="card">
