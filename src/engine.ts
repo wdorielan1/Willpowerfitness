@@ -1,5 +1,5 @@
 import { EXERCISES, SPLIT } from './data'
-import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Profile, SetEntry, WorkoutLog } from './types'
+import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Profile, SetEntry, Settings, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -228,3 +228,18 @@ export const MEALS: Record<CarbDay, { id: string; name: string; example: string 
     { id: 'd', name: 'Dinner', example: 'Turkey pasta bowl, olive oil, side salad' },
   ],
 }
+
+// ---------- rest timing: bigger muscles and heavy main lifts get longer rests ----------
+export type MuscleSize = 'small' | 'medium' | 'large'
+const SIZE: Record<string, MuscleSize> = {
+  Chest: 'large', 'Upper chest': 'large', Back: 'large', Lats: 'large', Quads: 'large', Hamstrings: 'large',
+  'Quads/Glutes': 'large', 'Posterior chain': 'large', 'Full body': 'large', Legs: 'large',
+  Shoulders: 'medium', 'Mid back': 'medium', Traps: 'medium',
+  Triceps: 'small', Biceps: 'small', 'Side delts': 'small', 'Rear delts': 'small', Calves: 'small', Abs: 'small', Arms: 'small',
+}
+export const muscleSize = (muscle: string): MuscleSize => SIZE[muscle] ?? 'medium'
+export function restFor(ex: Exercise, s: Settings['rest']): number {
+  const size = muscleSize(ex.muscle)
+  return s[size] + (ex.key && size !== 'small' ? s.keyBonus : 0)
+}
+export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`)

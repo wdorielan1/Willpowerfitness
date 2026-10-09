@@ -44,6 +44,13 @@ export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string }
 
+export interface Settings {
+  rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
+  autoTimer: boolean // start the rest timer when you log a set
+  sound: boolean
+  vibrate: boolean
+}
+
 export interface AppData {
   name: string
   profile: Profile | null
@@ -66,5 +73,6 @@ export interface AppData {
   started: Record<string, number> // date -> start timestamp
   photos: Photo[]
   qotd: Record<string, { answer?: string; skipped?: boolean }> // `${crew}|${date}`
+  settings: Settings
   ts?: number // last local change, used to pick the newest copy when syncing
 }

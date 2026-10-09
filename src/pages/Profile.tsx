@@ -5,10 +5,9 @@ import { fmtTime } from '../engine'
 import { useCrew } from './Crew'
 
 export default function Profile() {
-  const { data, email, update, logOut } = useApp()
+  const { data, email, logOut } = useApp()
   const p = data.profile!
   const crew = useCrew()
-  const redo = () => update((d) => ({ ...d, profile: null }))
   const rows: [string, string][] = [
     ['Goal', GOALS[p.goal]], ['Experience', LEVELS[p.level]], ['Days', p.days.map((d) => DAY_NAMES[d]).join(', ')],
     ['Time', fmtTime(p.time)], ['Equipment', { gym: 'Full gym', db: 'Dumbbells', bw: 'Bodyweight' }[p.gear]],
@@ -21,7 +20,7 @@ export default function Profile() {
       <section className="card">
         <b>{data.name}</b><span className="small mute">{email}</span>
         {rows.map(([k, v]) => <div key={k} className="row small"><span className="mute">{k}</span><b>{v}</b></div>)}
-        <button className="ghost" onClick={redo}>Edit onboarding answers</button>
+        <Link to="/settings" className="btn ghost">Change these in Settings</Link>
       </section>
       <section className="card">
         <h3>Plans</h3>

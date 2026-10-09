@@ -1,4 +1,4 @@
-import type { DayType, Exercise, Goal, Level } from './types'
+import type { DayType, Exercise, Goal, Level, Settings } from './types'
 
 export const TAGLINE = 'Wake Up. Show Up. Lift.'
 
@@ -111,4 +111,16 @@ export const ENCOURAGEMENTS = [
   'The crew is already in. Get in here.',
   'Motivation is a visitor. Discipline lives here.',
   'One more day on the streak. Take it.',
+]
+
+export const DEFAULT_SETTINGS: Settings = {
+  rest: { small: 45, medium: 75, large: 120, keyBonus: 30 },
+  autoTimer: true,
+  sound: true,
+  vibrate: true,
+}
+export const REST_PRESETS: { id: string; label: string; hint: string; rest: Settings['rest'] }[] = [
+  { id: 'quick', label: 'Quick', hint: '30–60 s, short on time', rest: { small: 30, medium: 45, large: 60, keyBonus: 0 } },
+  { id: 'balanced', label: 'Balanced', hint: 'Recommended', rest: { small: 45, medium: 75, large: 120, keyBonus: 30 } },
+  { id: 'strength', label: 'Strength', hint: 'Longer rests for heavy lifting', rest: { small: 60, medium: 105, large: 150, keyBonus: 60 } },
 ]

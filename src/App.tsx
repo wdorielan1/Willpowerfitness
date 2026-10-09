@@ -13,6 +13,8 @@ import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
+import Settings from './pages/Settings'
+import { RestTimerProvider } from './RestTimer'
 import Photos from './pages/Photos'
 import ImportHistory from './pages/ImportHistory'
 import Privacy from './pages/Privacy'
@@ -54,12 +56,14 @@ export default function App() {
   }
   if (!data.profile) return <Onboarding />
   return (
+    <RestTimerProvider>
     <div className="shell">
       <ScrollTop />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
         <nav className="top-links">
           <Link to="/shortcuts">Siri</Link>
+          <Link to="/settings">Settings</Link>
           <Link to="/profile">Profile</Link>
         </nav>
       </header>
@@ -75,6 +79,7 @@ export default function App() {
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/shortcuts" element={<Shortcuts />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/go/:action" element={<Go />} />
@@ -89,5 +94,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </RestTimerProvider>
   )
 }

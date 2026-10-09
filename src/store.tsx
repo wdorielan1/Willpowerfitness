@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AppData } from './types'
 import { supabase, fetchCrews } from './cloud'
+import { DEFAULT_SETTINGS } from './data'
 
 const SESSION = 'wpf.session'
 const ACCOUNTS = 'wpf.accounts'
@@ -9,7 +10,7 @@ const dataKey = (email: string) => `wpf.data.${email}`
 export const blankData = (name: string): AppData => ({
   name, profile: null, joined: [], primary: null, checkins: {}, logs: [], cardio: [], weights: [],
   swaps: {}, short: {}, drafts: {}, meals: {}, messages: [], custom: [], partner: false,
-  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {},
+  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, settings: DEFAULT_SETTINGS,
 })
 
 const read = <T,>(k: string, fallback: T): T => {

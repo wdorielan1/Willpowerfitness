@@ -4,7 +4,8 @@ import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { Sheet } from '../components'
 import { SPLIT, WARMUP } from '../data'
-import { addableExercises, cardioFinisher, emptySets, generateWorkout, recommend, swapOptions, todayISO } from '../engine'
+import { addableExercises, cardioFinisher, emptySets, fmtRest, generateWorkout, recommend, restFor, swapOptions, todayISO } from '../engine'
+import { useRestTimer } from '../RestTimer'
 import type { DayType, LogEntry, SetEntry } from '../types'
 
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
@@ -23,6 +24,7 @@ function Elapsed({ since }: { since: number }) {
 export default function Workout() {
   const { data, update } = useApp()
   const ci = useCheckin()
+  const timer = useRestTimer()
   const nav = useNavigate()
   const p = data.profile!
   const today = todayISO()
@@ -165,7 +167,7 @@ export default function Workout() {
             <div className="row">
               <div><span className="tag">{idx + 1}. {ex.muscle}{ex.key ? ' · key lift' : ''}</span><h2 style={{ marginTop: 6 }}>{ex.name}</h2></div>
             </div>
-            <div className="small mute">{sets} × {ex.reps[0]}–{ex.reps[1]} reps · rest {Math.round(ex.rest / 60 * 10) / 10} min{swapped ? ' · swapped' : ''}</div>
+            <div className="small mute">{sets} × {ex.reps[0]}–{ex.reps[1]} reps · rest {fmtRest(restFor(ex, data.settings.rest))}{swapped ? ' · swapped' : ''}</div>
             <div className="small mute">{ex.note}</div>
             <div className={`rec ${rec.action}`}>
               <div className="row"><b>{rec.last ? `Last time: ${rec.last.sets.map((s) => `${s.weight}×${s.reps}`).join(', ')}` : 'First time logging this lift'}</b><span className={`tag ${TAG[rec.action]}`}>{LABEL[rec.action]}</span></div>
@@ -177,13 +179,14 @@ export default function Workout() {
                 <div className="setrow" key={i}>
                   <button className="n" style={{ background: 'transparent', minHeight: 0, padding: 0, color: 'var(--mute)' }} title="Remove set" onClick={() => dropSet(ex.id, base, i)}>{i + 1}</button>
                   <input inputMode="decimal" value={r.weight} onChange={(e) => edit(ex.id, base, i, 'weight', e.target.value)} placeholder="lb" />
-                  <input inputMode="numeric" value={r.reps} onChange={(e) => edit(ex.id, base, i, 'reps', e.target.value)} placeholder={String(ex.reps[1])} />
+                  <input inputMode="numeric" value={r.reps} onChange={(e) => { if (!r.reps && e.target.value && data.settings.autoTimer) timer.start(restFor(ex, data.settings.rest), ex.name); edit(ex.id, base, i, 'reps', e.target.value) }} placeholder={String(ex.reps[1])} />
                   <input inputMode="decimal" value={r.rpe} onChange={(e) => edit(ex.id, base, i, 'rpe', e.target.value)} placeholder="8" />
                 </div>
               ))}
             </div>
             <input value={draft.notes[ex.id] ?? logged?.note ?? ''} onChange={(e) => setDraft((dr) => ({ ...dr, notes: { ...dr.notes, [ex.id]: e.target.value } }))} placeholder="Notes" />
             <div className="row wrap">
+              <button className="ghost small-btn" onClick={() => timer.start(restFor(ex, data.settings.rest), ex.name)}>⏱ Rest</button>
               <button className="ghost small-btn" onClick={() => addSet(ex.id, base)}>+ Set</button>
               <button className="ghost small-btn" onClick={() => setSheet({ kind: 'swap', orig, cur: ex.id })}>Swap</button>
               <button className="ghost small-btn" onClick={() => removeEx(orig, ex.id)}>Remove</button>
