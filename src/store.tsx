@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AppData } from './types'
-import { supabase, fetchCrews } from './cloud'
+import { supabase, fetchCrews, ensureMemberCloud } from './cloud'
 import { DEFAULT_SETTINGS } from './data'
 
 const SESSION = 'wpf.session'
@@ -99,6 +99,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setEmail(u.email ?? u.id)
       loaded.current = true
       setLoading(false)
+      // make sure every crew you're in is also recorded in the database (needed to post and to be counted)
+      for (const crewId of base.joined) void ensureMemberCloud(crewId, u.id, base.name)
     }
     void supabase.auth.getSession().then(({ data: s }) => hydrate(s.session?.user ?? null))
     const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => {

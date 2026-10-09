@@ -65,7 +65,13 @@ export function useLiveCrew(crewId: string | null, userId: string | null): LiveC
 }
 
 export async function joinCrewCloud(crewId: string, userId: string, name: string, streak: number) {
-  await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak })
+  const { error } = (await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak })) ?? {}
+  return error?.message ?? null
+}
+/** Make sure the database knows you're in this crew, without touching an existing streak. Safe to call any time. */
+export async function ensureMemberCloud(crewId: string, userId: string, name: string) {
+  const { error } = (await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak: 0 }, { onConflict: 'crew_id,user_id', ignoreDuplicates: true })) ?? {}
+  return error?.message ?? null
 }
 export async function leaveCrewCloud(crewId: string, userId: string) {
   await supabase?.from('crew_members').delete().eq('crew_id', crewId).eq('user_id', userId)

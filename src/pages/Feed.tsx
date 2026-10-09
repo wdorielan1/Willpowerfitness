@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useApp } from '../store'
 import { ConfirmSheet } from '../components'
-import { createPostCloud, deletePostCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
+import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { ENCOURAGEMENTS } from '../data'
 import { todayISO } from '../engine'
@@ -23,19 +23,24 @@ export function usePostActions(crewId: string) {
   const post = async (p: { kind: PostKind; text: string; photo?: Blob; meta?: Record<string, unknown> }): Promise<string | null> => {
     let imagePath: string | undefined
     let imageId: string | undefined
+    // Posting is only allowed for crew members. Repair a missing membership row first.
+    if (userId) {
+      const m = await ensureMemberCloud(crewId, userId, name)
+      if (m) return `Couldn’t confirm your crew membership: ${m}`
+    }
     if (p.photo) {
       const small = await compress(p.photo)
       const id = `${Date.now()}`
       if (userId) {
         const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, `${crewId}/${userId}`)
-        if (r.where !== 'cloud') return 'Photo storage is not set up yet. Run the latest supabase/schema.sql, then try again.'
+        if (r.where !== 'cloud') return `Photo upload failed${r.error ? `: ${r.error}` : ''}. If this says the bucket wasn’t found, the storage part of schema.sql needs to be run.`
         imagePath = r.path
       } else { await savePhotoBlob(id, small, null); imageId = id }
     }
     if (userId) {
       const err = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePath, meta: p.meta })
       feed?.refresh()
-      return err
+      return err ? `Couldn’t post: ${err}` : null
     }
     const local: CrewPost = { id: `${Date.now()}`, crewId, name, kind: p.kind, text: p.text, imageId, meta: p.meta, ts: Date.now(), mine: true, likes: 0, liked: false }
     update((d) => ({ ...d, posts: [local, ...d.posts] }))

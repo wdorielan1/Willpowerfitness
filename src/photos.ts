@@ -35,7 +35,7 @@ export async function compress(src: Blob, max = 1280): Promise<Blob> {
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('compress failed'))), 'image/jpeg', 0.82))
 }
 
-export interface SaveResult { path?: string; where: 'cloud' | 'device' }
+export interface SaveResult { path?: string; where: 'cloud' | 'device'; error?: string }
 
 export async function savePhotoBlob(id: string, blob: Blob, userId: string | null, bucket = BUCKET, folder = userId ?? ''): Promise<SaveResult> {
   if (supabase && userId) {
@@ -43,6 +43,8 @@ export async function savePhotoBlob(id: string, blob: Blob, userId: string | nul
     const { error } = await supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
     if (!error) return { path, where: 'cloud' }
     console.warn('photo upload failed, keeping on device:', error.message)
+    await idb('readwrite', (s) => s.put(blob, id))
+    return { where: 'device', error: error.message }
   }
   await idb('readwrite', (s) => s.put(blob, id))
   return { where: 'device' }
