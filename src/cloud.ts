@@ -77,8 +77,8 @@ export async function pushCheckin(crewId: string, userId: string, name: string, 
 export async function postMessageCloud(crewId: string, userId: string, name: string, text: string) {
   await supabase?.from('crew_messages').insert({ crew_id: crewId, user_id: userId, name, text })
 }
-export async function createCrewCloud(id: string, userId: string, name: string, time: string) {
-  await supabase?.from('crews').insert({ id, name, time, created_by: userId })
+export async function createCrewCloud(id: string, userId: string, name: string, time: string, vibe = 'Time-based crew') {
+  await supabase?.from('crews').insert({ id, name, time, vibe, created_by: userId })
 }
 export async function fetchCrews() {
   const r = await supabase?.from('crews').select('id,name,time,vibe')

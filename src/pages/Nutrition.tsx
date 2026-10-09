@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../store'
-import { carbDayFor, dayTypeFor, macroPlan, MEALS, todayISO } from '../engine'
+import { carbDayFor, dayFor, macroPlan, MEALS, todayISO } from '../engine'
 import { GOALS } from '../data'
 import type { CarbDay } from '../types'
 
@@ -9,7 +9,7 @@ export default function Nutrition() {
   const p = data.profile!
   const today = todayISO()
   const plan = macroPlan(p)
-  const suggested = carbDayFor(dayTypeFor(today, p, data.logs))
+  const suggested = carbDayFor(dayFor(today, data))
   const [sel, setSel] = useState<CarbDay>(suggested)
   const m = plan[sel]
   const checked = data.meals[today] ?? []

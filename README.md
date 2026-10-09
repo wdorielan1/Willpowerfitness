@@ -20,6 +20,8 @@ npm run build
    `VITE_SUPABASE_URL=...` and `VITE_SUPABASE_ANON_KEY=...`
 5. `npm run dev`. Accounts, check-ins, streaks, crews and messages are now shared between real users; personal data (logs, weights, profile) syncs across devices.
 
+Re-run `supabase/schema.sql` whenever it changes (it is safe to run repeatedly); the latest version adds the private `progress-photos` storage bucket used by Progress Photos.
+
 Without these keys the app runs local-only with sample community data.
 
 ## Beta notes

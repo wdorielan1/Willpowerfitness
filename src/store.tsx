@@ -9,6 +9,7 @@ const dataKey = (email: string) => `wpf.data.${email}`
 export const blankData = (name: string): AppData => ({
   name, profile: null, joined: [], primary: null, checkins: {}, logs: [], cardio: [], weights: [],
   swaps: {}, short: {}, drafts: {}, meals: {}, messages: [], custom: [], partner: false,
+  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {},
 })
 
 const read = <T,>(k: string, fallback: T): T => {
@@ -49,21 +50,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => {
     if (supabase) return blankData('')
     const e = read<string | null>(SESSION, null)
-    return e ? read(dataKey(e), blankData('')) : blankData('')
+    return e ? { ...blankData(''), ...read<Partial<AppData>>(dataKey(e), {}) } : blankData('')
   })
 
   // ---- local-only mode: persist per email on this device ----
   useEffect(() => { if (!supabase && email) write(dataKey(email), data) }, [email, data])
 
   // ---- cloud mode: session + load profile ----
+  const hydratedFor = useRef<string | null>(null)
+  const dataRef = useRef(data)
+  dataRef.current = data
+  const cacheKey = (id: string) => `wpf.cache.${id}`
+
   useEffect(() => {
     if (!supabase) return
     const hydrate = async (u: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null) => {
+      if (!u) {
+        hydratedFor.current = null; loaded.current = false
+        setUserId(null); setEmail(null); setData(blankData('')); setLoading(false)
+        return
+      }
+      if (hydratedFor.current === u.id) return // token refresh / tab focus: keep what we have
+      hydratedFor.current = u.id
       loaded.current = false
-      if (!u) { setUserId(null); setEmail(null); setData(blankData('')); setLoading(false); return }
-      const { data: row } = await supabase!.from('profiles').select('name,data').eq('id', u.id).maybeSingle()
+      const { data: row, error } = await supabase!.from('profiles').select('name,data').eq('id', u.id).maybeSingle()
+      const cached = read<Partial<AppData> | null>(cacheKey(u.id), null)
+      if (error && !cached) {
+        // Could not reach the database and nothing cached: do NOT continue with blank data (it would overwrite the real profile).
+        hydratedFor.current = null
+        setLoading(false)
+        return
+      }
+      const remote = (row?.data as Partial<AppData> | undefined) ?? null
       const name = (row?.name as string) || (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || (u.email ?? '').split('@')[0]
-      const base = { ...blankData(name), ...((row?.data as Partial<AppData>) ?? {}), name }
+      // use whichever copy is newer
+      const newest = remote && cached ? ((cached.ts ?? 0) > (remote.ts ?? 0) ? cached : remote) : remote ?? cached ?? {}
+      const base = { ...blankData(name), ...newest, name: (newest as Partial<AppData>).name || name }
       const crews = await fetchCrews()
       setData({ ...base, custom: crews })
       setUserId(u.id)
@@ -73,25 +95,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     void supabase.auth.getSession().then(({ data: s }) => hydrate(s.session?.user ?? null))
     const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => {
-      if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') void hydrate(session?.user ?? null)
+      if (ev === 'SIGNED_OUT') void hydrate(null)
+      else if (ev === 'SIGNED_IN' && session?.user) void hydrate(session.user)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  // ---- cloud mode: debounced save of private data ----
+  // ---- cloud mode: cache on device + save to the database (debounced, and flushed when the app is hidden) ----
+  const saveNow = useCallback(() => {
+    const uid = userId
+    if (!supabase || !uid || !loaded.current) return
+    const { custom: _c, ...rest } = dataRef.current
+    void _c
+    void supabase.from('profiles').upsert({ id: uid, name: dataRef.current.name, data: rest, updated_at: new Date().toISOString() })
+  }, [userId])
+
   useEffect(() => {
     if (!supabase || !userId || !loaded.current) return
-    const t = setTimeout(() => {
-      const { custom: _c, ...rest } = data
-      void _c
-      void supabase!.from('profiles').upsert({ id: userId, name: data.name, data: rest, updated_at: new Date().toISOString() })
-    }, 800)
+    const { custom: _c, ...rest } = data
+    void _c
+    write(cacheKey(userId), rest)
+    const t = setTimeout(saveNow, 400)
     return () => clearTimeout(t)
-  }, [data, userId])
+  }, [data, userId, saveNow])
+
+  useEffect(() => {
+    const flush = () => { if (document.visibilityState === 'hidden') saveNow() }
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', saveNow)
+    return () => { document.removeEventListener('visibilitychange', flush); window.removeEventListener('pagehide', saveNow) }
+  }, [saveNow])
 
   const begin = useCallback((e: string, name: string) => {
     write(SESSION, e)
-    setData(read(dataKey(e), blankData(name)))
+    setData({ ...blankData(name), ...read<Partial<AppData>>(dataKey(e), {}) })
     setEmail(e)
   }, [])
 
@@ -134,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (supabase) { void supabase.auth.signOut(); return }
     write(SESSION, null); setEmail(null); setData(blankData(''))
   }
-  const update = useCallback((fn: (d: AppData) => AppData) => setData((d) => fn(d)), [])
+  const update = useCallback((fn: (d: AppData) => AppData) => setData((d) => ({ ...fn(d), ts: Date.now() })), [])
 
   return <C.Provider value={{ email, userId, loading, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
 }

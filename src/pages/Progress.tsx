@@ -51,6 +51,10 @@ export default function Progress() {
   return (
     <>
       <h1>Progress</h1>
+      <div className="grid2">
+        <Link to="/photos" className="stat"><b>📸</b><span>Progress photos &amp; side-by-sides</span></Link>
+        <Link to="/import" className="stat"><b>⬆️</b><span>Import lifting history</span></Link>
+      </div>
       <section className="card hero">
         <h3>Last 7 days</h3>
         <div className="grid3">

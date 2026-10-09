@@ -13,6 +13,8 @@ import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
+import Photos from './pages/Photos'
+import ImportHistory from './pages/ImportHistory'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="/workout" element={<Workout />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/log" element={<QuickLog />} />
+          <Route path="/photos" element={<Photos />} />
+          <Route path="/import" element={<ImportHistory />} />
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/shortcuts" element={<Shortcuts />} />
           <Route path="/profile" element={<Profile />} />

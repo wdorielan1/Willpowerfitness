@@ -11,6 +11,8 @@ const SHORTCUTS: Sc[] = [
   { title: 'Log cardio', phrase: 'Log cardio', url: 'cardio', how: ['Add “Open URLs” with the link below'] },
   { title: 'Log body weight', phrase: 'Log my weight', url: 'weight', how: ['Add “Open URLs” with the link below'] },
   { title: 'Reminder if I don’t check in', phrase: '(automation)', how: ['Shortcuts → Automation → Time of Day → 30 minutes after your workout time', 'Add “Show Notification”: “You said you’d go. Still on?”', 'Add “Open URLs” with the “I’m going” link'] },
+  { title: 'Start my workout', phrase: 'Start my workout', url: 'start', how: ['Add “Open URLs” with the link below', 'Marks you as going and starts the workout timer'] },
+  { title: 'Arrive at the gym → start workout', phrase: '(automation)', url: 'arrive', how: ['Shortcuts → Automation → New → Arrive → choose your gym', 'Set it to Run Immediately (or Ask Before Running)', 'Add “Open URLs” with the link below', 'The app starts your workout only if you are in a crew and your crew time is within 90 minutes. Otherwise it just opens your workout. Your phone does the location check, the app never tracks you.'] },
   { title: 'Open today’s workout', phrase: 'Open my workout', url: 'workout', how: ['Add “Open URLs” with the link below'] },
 ]
 

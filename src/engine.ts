@@ -52,19 +52,23 @@ export function isTrainingDay(date: string, p: Profile) {
 /** Next day in the Push/Pull/Legs/Shoulders/Full Body rotation, based on the last logged session. */
 export function dayTypeFor(date: string, p: Profile, logs: WorkoutLog[]): DayType {
   if (!isTrainingDay(date, p)) return 'Rest/Cardio'
-  const done = logs.filter((l) => l.date === date && l.dayType !== 'Rest/Cardio')
+  const done = logs.filter((l) => l.date === date && l.dayType !== 'Rest/Cardio' && !l.baseline)
   if (done.length) return done[done.length - 1].dayType
-  const prior = [...logs].filter((l) => l.date < date && l.dayType !== 'Rest/Cardio').sort((a, b) => a.date.localeCompare(b.date))
+  const prior = [...logs].filter((l) => l.date < date && l.dayType !== 'Rest/Cardio' && !l.baseline).sort((a, b) => a.date.localeCompare(b.date))
   const last = prior[prior.length - 1]
   if (!last) return SPLIT[0]
   return SPLIT[(SPLIT.indexOf(last.dayType) + 1) % SPLIT.length]
 }
 
-export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean }
+/** Today's workout type, honouring a manual switch. */
+export const dayFor = (date: string, d: AppData): DayType =>
+  d.dayOverride?.[date] ?? dayTypeFor(date, d.profile!, d.logs)
+
+export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string }
 
 export function generateWorkout(date: string, d: AppData, short: boolean) {
   const p = d.profile!
-  const day = dayTypeFor(date, p, d.logs)
+  const day = dayFor(date, d)
   if (day === 'Rest/Cardio') return { day, items: [] as PlannedExercise[] }
   const all = pool(day, p)
   const keys = all.filter((x) => x.key).slice(0, 2)
@@ -75,18 +79,33 @@ export function generateWorkout(date: string, d: AppData, short: boolean) {
   const accessories: Exercise[] = []
   for (let i = 0; i < Math.min(nAcc, rest.length); i++) accessories.push(rest[(week + i) % rest.length])
   const strengthBias = p.style === 'strength' || p.goal === 'strength'
-  const items = [...keys, ...accessories].map((ex0) => {
+  const removed = d.removed?.[date] ?? []
+  const build = (ex0: Exercise) => {
     const swap = d.swaps[`${date}|${ex0.id}`]
     const ex = swap ? EXERCISES.find((x) => x.id === swap) ?? ex0 : ex0
     let sets = ex.sets + (strengthBias && ex.key ? 1 : 0) - (p.level === 'beginner' ? 1 : 0)
     if (short) sets -= 1
-    return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id }
-  })
-  return { day, items }
+    return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
+  }
+  const base = [...keys, ...accessories].map(build).filter((i) => !removed.includes(i.orig) && !removed.includes(i.ex.id))
+  const extras = (d.extras?.[date] ?? [])
+    .map((id) => EXERCISES.find((x) => x.id === id))
+    .filter((x): x is Exercise => !!x && !base.some((i) => i.ex.id === x.id))
+    .map((ex) => ({ ex, sets: ex.sets, swapped: false, orig: ex.id }))
+  return { day, items: [...base, ...extras] as PlannedExercise[] }
 }
 
+/** Alternatives for an exercise: same muscle group first, then anything else that fits your equipment. */
 export function swapOptions(ex: Exercise, current: string[], p: Profile) {
-  return EXERCISES.filter((x) => x.day === ex.day && x.id !== ex.id && !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid))
+  const ok = (x: Exercise) => x.id !== ex.id && !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid)
+  const same = EXERCISES.filter((x) => ok(x) && x.muscle.split('/')[0] === ex.muscle.split('/')[0])
+  const day = EXERCISES.filter((x) => ok(x) && x.day === ex.day && !same.includes(x))
+  return [...same, ...day]
+}
+
+/** Every exercise you could add to today's workout. */
+export function addableExercises(current: string[], p: Profile) {
+  return EXERCISES.filter((x) => !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid))
 }
 
 export function cardioFinisher(p: Profile, day: DayType) {

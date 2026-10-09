@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { dayTypeFor, fmtTime, streak, todayISO } from '../engine'
+import { dayFor, fmtTime, streak, todayISO } from '../engine'
+import Qotd from './Qotd'
 import { ENCOURAGEMENTS } from '../data'
 import { roster, stats, useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
@@ -12,7 +13,9 @@ export default function Dashboard() {
   const ci = useCheckin()
   const crew = useCrew()
   const today = todayISO()
-  const day = dayTypeFor(today, p, data.logs)
+  const nav = useNavigate()
+  const day = dayFor(today, data)
+  const logged = data.logs.some((l) => l.date === today && !l.baseline)
   const rest = day === 'Rest/Cardio'
   const s = streak(data)
   const live = useLiveCrew(crew?.id ?? null, userId)
@@ -37,7 +40,11 @@ export default function Dashboard() {
         <div className="row">
           <div><b style={{ fontSize: 22 }}>{day}</b><div className="mute small">Committed to {fmtTime(p.time)}{crew ? ` · ${crew.name}` : ''}</div></div>
         </div>
-        {!ci.done && <Link to="/workout" className="btn primary full">{rest ? 'See cardio plan' : 'Start workout'}</Link>}
+        {!ci.done && (rest
+          ? <Link to="/workout" className="btn primary full">See cardio plan</Link>
+          : <button className="primary full" onClick={() => { if (!ci.started) ci.start(); nav('/workout') }}>{ci.started ? '▶ Continue workout' : '▶ Start workout'}</button>)}
+        {!ci.done && <Link to="/workout?change=1" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Not feeling {day}? Change today’s workout</Link>}
+        {ci.done && logged && <Link to="/workout" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Edit today’s logged sets</Link>}
         <div className="grid2">
           <button className={ci.going ? 'good' : 'primary'} disabled={ci.going} onClick={ci.imGoing}>{ci.going ? '✓ I’m going' : 'I’m going'}</button>
           <button className={ci.done ? 'good' : ''} onClick={ci.done ? ci.undo : ci.complete}>{ci.done ? '✓ Complete' : 'Workout complete'}</button>
@@ -64,8 +71,14 @@ export default function Dashboard() {
           </div>
         </section>
       ) : (
-        <Link to="/crew" className="card"><h2>Find your crew</h2><p className="mute">Join a community and stop training alone.</p></Link>
+        <section className="card">
+          <span className="tag">Solo mode</span>
+          <h2>Training on your own</h2>
+          <p className="mute small">Your workouts, logs and streak all work without a crew. Join one anytime if you want company.</p>
+          <Link to="/crew" className="btn ghost">Browse crews (optional)</Link>
+        </section>
       )}
+      {crew && <Qotd crewId={crew.id} live={live} />}
 
       <div className="grid2">
         <Link to="/log" className="stat"><b>＋</b><span>Log cardio or body weight</span></Link>

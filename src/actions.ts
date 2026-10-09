@@ -14,7 +14,13 @@ export function useCheckin() {
       void pushCheckin(data.primary, userId, data.name || 'Member', { going: !!merged.going || !!merged.done, done: !!merged.done }, streak(next))
     }
   }
+  const start = () => {
+    set({ going: true })
+    update((d) => (d.started[today] ? d : { ...d, started: { ...d.started, [today]: Date.now() } }))
+  }
   return {
+    start,
+    started: data.started[today] as number | undefined,
     going: !!c.going || !!c.done,
     done: !!c.done,
     imGoing: () => set({ going: true }),

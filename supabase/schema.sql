@@ -85,3 +85,24 @@ drop policy if exists "read messages" on public.crew_messages;
 create policy "read messages" on public.crew_messages for select to authenticated using (true);
 drop policy if exists "post message" on public.crew_messages;
 create policy "post message" on public.crew_messages for insert to authenticated with check (auth.uid() = user_id);
+
+-- ---------- progress photo storage (private, one folder per user) ----------
+insert into storage.buckets (id, name, public)
+values ('progress-photos', 'progress-photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "photos read own" on storage.objects;
+create policy "photos read own" on storage.objects for select to authenticated
+  using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "photos upload own" on storage.objects;
+create policy "photos upload own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "photos update own" on storage.objects;
+create policy "photos update own" on storage.objects for update to authenticated
+  using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "photos delete own" on storage.objects;
+create policy "photos delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);

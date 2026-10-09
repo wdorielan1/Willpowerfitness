@@ -35,11 +35,13 @@ export interface Exercise {
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
-export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[] }
+export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string> }
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
+export type Pose = 'front' | 'side' | 'back' | 'other'
+export interface Photo { id: string; date: string; pose: Pose; path?: string }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string }
 
 export interface AppData {
@@ -58,4 +60,11 @@ export interface AppData {
   messages: Message[]
   custom: CustomCommunity[]
   partner: boolean
+  dayOverride: Record<string, DayType> // date -> workout type chosen by the user
+  extras: Record<string, string[]> // date -> exercise ids added
+  removed: Record<string, string[]> // date -> exercise ids removed
+  started: Record<string, number> // date -> start timestamp
+  photos: Photo[]
+  qotd: Record<string, { answer?: string; skipped?: boolean }> // `${crew}|${date}`
+  ts?: number // last local change, used to pick the newest copy when syncing
 }

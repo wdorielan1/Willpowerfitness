@@ -7,6 +7,7 @@ import { allCommunities, roster, stats } from './Crew'
 import type { Message } from '../types'
 import { cloudEnabled, createCrewCloud, joinCrewCloud, leaveCrewCloud, postMessageCloud, useCrewCounts, useLiveCrew } from '../cloud'
 import { streak } from '../engine'
+import Qotd, { QOTD_PREFIX } from './Qotd'
 
 export default function Communities() {
   const { data, update, userId } = useApp()
@@ -15,6 +16,7 @@ export default function Communities() {
   const [open, setOpen] = useState<string | null>(data.primary)
   const [name, setName] = useState('')
   const [time, setTime] = useState('06:00')
+  const [vibe, setVibe] = useState('')
   const [text, setText] = useState('')
   const crew = all.find((c) => c.id === open)
   const live = useLiveCrew(open, userId)
@@ -35,9 +37,9 @@ export default function Communities() {
   const create = () => {
     if (!name.trim()) return
     const id = `c${Date.now()}`
-    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: 'Time-based crew' }], joined: [...d.joined, id], primary: id }))
-    if (userId) void createCrewCloud(id, userId, name.trim(), time).then(() => joinCrewCloud(id, userId, myName, streak(data)))
-    setName(''); setOpen(id)
+    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: vibe.trim() || 'Time-based crew' }], joined: [...d.joined, id], primary: id }))
+    if (userId) void createCrewCloud(id, userId, name.trim(), time, vibe.trim() || 'Time-based crew').then(() => joinCrewCloud(id, userId, myName, streak(data)))
+    setName(''); setVibe(''); setOpen(id)
   }
   const post = (t: string) => {
     if (!t.trim() || !crew) return
@@ -49,7 +51,7 @@ export default function Communities() {
 
   return (
     <>
-      <div><h1>Crew</h1><p className="mute">You are not going to the gym alone.</p></div>
+      <div className="row"><div><h1>Crew</h1><p className="mute">Optional. You can always train solo.</p></div><button className="primary small-btn" onClick={() => document.getElementById('new-crew')?.scrollIntoView({ behavior: 'smooth' })}>＋ New crew</button></div>
       {!cloudEnabled && <div className="banner">Beta preview: member counts and teammates are sample data until live communities launch.</div>}
 
       {all.map((c) => {
@@ -94,13 +96,14 @@ export default function Communities() {
                     <div className="person" key={r.name}><span className={`avatar ${r.status}`}>{r.name[0]}</span><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Going'}</span></div>
                   ))}
                 </div>
+                <Qotd crewId={c.id} live={isLive ? live : null} />
                 <h3>Encouragement</h3>
                 <div className="chips">
                   {ENCOURAGEMENTS.slice(0, 3).map((m) => <button key={m} className="chip" onClick={() => post(m)}>{m}</button>)}
                 </div>
                 <div className="row"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message your crew" /><button className="primary" onClick={() => post(text)}>Send</button></div>
                 <div className="people">
-                  {(isLive ? live.messages.slice(0, 8) : data.messages.filter((m) => m.community === c.id).slice(0, 5)).map((m) => <div key={m.id} className="small"><b>{m.who}:</b> {m.text}</div>)}
+                  {(isLive ? live.messages.slice(0, 8) : data.messages.filter((m) => m.community === c.id).slice(0, 5)).map((m) => <div key={m.id} className="small"><b>{m.who}:</b> {m.text.replace(QOTD_PREFIX, '💬 ')}</div>)}
                   {!cloudEnabled && <div className="small mute"><b>{NAMES[hashIdx(c.id)]}:</b> Locked in for {fmtTime(c.time)}. Who’s with me?</div>}
                 </div>
                 {!cloudEnabled && <h3>Accountability partner</h3>}
@@ -113,11 +116,12 @@ export default function Communities() {
         )
       })}
 
-      <section className="card">
-        <h2>Start a time-based crew</h2>
+      <section className="card" id="new-crew">
+        <h2>Start a new crew</h2>
         <p className="small mute">Pick a time (5 AM, 6 AM, 12 PM, 5:30 PM, 7 PM…) and rally people around it.</p>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 5:45 AM Legs Crew" /></label>
         <label>Workout time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        <label>Vibe (optional)<input value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder="e.g. Heavy lifts, no excuses" /></label>
         <button className="primary" onClick={create}>Create crew</button>
       </section>
     </>
