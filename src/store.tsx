@@ -10,13 +10,13 @@ const dataKey = (email: string) => `wpf.data.${email}`
 export const blankData = (name: string): AppData => ({
   name, profile: null, joined: [], primary: null, checkins: {}, logs: [], cardio: [], weights: [],
   swaps: {}, short: {}, drafts: {}, meals: {}, messages: [], custom: [], partner: false,
-  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, posts: [], steps: [], challengesJoined: [], settings: DEFAULT_SETTINGS,
+  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, posts: [], steps: [], challengesJoined: [], foodLog: {}, customFoods: [], carbOverride: {}, customChallenges: [], mealPlan: {}, settings: DEFAULT_SETTINGS,
 })
 
 /** Saved data wins, but any setting added in a newer version falls back to its default. */
 const withDefaults = (base: AppData, saved: Partial<AppData>): AppData => ({
   ...base, ...saved,
-  settings: { ...base.settings, ...(saved.settings ?? {}), rest: { ...base.settings.rest, ...(saved.settings?.rest ?? {}) } },
+  settings: { ...base.settings, ...(saved.settings ?? {}), rest: { ...base.settings.rest, ...(saved.settings?.rest ?? {}) }, nutrition: { ...base.settings.nutrition, ...(saved.settings?.nutrition ?? {}) } },
 })
 
 const read = <T,>(k: string, fallback: T): T => {

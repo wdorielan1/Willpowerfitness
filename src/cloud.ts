@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useCallback } from 'react'
-import type { CrewPost, PostKind } from './types'
+import type { CrewPost, CustomChallenge, PostKind } from './types'
 import { todayISO } from './engine'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -179,6 +179,22 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
 export interface ChallengeRow { userId: string; name: string; score: number }
 export async function pushScore(cohort: string, userId: string, name: string, score: number) {
   await supabase?.from('challenge_scores').upsert({ cohort, user_id: userId, name, score, updated_at: new Date().toISOString() })
+}
+export async function createChallengeCloud(cc: CustomChallenge, userId: string, isPublic: boolean): Promise<string | null> {
+  if (!supabase) return null
+  const { error } = await supabase.from('custom_challenges').insert({ id: cc.id, creator: userId, name: cc.name, emoji: cc.emoji, metric: cc.metric, unit: cc.unit, start_date: cc.start, end_date: cc.end, is_public: isPublic })
+  return error ? error.message : null
+}
+const toCC = (r: Record<string, unknown>): CustomChallenge => ({ id: r.id as string, name: r.name as string, emoji: r.emoji as string, metric: r.metric as CustomChallenge['metric'], unit: r.unit as string, start: r.start_date as string, end: r.end_date as string })
+export async function fetchPublicChallenges(today: string): Promise<CustomChallenge[]> {
+  if (!supabase) return []
+  const { data } = await supabase.from('custom_challenges').select('*').eq('is_public', true).gte('end_date', today).order('start_date').limit(30)
+  return (data ?? []).map(toCC)
+}
+export async function fetchChallengeById(id: string): Promise<CustomChallenge | null> {
+  if (!supabase) return null
+  const { data } = await supabase.from('custom_challenges').select('*').eq('id', id).maybeSingle()
+  return data ? toCC(data) : null
 }
 export function useLeaderboard(cohort: string | null, userId: string | null) {
   const [rows, setRows] = useState<(ChallengeRow & { mine: boolean })[]>([])

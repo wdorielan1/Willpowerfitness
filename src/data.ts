@@ -157,6 +157,7 @@ export const ENCOURAGEMENTS = [
 ]
 
 export const DEFAULT_SETTINGS: Settings = {
+  nutrition: { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 },
   rest: { small: 45, medium: 75, large: 120, keyBonus: 30 },
   autoShare: false,
   rpeEnabled: true,

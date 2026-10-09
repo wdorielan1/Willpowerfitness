@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
+import { Lightbox } from '../components'
 import { cloudEnabled } from '../cloud'
 import { compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { fromISO, todayISO } from '../engine'
@@ -110,6 +111,7 @@ export default function Photos() {
   const [date, setDate] = useState(todayISO())
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [view, setView] = useState<{ srcs: string[]; start: number; caption: string[] } | null>(null)
   const urls = usePhotoUrls(data.photos)
   const file = useRef<HTMLInputElement>(null)
 
@@ -181,7 +183,7 @@ export default function Photos() {
             <div className="grid2">
               {[pa, pb].map((p, i) => p && (
                 <div key={i} style={{ display: 'grid', gap: 6 }}>
-                  {urls[p.id] ? <img src={urls[p.id]} alt={`${label(pose)} ${p.date}`} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 12 }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
+                  {urls[p.id] ? <img src={urls[p.id]} alt={`${label(pose)} ${p.date}`} onClick={() => { const both = [pa, pb].filter((x): x is Photo => !!x && !!urls[x.id]); setView({ srcs: both.map((x) => urls[x.id]), start: Math.max(0, both.findIndex((x) => x.id === p.id)), caption: both.map((x) => `${label(pose)} · ${x.date}`) }) }} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 12, cursor: 'zoom-in' }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
                   <div className="small"><b>{p.date}</b>{wAt(p.date) ? <span className="mute"> · {wAt(p.date)} lb</span> : null}</div>
                 </div>
               ))}
@@ -196,7 +198,7 @@ export default function Photos() {
           <div className="grid3">
             {[...data.photos].sort((x, y) => y.date.localeCompare(x.date)).map((p) => (
               <div key={p.id} style={{ display: 'grid', gap: 4 }}>
-                {urls[p.id] ? <img src={urls[p.id]} alt="" style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 10 }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
+                {urls[p.id] ? <img src={urls[p.id]} alt="" onClick={() => { const list = [...data.photos].sort((x, y) => y.date.localeCompare(x.date)).filter((x) => urls[x.id]); setView({ srcs: list.map((x) => urls[x.id]), start: list.findIndex((x) => x.id === p.id), caption: list.map((x) => `${label(x.pose)} · ${x.date}`) }) }} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 10, cursor: 'zoom-in' }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
                 <div className="small mute">{p.date.slice(5)} · {label(p.pose)}</div>
                 <button className="ghost small-btn" onClick={() => void remove(p)}>Delete</button>
               </div>
@@ -205,6 +207,7 @@ export default function Photos() {
         )
       )}
 
+      {view && <Lightbox srcs={view.srcs} start={view.start} caption={view.caption} onClose={() => setView(null)} />}
       {cam && <Camera pose={pose} onClose={() => setCam(false)} onShot={(blob) => { setCam(false); void store(blob, todayISO()) }} />}
     </>
   )

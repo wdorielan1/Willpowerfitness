@@ -2,13 +2,66 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { ConfirmSheet, Sheet, WorkoutClock } from '../components'
+import { ConfirmSheet, Lightbox, Sheet, WorkoutClock } from '../components'
 import { SPLIT, WARMUP } from '../data'
-import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, generateWorkout, recommend, restFor, swapOptions, todayISO } from '../engine'
+import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, type WeekDay } from '../engine'
 import { imgUrl, mediaFor } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
 import type { AppData, DayType, LogEntry, SetEntry } from '../types'
+
+const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
+
+/** This week's lifting plan: what's done, what was missed, and how to get back on track. */
+function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
+  const { data, update } = useApp()
+  const today = todayISO()
+  const week = weekSchedule(data, today)
+  const [open, setOpen] = useState<WeekDay | null>(null)
+  const planned = week.filter((w) => w.status !== 'rest').length
+  const done = week.filter((w) => w.status === 'done').length
+  const missed = week.filter((w) => w.status === 'missed')
+  const next = week.find((w) => w.status === 'today' || w.status === 'upcoming')
+  const skip = (w: WeekDay) => { update((d) => ({ ...d, logs: [...d.logs, { date: w.date, dayType: w.planned, short: false, entries: [], skipped: true }].sort((a, b) => a.date.localeCompare(b.date)) })); setOpen(null) }
+  const icon: Record<WeekDay['status'], string> = { done: '✓', missed: '✕', skipped: '⤼', today: '●', upcoming: '○', rest: '–' }
+  const color: Record<WeekDay['status'], string> = { done: 'var(--ok)', missed: '#ff6b6b', skipped: 'var(--mute)', today: 'var(--accent)', upcoming: 'var(--mute)', rest: '#55555e' }
+  const sum = (w: WeekDay) => (w.logged ? `${w.logged.entries.length} exercises · ${w.logged.entries.reduce((a, e) => a + e.sets.length, 0)} sets${w.logged.minutes ? ` · ${w.logged.minutes} min` : ''}` : '')
+  return (
+    <section className="card">
+      <div className="row"><h3>📅 This week</h3><span className="tag">{done} of {planned} done</span></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center' }}>
+        {week.map((w) => (
+          <button key={w.date} onClick={() => setOpen(w)} style={{ minHeight: 64, padding: '6px 0', borderRadius: 12, background: 'var(--card2)', border: w.status === 'today' ? '2px solid var(--accent)' : '1px solid var(--line)', display: 'grid', gap: 2, justifyItems: 'center', fontSize: 11, color: 'var(--text)' }}>
+            <span className="mute">{w.label}</span><b style={{ color: color[w.status], fontSize: 17 }}>{icon[w.status]}</b><span style={{ color: w.status === 'rest' ? '#55555e' : undefined }}>{ABBR[w.planned]}</span>
+          </button>
+        ))}
+      </div>
+      {missed.length > 0 && (
+        <div className="rec repeat">
+          <b>You missed {missed.map((m) => `${ABBR[m.planned]} (${m.label})`).join(', ')}.</b>
+          <div className="small">Nothing is lost. Your plan keeps it next in line{next ? `, so ${next.status === 'today' ? 'today' : next.label} is ${ABBR[next.planned]}` : ''}. Or tap the day to make it up now or skip it.</div>
+        </div>
+      )}
+      {open && (
+        <Sheet title={`${fromISO(open.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`} onClose={() => setOpen(null)}>
+          {open.status === 'done' && <><p><b>{open.planned}</b> done ✓</p><p className="small mute">{sum(open)}</p></>}
+          {open.status === 'skipped' && <p>You skipped <b>{open.planned}</b> on this day.</p>}
+          {open.status === 'rest' && <p>Rest / cardio day. Recovery is part of the plan.</p>}
+          {(open.status === 'today' || open.status === 'upcoming') && <><p>Planned: <b>{open.planned}</b></p><p className="small mute">{open.status === 'today' ? 'That is today.' : 'This assumes you finish the workouts before it.'}</p></>}
+          {open.status === 'missed' && (
+            <>
+              <p>You didn’t log <b>{open.planned}</b> on this day.</p>
+              <p className="small mute">How do you want to handle it?</p>
+              <button className="primary" onClick={() => { onPick(open.planned); setOpen(null) }}>Do {open.planned} today</button>
+              <button className="ghost" onClick={() => setOpen(null)}>Let it roll to my next workout</button>
+              <button className="ghost" onClick={() => skip(open)}>Skip it and move on</button>
+            </>
+          )}
+        </Sheet>
+      )}
+    </section>
+  )
+}
 
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
 const TAG = { add_weight: 'ok', add_reps: 'warn', repeat: 'accent', start: '' } as const
@@ -21,13 +74,18 @@ const RPE_HINT: Record<number, string> = { 6: 'Easy: 4+ reps left', 7: '3 reps l
 
 function ExPhotos({ id }: { id: string }) {
   const m = mediaFor(id)
+  const [at, setAt] = useState<number | null>(null)
   if (!m) return null
+  const srcs = Array.from({ length: m.n }, (_, i) => imgUrl(m.slug, i))
   return (
-    <div className="exphotos">
-      {Array.from({ length: m.n }, (_, i) => (
-        <img key={i} src={imgUrl(m.slug, i)} alt={`${m.name}, position ${i + 1}`} loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-      ))}
-    </div>
+    <>
+      <div className="exphotos">
+        {srcs.map((s, i) => (
+          <img key={i} src={s} alt={`${m.name}, position ${i + 1}`} loading="lazy" onClick={() => setAt(i)} style={{ cursor: 'zoom-in' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+        ))}
+      </div>
+      {at !== null && <Lightbox srcs={srcs} start={at} caption={srcs.map((_, i) => `${m.name} · ${i === 0 ? 'start' : 'finish'}`)} onClose={() => setAt(null)} />}
+    </>
   )
 }
 function Thumb({ id }: { id: string }) {
@@ -60,6 +118,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort }: {
   return (
     <>
       <div><h1>Today’s workout</h1><p className="mute">Swipe to pick a different one, then start.</p></div>
+      <WeekCard onPick={(d) => { place(DAYS.indexOf(d), true); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
       <div className="carousel" ref={ref} onScroll={onScroll}>
         {previews.map(({ day: d, items }, i) => {
           const mins = Math.round(items.reduce((a, it) => a + it.sets * (restFor(it.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
@@ -261,6 +320,7 @@ export default function Workout() {
               <h2>Warm-up</h2>
               <ol className="steps">{WARMUP[plan.day].map((w) => <li className="step" key={w}>{w}</li>)}</ol>
             </section>
+            <WeekCard onPick={(d) => chooseDay(d)} />
             <section className="card">
               <h3>Today’s lifts</h3>
               {items.map((it, i) => (

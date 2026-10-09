@@ -183,6 +183,27 @@ create policy "write own score" on public.challenge_scores for insert to authent
 drop policy if exists "update own score" on public.challenge_scores;
 create policy "update own score" on public.challenge_scores for update to authenticated using (auth.uid() = user_id);
 
+-- ---------- user-created challenges ----------
+create table if not exists public.custom_challenges (
+  id text primary key,
+  creator uuid not null references auth.users on delete cascade,
+  name text not null,
+  emoji text not null default '🏆',
+  metric text not null,
+  unit text not null,
+  start_date date not null,
+  end_date date not null,
+  is_public boolean not null default false,            -- false = only people with the link
+  created_at timestamptz not null default now()
+);
+alter table public.custom_challenges enable row level security;
+drop policy if exists "read challenges" on public.custom_challenges;
+create policy "read challenges" on public.custom_challenges for select to authenticated using (true);
+drop policy if exists "create own challenge" on public.custom_challenges;
+create policy "create own challenge" on public.custom_challenges for insert to authenticated with check (auth.uid() = creator);
+drop policy if exists "delete own challenge" on public.custom_challenges;
+create policy "delete own challenge" on public.custom_challenges for delete to authenticated using (auth.uid() = creator);
+
 -- ---------- find friends (opt-in only) ----------
 create table if not exists public.public_profiles (
   user_id uuid primary key references auth.users on delete cascade,

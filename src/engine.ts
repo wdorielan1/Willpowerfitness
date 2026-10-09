@@ -192,12 +192,13 @@ export function groupStats(id: string, rate: number, members: number, date: stri
 
 // ---------- nutrition ----------
 export interface Macros { cal: number; p: number; c: number; f: number }
-export function macroPlan(p: Profile): Record<CarbDay, Macros> {
+/** Daily targets for a low, medium and high carb day. Protein and fat follow your settings, carbs fill the rest. */
+export function macroPlan(p: Profile, n: Settings['nutrition'] = { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 }): Record<CarbDay, Macros> {
   const maint = p.weight * 15
   const adj: Record<Goal, number> = { fat_loss: -0.2, muscle_gain: 0.1, maintenance: 0, strength: 0.05, conditioning: 0 }
-  const base = maint * (1 + adj[p.goal])
-  const protein = Math.round(Math.max(p.weight, p.goal === 'fat_loss' ? p.target : p.weight) * 1)
-  const fat = Math.round(p.weight * 0.35)
+  const base = maint * (1 + adj[p.goal]) + n.calorieAdjust
+  const protein = Math.round((p.goal === 'fat_loss' ? Math.min(p.weight, p.target || p.weight) : p.weight) * n.proteinPerLb)
+  const fat = Math.round(p.weight * n.fatPerLb)
   const mk = (mult: number, fatMult: number): Macros => {
     const cal = Math.round(base * mult)
     const f = Math.round(fat * fatMult)
@@ -243,3 +244,55 @@ export function restFor(ex: Exercise, s: Settings['rest']): number {
   return s[size] + (ex.key && size !== 'small' ? s.keyBonus : 0)
 }
 export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`)
+
+// ---------- weekly lifting schedule ----------
+export type DayStatus = 'done' | 'missed' | 'skipped' | 'today' | 'upcoming' | 'rest'
+export interface WeekDay { date: string; label: string; planned: DayType; status: DayStatus; logged?: WorkoutLog }
+
+/** Monday to Sunday of this week: what you planned, what you did, and what you missed.
+ *  A missed workout does not move your split forward, so it comes back as the next one on your plan. */
+export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
+  const p = d.profile!
+  const start = addDays(today, -((fromISO(today).getDay() + 6) % 7))
+  const before = [...d.logs].filter((l) => l.date < start && !l.baseline && l.dayType !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]
+  let cursor: DayType | null = before?.dayType ?? null
+  const next = () => SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0]
+  // days before your first activity were never "missed" (new users start fresh)
+  const origin = [...d.logs.map((l) => l.date), ...Object.keys(d.checkins)].sort()[0] ?? today
+  const out: WeekDay[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(start, i)
+    const label = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]
+    const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
+    if (log) { out.push({ date, label, planned: log.dayType, status: log.skipped ? 'skipped' : 'done', logged: log }); cursor = log.dayType; continue }
+    if (!isTrainingDay(date, p) || date < origin) { out.push({ date, label, planned: 'Rest/Cardio', status: 'rest' }); continue }
+    const planned = date === today && d.dayOverride[date] ? d.dayOverride[date] : next()
+    if (date < today) out.push({ date, label, planned, status: 'missed' }) // rotation stays put, so this comes back
+    else { out.push({ date, label, planned, status: date === today ? 'today' : 'upcoming' }); cursor = planned }
+  }
+  return out
+}
+
+// ---------- carb-day calendar ----------
+/** The workout type planned for each of the next n days (today included), assuming you complete each one. */
+export function projectDays(d: AppData, today = todayISO(), n = 60): Record<string, DayType> {
+  const p = d.profile!
+  let cursor: DayType | null = [...d.logs].filter((l) => l.date <= today && !l.baseline && l.dayType !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]?.dayType ?? null
+  const out: Record<string, DayType> = {}
+  for (let i = 0; i <= n; i++) {
+    const date = addDays(today, i)
+    const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
+    if (log) { out[date] = log.dayType; cursor = log.dayType; continue }
+    if (!isTrainingDay(date, p)) { out[date] = 'Rest/Cardio'; continue }
+    const planned: DayType = i === 0 && d.dayOverride[date] ? d.dayOverride[date] : SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0]
+    out[date] = planned; cursor = planned
+  }
+  return out
+}
+
+/** Planned carb day for any date: follows the workout you have (or will have) unless you set it yourself. */
+export function carbPlanFor(date: string, d: AppData, today = todayISO(), proj?: Record<string, DayType>): { carb: CarbDay; day: DayType; manual: boolean } {
+  const day: DayType = date < today ? dayFor(date, d) : (proj ?? projectDays(d, today))[date] ?? 'Rest/Cardio'
+  const manual = d.carbOverride[date]
+  return { carb: manual ?? carbDayFor(day), day, manual: !!manual }
+}

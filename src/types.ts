@@ -3,6 +3,7 @@ export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Gear = 'gym' | 'db' | 'bw'
 export type DayType = 'Push' | 'Pull' | 'Legs' | 'Shoulders/Abs' | 'Full Body' | 'Rest/Cardio'
 export type CarbDay = 'low' | 'medium' | 'high'
+export type Metric = 'workouts' | 'earlyWorkouts' | 'steps' | 'cardioMin' | 'volume'
 
 export interface Profile {
   goal: Goal
@@ -39,7 +40,7 @@ export interface Exercise {
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
-export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; minutes?: number }
+export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string> }
@@ -55,7 +56,13 @@ export interface CrewPost {
 export interface StepLog { date: string; steps: number }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string; created?: number }
 
+export interface FoodItem { id: string; name: string; serving: string; cal: number; p: number; c: number; f: number; cat: string }
+/** A logged food. Macro numbers are already multiplied by qty. */
+export interface FoodEntry { id: string; meal: number; name: string; serving: string; qty: number; cal: number; p: number; c: number; f: number }
+export interface CustomChallenge { id: string; name: string; emoji: string; metric: Metric; unit: string; start: string; end: string; mine?: boolean }
+
 export interface Settings {
+  nutrition: { meals: number; proteinPerLb: number; fatPerLb: number; calorieAdjust: number }
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
   autoShare: boolean // post finished workouts to my crew
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
@@ -93,6 +100,12 @@ export interface AppData {
   handle?: string
   findByHandle?: boolean
   findByEmail?: boolean
+  foodLog: Record<string, FoodEntry[]>
+  customFoods: FoodItem[]
+  carbOverride: Record<string, CarbDay>
+  customChallenges: CustomChallenge[]
+  /** saved meals from the meal builder, keyed `${carb}:${meals}:${mealIndex}` */
+  mealPlan: Record<string, { item: FoodItem; qty: number }[]>
   settings: Settings
   extendHours: Record<string, number> // date -> extra hours the user said to keep going
   ts?: number // last local change, used to pick the newest copy when syncing

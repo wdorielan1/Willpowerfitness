@@ -63,6 +63,7 @@ export default function Progress() {
         <Link to="/photos" className="stat"><b>📸</b><span>Progress photos &amp; side-by-sides</span></Link>
         <Link to="/import" className="stat"><b>⬆️</b><span>Import lifting history</span></Link>
       </div>
+      <Link to="/export" className="stat" style={{ gridTemplateColumns: 'auto 1fr', alignItems: 'center', display: 'grid', gap: 10 }}><b>🤖</b><span>Export for an AI coach or spreadsheet</span></Link>
       <section className="card hero">
         <h3>Last 7 days</h3>
         <div className="grid3">
@@ -106,7 +107,7 @@ export default function Progress() {
         {history.length === 0 && <p className="small mute">No workouts logged yet.</p>}
         {history.map((l) => (
           <div className="row small" key={l.date + (l.baseline ? 'b' : '')}>
-            <span><b>{l.baseline ? 'Starting weights' : l.dayType}</b> · {l.date.slice(5)}{l.imported ? ' · imported' : ''}<br /><span className="mute">{l.entries.length} exercises · {l.entries.reduce((a, e) => a + e.sets.length, 0)} sets{l.minutes ? ` · ${l.minutes} min` : ''}</span></span>
+            <span><b>{l.baseline ? 'Starting weights' : l.dayType}</b> · {l.date.slice(5)}{l.imported ? ' · imported' : ''}{l.skipped ? ' · skipped' : ''}<br /><span className="mute">{l.skipped ? 'Marked as skipped' : `${l.entries.length} exercises · ${l.entries.reduce((a, e) => a + e.sets.length, 0)} sets${l.minutes ? ` · ${l.minutes} min` : ''}`}</span></span>
             <button className="ghost small-btn" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}>Delete</button>
           </div>
         ))}

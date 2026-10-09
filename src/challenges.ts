@@ -1,10 +1,9 @@
 import { addDays, fromISO } from './engine'
-import type { AppData } from './types'
-
-export type Metric = 'workouts' | 'earlyWorkouts' | 'steps' | 'cardioMin' | 'volume'
+import type { AppData, CustomChallenge, Metric } from './types'
+export type { Metric }
 export interface ChallengeDef {
   id: string; name: string; emoji: string; blurb: string; rules: string
-  period: 'week' | 'biweek' | 'month'; metric: Metric; unit: string
+  period: 'week' | 'biweek' | 'month' | 'custom'; metric: Metric; unit: string
 }
 
 export const CHALLENGES: ChallengeDef[] = [
@@ -34,7 +33,17 @@ export function instanceFor(def: ChallengeDef, date: string): Instance {
   return { def, cohort: `${def.id}:${start}`, start, end, daysLeft: Math.max(0, daysBetween(date, end) + 1) }
 }
 
-export const instanceFromCohort = (cohort: string): Instance | null => {
+export const METRIC_UNITS: Record<Metric, string> = { workouts: 'workouts', earlyWorkouts: 'early workouts', steps: 'steps', cardioMin: 'minutes', volume: 'lb lifted' }
+export const METRIC_LABELS: Record<Metric, string> = { workouts: 'Most workouts', earlyWorkouts: 'Most workouts before 6 AM', steps: 'Most steps', cardioMin: 'Most cardio minutes', volume: 'Most weight lifted' }
+
+/** A challenge someone created, running between two dates. */
+export function customInstance(cc: CustomChallenge, today: string): Instance {
+  const def: ChallengeDef = { id: `custom:${cc.id}`, name: cc.name, emoji: cc.emoji, blurb: `${METRIC_LABELS[cc.metric]} from ${cc.start} to ${cc.end}.`, rules: `${METRIC_LABELS[cc.metric]} between the start and end dates. Created by a Will Power member.`, period: 'custom', metric: cc.metric, unit: cc.unit }
+  return { def, cohort: `custom:${cc.id}`, start: cc.start, end: cc.end, daysLeft: Math.max(0, daysBetween(today, cc.end) + 1) }
+}
+
+export const instanceFromCohort = (cohort: string, custom: CustomChallenge[] = []): Instance | null => {
+  if (cohort.startsWith('custom:')) { const cc = custom.find((x) => `custom:${x.id}` === cohort); return cc ? customInstance(cc, cc.end) : null }
   const [id, start] = cohort.split(':')
   const def = CHALLENGES.find((c) => c.id === id)
   return def && start ? instanceFor(def, start) : null

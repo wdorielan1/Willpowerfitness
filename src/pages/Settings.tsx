@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { DAY_NAMES, EXERCISES, GOALS, LEVELS, REST_PRESETS } from '../data'
-import { fmtRest, restFor } from '../engine'
+import { fmtRest, macroPlan, restFor } from '../engine'
 import MatchQuestions from '../MatchQuestions'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
@@ -87,6 +87,21 @@ export default function Settings() {
       </section>
 
       <section className="card">
+        <h2>🍽 Nutrition targets</h2>
+        <p className="small mute">Pick your own numbers. Carbs fill whatever calories are left.</p>
+        <label><span className="row"><span>Protein <span className="small mute">grams per lb of body weight</span></span><b style={{ color: 'var(--text)' }}>{s.nutrition.proteinPerLb.toFixed(2)} g/lb</b></span>
+          <input type="range" min={0.5} max={1.5} step={0.05} value={s.nutrition.proteinPerLb} onChange={(e) => setS({ nutrition: { ...s.nutrition, proteinPerLb: Number(e.target.value) } })} /></label>
+        <label><span className="row"><span>Fat <span className="small mute">grams per lb of body weight</span></span><b style={{ color: 'var(--text)' }}>{s.nutrition.fatPerLb.toFixed(2)} g/lb</b></span>
+          <input type="range" min={0.2} max={0.6} step={0.05} value={s.nutrition.fatPerLb} onChange={(e) => setS({ nutrition: { ...s.nutrition, fatPerLb: Number(e.target.value) } })} /></label>
+        <label><span className="row"><span>Calories <span className="small mute">adjust up or down</span></span><b style={{ color: 'var(--text)' }}>{s.nutrition.calorieAdjust > 0 ? '+' : ''}{s.nutrition.calorieAdjust} kcal</b></span>
+          <input type="range" min={-800} max={800} step={50} value={s.nutrition.calorieAdjust} onChange={(e) => setS({ nutrition: { ...s.nutrition, calorieAdjust: Number(e.target.value) } })} /></label>
+        <h3>Meals per day</h3>
+        <div className="chips">{[2, 3, 4, 5, 6].map((k) => <button key={k} className={`chip ${s.nutrition.meals === k ? 'on' : ''}`} onClick={() => setS({ nutrition: { ...s.nutrition, meals: k } })}>{k} meals</button>)}</div>
+        {(() => { const m = macroPlan(p, s.nutrition).medium; return <div className="rec start"><b>Medium carb day</b><div className="small">{m.cal} kcal · {m.p}g protein · {m.c}g carbs · {m.f}g fat</div></div> })()}
+        <button className="ghost" onClick={() => setS({ nutrition: { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 } })}>Reset to recommended</button>
+      </section>
+
+      <section className="card">
         <h2>Body</h2>
         <div className="grid2">
           <label>Current weight (lb)<input inputMode="decimal" value={wText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setWText(v); setP('weight', num(v, p.weight)) }} /></label>
@@ -110,6 +125,7 @@ export default function Settings() {
 
       <section className="card">
         <h2>Your data</h2>
+        <Link to="/export" className="btn ghost">Export my data (AI coach, CSV)</Link>
         <Link to="/import" className="btn ghost">Import lifting history / starting weights</Link>
         <Link to="/photos" className="btn ghost">Progress photos</Link>
         <Link to="/shortcuts" className="btn ghost">Siri &amp; Shortcuts</Link>

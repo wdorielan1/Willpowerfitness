@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from './store'
 import { todayISO } from './engine'
 
@@ -67,5 +67,31 @@ export function ConfirmSheet({ title, message, confirmLabel, onConfirm, onCancel
       <button className="danger" onClick={onConfirm}>{confirmLabel}</button>
       <button className="ghost" onClick={onCancel}>Cancel</button>
     </Sheet>
+  )
+}
+
+/** Full-screen photo viewer. Tap outside the photo or the ✕ to close; swipe or use the arrows to move between photos. */
+export function Lightbox({ srcs, start = 0, caption, onClose }: { srcs: string[]; start?: number; caption?: string[]; onClose: () => void }) {
+  const [i, setI] = useState(Math.min(start, srcs.length - 1))
+  const x0 = useRef<number | null>(null)
+  const go = (k: number) => setI((n) => (n + k + srcs.length) % srcs.length)
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div role="dialog" aria-label="Photo viewer" onClick={onClose}
+      onTouchStart={(e) => { x0.current = e.touches[0].clientX }}
+      onTouchEnd={(e) => { const s = x0.current; x0.current = null; if (s === null || srcs.length < 2) return; const dx = e.changedTouches[0].clientX - s; if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1) }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.94)', zIndex: 90, display: 'grid', placeItems: 'center' }}>
+      <img src={srcs[i]} alt="" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '100vw', maxHeight: '88dvh', objectFit: 'contain', touchAction: 'pinch-zoom' }} />
+      <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 'calc(12px + env(safe-area-inset-top))', right: 12, background: 'rgba(255,255,255,.15)', borderRadius: 99, minHeight: 44, width: 44, padding: 0, fontSize: 20 }}>✕</button>
+      {srcs.length > 1 && <>
+        <button onClick={(e) => { e.stopPropagation(); go(-1) }} aria-label="Previous" style={{ position: 'absolute', left: 8, top: '50%', background: 'rgba(255,255,255,.15)', borderRadius: 99, width: 44, minHeight: 44, padding: 0, fontSize: 22 }}>‹</button>
+        <button onClick={(e) => { e.stopPropagation(); go(1) }} aria-label="Next" style={{ position: 'absolute', right: 8, top: '50%', background: 'rgba(255,255,255,.15)', borderRadius: 99, width: 44, minHeight: 44, padding: 0, fontSize: 22 }}>›</button>
+      </>}
+      <div className="small" style={{ position: 'absolute', bottom: 'calc(18px + env(safe-area-inset-bottom))', color: '#ddd' }}>{caption?.[i] ?? ''}{srcs.length > 1 ? `  ${i + 1}/${srcs.length}` : ''}</div>
+    </div>
   )
 }

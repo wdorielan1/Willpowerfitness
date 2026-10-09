@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useApp } from '../store'
-import { ConfirmSheet } from '../components'
+import { ConfirmSheet, Lightbox } from '../components'
 import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { ENCOURAGEMENTS } from '../data'
@@ -57,6 +57,7 @@ export default function Feed({ crewId }: { crewId: string }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [del, setDel] = useState<CrewPost | null>(null)
+  const [big, setBig] = useState<string | null>(null)
   const file = useRef<HTMLInputElement>(null)
   const today = todayISO()
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.imported)
@@ -135,7 +136,7 @@ export default function Feed({ crewId }: { crewId: string }) {
                 <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
               </div>
             )}
-            {img && <img src={img} alt="" loading="lazy" style={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 12 }} />}
+            {img && <img src={img} alt="" loading="lazy" onClick={() => setBig(img)} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 12, cursor: 'zoom-in' }} />}
             <div className="row">
               <button className={`chip ${p.liked ? 'on' : ''}`} onClick={() => like(p)}>🔥 {p.likes || ''}</button>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
@@ -143,6 +144,7 @@ export default function Feed({ crewId }: { crewId: string }) {
           </article>
         )
       })}
+      {big && <Lightbox srcs={[big]} onClose={() => setBig(null)} />}
       {del && <ConfirmSheet title="Delete this post?" message="Are you sure you want to delete this post? It will be removed for everyone in the crew." confirmLabel="Yes, delete it" onConfirm={() => void remove(del)} onCancel={() => setDel(null)} />}
     </>
   )

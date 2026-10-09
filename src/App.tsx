@@ -14,6 +14,7 @@ import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
 import Friends from './pages/Friends'
+import Export from './pages/Export'
 import Challenges, { ChallengeSync } from './pages/Challenges'
 import Settings from './pages/Settings'
 import { RestTimerProvider } from './RestTimer'
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/challenges" element={<Challenges />} />
           <Route path="/friends" element={<Friends />} />
+          <Route path="/export" element={<Export />} />
           <Route path="/log" element={<QuickLog />} />
           <Route path="/photos" element={<Photos />} />
           <Route path="/import" element={<ImportHistory />} />
