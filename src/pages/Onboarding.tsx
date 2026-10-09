@@ -4,7 +4,10 @@ import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
 import { joinCrewCloud } from '../cloud'
-import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES } from '../data'
+import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
+import { suggestCrews } from '../matching'
+import MatchQuestions from '../MatchQuestions'
+import { fmtTime } from '../engine'
 import type { Gear, Goal, Level, Profile } from '../types'
 
 const empty: Profile = {
@@ -17,7 +20,8 @@ export default function Onboarding() {
   const nav = useNavigate()
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
-  const [pick, setPick] = useState<string | null>(null)
+  const [pick, setPick] = useState<string | undefined>(undefined) // undefined = top match, 'solo' = no crew
+  const [more, setMore] = useState(false)
   // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
   const [wText, setWText] = useState(String(empty.weight))
   const [tText, setTText] = useState(String(empty.target))
@@ -25,9 +29,9 @@ export default function Onboarding() {
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
   const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
 
+  const sugg = suggestCrews(p, COMMUNITIES as CommunityDef[])
   const finish = () => {
-    const best = COMMUNITIES.find((c) => c.time === p.time) ?? COMMUNITIES[0]
-    const chosen = p.wantsCommunity ? pick ?? best.id : null
+    const chosen = p.wantsCommunity && pick !== 'solo' ? pick ?? sugg[0]?.crew.id ?? null : null
     update((d) => ({
       ...d, profile: p, joined: chosen ? [chosen] : [], primary: chosen,
       weights: [...d.weights, { date: todayISO(), lbs: p.weight }].slice(-1),
@@ -75,20 +79,33 @@ export default function Onboarding() {
       <Toggle label="Join a workout community" on={p.wantsCommunity} onClick={() => set('wantsCommunity', !p.wantsCommunity)} />
     </>,
     <>
-      <h2>Pick your crew</h2>
-      <p className="mute">You will not train alone, even when you are physically alone.</p>
-      {COMMUNITIES.slice(0, 7).map((c) => (
-        <button key={c.id} className={`card full ${(pick ?? COMMUNITIES.find((x) => x.time === p.time)?.id) === c.id ? 'hero' : ''}`} style={{ textAlign: 'left', justifyContent: 'flex-start' }} onClick={() => setPick(c.id)}>
-          <span><b>{c.name}</b><br /><span className="small mute">{c.vibe} · {c.members} members</span></span>
-        </button>
-      ))}
+      <h2>Help us find your crew</h2>
+      <p className="mute small">Three quick, optional questions. We use them to suggest people like you. Skip anything you want.</p>
+      <MatchQuestions p={p} onChange={(patch) => setP((x) => ({ ...x, ...patch }))} />
+    </>,
+    <>
+      <h2>Your best matches</h2>
+      <p className="mute small">Based on your answers. Pick one to start, or go solo. You can change this anytime.</p>
+      {sugg.slice(0, more ? 8 : 3).map((s, i) => {
+        const on = (pick ?? sugg[0]?.crew.id) === s.crew.id
+        return (
+          <button key={s.crew.id} className={`card full ${on ? 'hero' : ''}`} style={{ textAlign: 'left', justifyContent: 'flex-start', display: 'grid' }} onClick={() => setPick(s.crew.id)}>
+            <div className="row"><b>{s.crew.name}</b>{i === 0 && <span className="tag ok">Best match</span>}</div>
+            <span className="small mute">{s.crew.vibe} · {fmtTime(s.crew.time)} · {s.crew.members} members</span>
+            <span className="chips">{s.reasons.map((r) => <span key={r} className="tag">{r}</span>)}</span>
+          </button>
+        )
+      })}
+      {sugg.length > 3 && !more && <button className="ghost" onClick={() => setMore(true)}>Show a few more</button>}
+      <button className={`chip ${pick === 'solo' ? 'on' : ''}`} style={{ justifySelf: 'start' }} onClick={() => setPick('solo')}>Skip, I’ll train solo for now</button>
     </>,
   ]
-  const last = step === (p.wantsCommunity ? 3 : 2)
+  const total = p.wantsCommunity ? 5 : 3
+  const last = step === total - 1
 
   return (
     <div className="auth" style={{ alignContent: 'start' }}>
-      <div className="row"><div className="brand" style={{ display: 'flex', gap: 10, alignItems: 'center' }}><Logo size={34} /><b>Hey {data.name || 'there'}</b></div><span className="tag">{step + 1} / {p.wantsCommunity ? 4 : 3}</span></div>
+      <div className="row"><div className="brand" style={{ display: 'flex', gap: 10, alignItems: 'center' }}><Logo size={34} /><b>Hey {data.name || 'there'}</b></div><span className="tag">{step + 1} / {total}</span></div>
       <div className="card">{steps[step]}</div>
       <div className="row">
         {step > 0 ? <button className="ghost" onClick={() => setStep(step - 1)}>Back</button> : <span />}

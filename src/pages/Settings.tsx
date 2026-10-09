@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { DAY_NAMES, EXERCISES, GOALS, LEVELS, REST_PRESETS } from '../data'
 import { fmtRest, restFor } from '../engine'
+import MatchQuestions from '../MatchQuestions'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -98,6 +99,12 @@ export default function Settings() {
         <Toggle label="Accountability reminders" on={p.reminders} onClick={() => setP('reminders', !p.reminders)} />
         <Toggle label="I want to join a crew" hint="Turn off to train solo. You can still browse crews anytime." on={p.wantsCommunity} onClick={() => setP('wantsCommunity', !p.wantsCommunity)} />
         <Link to="/crew" className="btn ghost">Manage crews</Link>
+      </section>
+
+      <section className="card">
+        <h2>Crew matching</h2>
+        <p className="small mute">Optional. These answers only help us suggest crews that fit you. Change them anytime.</p>
+        <MatchQuestions p={p} onChange={(patch) => update((d) => ({ ...d, profile: { ...d.profile!, ...patch } }))} />
       </section>
 
       <section className="card">

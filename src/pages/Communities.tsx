@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { ENCOURAGEMENTS, NAMES } from '../data'
+import { CAT_LABEL, ENCOURAGEMENTS, NAMES, type CommunityDef, type CrewCat } from '../data'
+import { suggestCrews } from '../matching'
+import MatchQuestions from '../MatchQuestions'
+import { Sheet } from '../components'
 import { fmtTime, todayISO } from '../engine'
 import { allCommunities, roster, stats } from './Crew'
 import type { Message } from '../types'
@@ -22,6 +25,13 @@ export default function Communities() {
   const live = useLiveCrew(open, userId)
   const counts = useCrewCounts()
   const myName = data.name || 'You'
+  const [showAll, setShowAll] = useState(false)
+  const [cat, setCat] = useState<CrewCat | 'all'>('all')
+  const [tune, setTune] = useState(false)
+  const yours = all.filter((c) => data.joined.includes(c.id))
+  const suggested = suggestCrews(data.profile!, all).filter((s) => !data.joined.includes(s.crew.id)).slice(0, 3)
+  const browse = all.filter((c) => !data.joined.includes(c.id) && (cat === 'all' || (c.cat ?? 'time') === cat))
+  const countOf = (c: CommunityDef) => (cloudEnabled ? counts[c.id]?.members ?? 0 : c.members)
 
   const join = (id: string) => {
     update((d) => ({ ...d, joined: d.joined.includes(id) ? d.joined : [...d.joined, id], primary: id }))
@@ -49,12 +59,7 @@ export default function Communities() {
     setText('')
   }
 
-  return (
-    <>
-      <div className="row"><div><h1>Crew</h1><p className="mute">Optional. You can always train solo.</p></div><button className="primary small-btn" onClick={() => document.getElementById('new-crew')?.scrollIntoView({ behavior: 'smooth' })}>＋ New crew</button></div>
-      {!cloudEnabled && <div className="banner">Beta preview: member counts and teammates are sample data until live communities launch.</div>}
-
-      {all.map((c) => {
+  const renderCrew = (c: CommunityDef) => {
         const cc = counts[c.id] ?? { members: 0, done: 0 }
         const g = cloudEnabled
           ? { pct: cc.members ? Math.round((cc.done / cc.members) * 100) : 0, members: cc.members }
@@ -114,7 +119,55 @@ export default function Communities() {
             )}
           </section>
         )
-      })}
+  }
+
+  return (
+    <>
+      <div className="row"><div><h1>Crew</h1><p className="mute">Optional. You can always train solo.</p></div><button className="primary small-btn" onClick={() => document.getElementById('new-crew')?.scrollIntoView({ behavior: 'smooth' })}>＋ New crew</button></div>
+      {!cloudEnabled && <div className="banner">Beta preview: member counts and teammates are sample data until live communities launch.</div>}
+
+      {yours.length > 0 ? (
+        <>
+          <h2>Your crews</h2>
+          {yours.map(renderCrew)}
+        </>
+      ) : (
+        <section className="card"><span className="tag">Solo mode</span><h3>You’re training on your own</h3><p className="small mute">That’s totally fine. Join a crew whenever you want company.</p></section>
+      )}
+
+      {suggested.length > 0 && (
+        <>
+          <div className="row"><h2>Suggested for you</h2><button className="ghost small-btn" onClick={() => setTune(true)}>Tune matches</button></div>
+          {suggested.map((s) => (
+            <section key={s.crew.id} className="card">
+              <div className="row"><div><h3>{s.crew.name}</h3><div className="small mute">{s.crew.vibe}</div></div><span className="tag accent">{fmtTime(s.crew.time)}</span></div>
+              <div className="chips">{s.reasons.map((r) => <span key={r} className="tag">{r}</span>)}</div>
+              <div className="row"><span className="small mute">{countOf(s.crew)} members</span><button className="primary small-btn" onClick={() => join(s.crew.id)}>Join</button></div>
+            </section>
+          ))}
+        </>
+      )}
+
+      <button className="ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide all crews' : `Browse all crews (${all.length - yours.length})`}</button>
+      {showAll && (
+        <>
+          <div className="chips">
+            {(['all', 'time', 'goal', 'life', 'work', 'age'] as const).map((k) => <button key={k} className={`chip ${cat === k ? 'on' : ''}`} onClick={() => setCat(k)}>{k === 'all' ? 'All' : CAT_LABEL[k]}</button>)}
+          </div>
+          {browse.map((c) => (
+            <section key={c.id} className="card">
+              <div className="row"><div><h3>{c.name}</h3><div className="small mute">{c.vibe}</div></div><span className="tag accent">{fmtTime(c.time)}</span></div>
+              <div className="row"><span className="small mute">{countOf(c)} members</span><button className="primary small-btn" onClick={() => join(c.id)}>Join</button></div>
+            </section>
+          ))}
+          {browse.length === 0 && <p className="small mute">Nothing here. Try another filter.</p>}
+        </>
+      )}
+      {tune && (
+        <Sheet title="Tune your matches" onClose={() => setTune(false)}>
+          <MatchQuestions p={data.profile!} onChange={(patch) => update((d) => ({ ...d, profile: { ...d.profile!, ...patch } }))} />
+        </Sheet>
+      )}
 
       <section className="card" id="new-crew">
         <h2>Start a new crew</h2>

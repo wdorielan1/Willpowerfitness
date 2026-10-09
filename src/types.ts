@@ -17,6 +17,10 @@ export interface Profile {
   avoid: string
   reminders: boolean
   wantsCommunity: boolean
+  // optional answers used only to suggest crews
+  age?: string
+  identities?: string[]
+  vibe?: string
 }
 
 export interface Exercise {

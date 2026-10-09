@@ -77,6 +77,9 @@ export const WARMUP: Record<DayType, string[]> = {
   'Rest/Cardio': ['Take it easy — this is a recovery day.'],
 }
 
+export type CrewCat = 'time' | 'goal' | 'life' | 'work' | 'age'
+export const CAT_LABEL: Record<CrewCat, string> = { time: 'Time of day', goal: 'Goals', life: 'Parents & life', work: 'Work & jobs', age: 'Age' }
+
 export interface CommunityDef {
   id: string
   name: string
@@ -85,21 +88,61 @@ export interface CommunityDef {
   rate: number // typical completion rate
   vibe: string
   blurb: string
+  cat?: CrewCat
+  tags?: string[] // identities this crew is for (see IDENTITIES)
+  ages?: string[]
+  goals?: Goal[]
+  level?: Level
+  vibes?: string[] // see VIBES
 }
 
+export const AGES = ['18–24', '25–34', '35–44', '45–54', '55+']
+export const IDENTITIES: { id: string; label: string; reason: string }[] = [
+  { id: 'mom', label: 'Mom', reason: 'For moms' },
+  { id: 'dad', label: 'Dad', reason: 'For dads' },
+  { id: 'student', label: 'Student', reason: 'For students' },
+  { id: 'desk', label: 'Desk / office job', reason: 'Built around desk jobs' },
+  { id: 'shift', label: 'Shift worker', reason: 'For shift workers' },
+  { id: 'health', label: 'Healthcare', reason: 'For healthcare workers' },
+  { id: 'edu', label: 'Teacher / school staff', reason: 'For school staff' },
+  { id: 'responder', label: 'First responder / military', reason: 'For first responders & military' },
+  { id: 'athlete', label: 'Athlete / team sport', reason: 'For athletes' },
+]
+export const VIBES = [
+  { id: 'quiet', label: 'Quiet grind' },
+  { id: 'social', label: 'Social & chatty' },
+  { id: 'competitive', label: 'Competitive' },
+  { id: 'chill', label: 'Chill & supportive' },
+]
+
 export const COMMUNITIES: CommunityDef[] = [
-  { id: '5am', name: '5 AM Club', time: '05:00', members: 312, rate: 0.84, vibe: 'Silent grind. Early wins.', blurb: 'Alarm goes off, you go. No negotiating.' },
-  { id: 'morning', name: 'Morning Lifters', time: '07:00', members: 486, rate: 0.77, vibe: 'Coffee, music, heavy weight.', blurb: 'Train before the day gets a vote.' },
-  { id: 'lunch', name: 'Lunch Break Crew', time: '12:00', members: 204, rate: 0.69, vibe: 'In, out, 45 minutes.', blurb: 'Efficient sessions for packed calendars.' },
-  { id: 'afterwork', name: 'After Work Lifters', time: '17:30', members: 529, rate: 0.72, vibe: 'Leave work at the door.', blurb: 'Turn a long day into a strong one.' },
-  { id: 'fatloss', name: 'Fat Loss Accountability', time: '06:00', members: 391, rate: 0.74, vibe: 'Consistency over perfection.', blurb: 'Lift, walk, and hit your numbers together.' },
-  { id: 'strength', name: 'Strength Builders', time: '18:00', members: 268, rate: 0.8, vibe: 'Add weight to the bar.', blurb: 'Progressive overload people who log every set.' },
-  { id: 'beginner', name: 'Beginner Gym Crew', time: '19:00', members: 347, rate: 0.66, vibe: 'Everyone started here.', blurb: 'No judgement. Learn the lifts with friends.' },
-  { id: 't5', name: '5 AM Group', time: '05:00', members: 142, rate: 0.82, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 5:00 AM.' },
-  { id: 't6', name: '6 AM Group', time: '06:00', members: 233, rate: 0.79, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 6:00 AM.' },
-  { id: 't12', name: '12 PM Group', time: '12:00', members: 118, rate: 0.7, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 12:00 PM.' },
-  { id: 't530', name: '5:30 PM Group', time: '17:30', members: 201, rate: 0.73, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 5:30 PM.' },
-  { id: 't7', name: '7 PM Group', time: '19:00', members: 176, rate: 0.68, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 7:00 PM.' },
+  { id: '5am', name: '5 AM Club', time: '05:00', members: 312, rate: 0.84, vibe: 'Silent grind. Early wins.', blurb: 'Alarm goes off, you go. No negotiating.', cat: 'time', vibes: ['quiet', 'competitive'] },
+  { id: 'morning', name: 'Morning Lifters', time: '07:00', members: 486, rate: 0.77, vibe: 'Coffee, music, heavy weight.', blurb: 'Train before the day gets a vote.', cat: 'time', vibes: ['social'] },
+  { id: 'lunch', name: 'Lunch Break Crew', time: '12:00', members: 204, rate: 0.69, vibe: 'In, out, 45 minutes.', blurb: 'Efficient sessions for packed calendars.', cat: 'time', tags: ['desk'], vibes: ['quiet'] },
+  { id: 'afterwork', name: 'After Work Lifters', time: '17:30', members: 529, rate: 0.72, vibe: 'Leave work at the door.', blurb: 'Turn a long day into a strong one.', cat: 'time', tags: ['desk'], vibes: ['social'] },
+  { id: 'fatloss', name: 'Fat Loss Accountability', time: '06:00', members: 391, rate: 0.74, vibe: 'Consistency over perfection.', blurb: 'Lift, walk, and hit your numbers together.', cat: 'goal', goals: ['fat_loss'], vibes: ['chill', 'social'] },
+  { id: 'strength', name: 'Strength Builders', time: '18:00', members: 268, rate: 0.8, vibe: 'Add weight to the bar.', blurb: 'Progressive overload people who log every set.', cat: 'goal', goals: ['strength', 'muscle_gain'], vibes: ['competitive', 'quiet'] },
+  { id: 'beginner', name: 'Beginner Gym Crew', time: '19:00', members: 347, rate: 0.66, vibe: 'Everyone started here.', blurb: 'No judgement. Learn the lifts with friends.', cat: 'goal', level: 'beginner', vibes: ['chill'] },
+  // ---- more ways to find your people (shown as suggestions, not all at once) ----
+  { id: 'moms', name: 'Moms Who Lift', time: '09:00', members: 184, rate: 0.76, vibe: 'Strong moms. Kids optional.', blurb: 'Fit training in around school runs and nap time. Zero guilt.', cat: 'life', tags: ['mom'], vibes: ['chill', 'social'] },
+  { id: 'dads', name: 'Dads Who Lift', time: '05:30', members: 203, rate: 0.78, vibe: 'Be the strong one at home.', blurb: 'Early sessions before the family wakes up.', cat: 'life', tags: ['dad'], vibes: ['quiet', 'competitive'] },
+  { id: 'night', name: 'After Bedtime Crew', time: '20:30', members: 119, rate: 0.7, vibe: 'Kids down, weights up.', blurb: 'For parents who train once the house is quiet.', cat: 'life', tags: ['mom', 'dad'], vibes: ['chill'] },
+  { id: 'students', name: 'Student Lifters', time: '16:00', members: 226, rate: 0.72, vibe: 'Between classes and cramming.', blurb: 'Consistent training on a student schedule and a student budget.', cat: 'life', tags: ['student'], ages: ['18–24'], vibes: ['social'] },
+  { id: 'shift', name: 'Shift Workers Crew', time: '14:00', members: 141, rate: 0.69, vibe: 'Your clock is different. Your crew gets it.', blurb: 'Nights, rotating shifts, odd hours. Train when you can and stay accountable.', cat: 'work', tags: ['shift'], vibes: ['chill'] },
+  { id: 'health', name: 'Healthcare Heroes', time: '06:30', members: 167, rate: 0.71, vibe: 'You take care of everyone else.', blurb: 'Nurses, techs, doctors, and care teams taking care of themselves.', cat: 'work', tags: ['health', 'shift'], vibes: ['chill', 'social'] },
+  { id: 'edu', name: 'Teachers & School Staff', time: '16:30', members: 132, rate: 0.73, vibe: 'Grade papers later. Lift first.', blurb: 'Educators and school staff training after the bell.', cat: 'work', tags: ['edu'], vibes: ['social', 'chill'] },
+  { id: 'responders', name: 'First Responders & Military', time: '05:30', members: 158, rate: 0.82, vibe: 'Discipline is the standard.', blurb: 'Police, fire, EMS, and service members holding each other to it.', cat: 'work', tags: ['responder'], vibes: ['competitive', 'quiet'] },
+  { id: 'athletes', name: 'Athletes & Team Sport', time: '17:00', members: 174, rate: 0.77, vibe: 'Off-season is on-season.', blurb: 'Strength and conditioning for people who play.', cat: 'goal', tags: ['athlete'], goals: ['conditioning'], vibes: ['competitive'] },
+  { id: 'age18', name: 'Under 25 Crew', time: '18:00', members: 212, rate: 0.74, vibe: 'Build the habit early.', blurb: 'Young lifters building a strong foundation.', cat: 'age', ages: ['18–24'], vibes: ['social', 'competitive'] },
+  { id: 'age25', name: '25–34 Crew', time: '06:00', members: 238, rate: 0.75, vibe: 'Career, life, and lifting.', blurb: 'Balancing a busy decade without losing the gym.', cat: 'age', ages: ['25–34'], vibes: ['social'] },
+  { id: 'age35', name: '35–44 Crew', time: '05:30', members: 196, rate: 0.77, vibe: 'Stronger than you were at 25.', blurb: 'Prime years. Smart training that lasts.', cat: 'age', ages: ['35–44'], vibes: ['quiet', 'chill'] },
+  { id: 'age45', name: '45–54 Strong', time: '06:30', members: 151, rate: 0.79, vibe: 'Strength, joints, longevity.', blurb: 'Train hard and train smart for the long game.', cat: 'age', ages: ['45–54'], vibes: ['chill'] },
+  { id: 'age55', name: '55+ Strong', time: '07:30', members: 128, rate: 0.8, vibe: 'Never too late. Never done.', blurb: 'Build strength and keep your independence for decades.', cat: 'age', ages: ['55+'], vibes: ['chill', 'social'] },
+  { id: 't5', name: '5 AM Group', time: '05:00', members: 142, rate: 0.82, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 5:00 AM.', cat: 'time' },
+  { id: 't6', name: '6 AM Group', time: '06:00', members: 233, rate: 0.79, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 6:00 AM.', cat: 'time' },
+  { id: 't12', name: '12 PM Group', time: '12:00', members: 118, rate: 0.7, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 12:00 PM.', cat: 'time' },
+  { id: 't530', name: '5:30 PM Group', time: '17:30', members: 201, rate: 0.73, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 5:30 PM.', cat: 'time' },
+  { id: 't7', name: '7 PM Group', time: '19:00', members: 176, rate: 0.68, vibe: 'Time-based crew', blurb: 'Everyone in this crew trains at 7:00 PM.', cat: 'time' },
 ]
 
 export const NAMES = ['Marcus T.', 'Priya S.', 'Devon R.', 'Jess L.', 'Tyrell W.', 'Ana M.', 'Colby H.', 'Rae K.', 'Jordan P.', 'Sam B.', 'Luis G.', 'Nia C.', 'Hank D.', 'Mei Z.', 'Omar F.', 'Brit A.', 'Kofi N.', 'Tess V.']
