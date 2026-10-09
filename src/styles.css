@@ -130,3 +130,6 @@ html { scroll-behavior: smooth; }
 .legal h2 { font-size: 20px; margin-top: 14px; }
 .legal p, .legal li { color: #d4d4d8; line-height: 1.6; font-size: 16px; }
 .legal ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* Hide the "Powered by Netlify" badge that Netlify injects on published sites. */
+#nl-badge-frame { display: none !important; }
