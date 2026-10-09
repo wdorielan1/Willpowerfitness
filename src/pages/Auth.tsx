@@ -90,7 +90,7 @@ export default function Auth() {
         <label>Password<input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} required /></label>
         {err && <div className="err">{err}</div>}
         <button className="primary" disabled={busy}>{mode === 'signup' ? 'Join the free beta' : 'Log in'}</button>
-        <p className="small mute" style={{ textAlign: 'center' }}>By continuing you agree to our <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>.</p>
+        <p className="small mute" style={{ textAlign: 'center' }}>By continuing you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>.</p>
       </form>
     </div>
   )

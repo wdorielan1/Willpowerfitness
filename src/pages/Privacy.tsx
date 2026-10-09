@@ -72,7 +72,7 @@ export default function Privacy() {
       <h2>Contact</h2>
       <p>Questions or requests: {CONTACT_EMAIL}</p>
 
-      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Will Power Fitness</footer>
+      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Will Power Fitness · <Link to="/terms" className="mute" style={{ textDecoration: 'underline' }}>Terms</Link></footer>
     </div>
   )
 }

@@ -29,6 +29,7 @@ export default function Profile() {
         <span className="tag ok">Free beta</span>
       </section>
       <Link to="/privacy" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Privacy Policy</Link>
+      <Link to="/terms" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Terms of Service</Link>
       <button className="ghost" onClick={logOut}>Log out</button>
     </>
   )

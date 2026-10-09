@@ -14,6 +14,7 @@ import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
 import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power Fitness" />
@@ -43,6 +44,7 @@ export default function App() {
       <Routes>
         <Route path="/join" element={<Auth />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<Landing />} />
       </Routes>
       </>
@@ -70,6 +72,7 @@ export default function App() {
           <Route path="/shortcuts" element={<Shortcuts />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/go/:action" element={<Go />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
