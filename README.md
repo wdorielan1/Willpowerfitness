@@ -29,5 +29,8 @@ Without these keys the app runs local-only with sample community data.
 - Google Sign-In: set `VITE_GOOGLE_CLIENT_ID` (see `.env.example`). Without it, a demo Gmail flow is used.
 - Shortcuts use deep links (`/#/go/going`, `complete`, `cardio`, `weight`, `workout`). Signed `.shortcut` downloads need a native/iCloud step.
 
+## Credits
+Exercise photos and how-to steps: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain / Unlicense). Stored in `public/ex/` and `src/exerciseMedia.ts`.
+
 ## Layout
 `src/engine.ts` workout generator, progressive overload, streaks, macros · `src/data.ts` exercises + communities · `src/pages/*` screens

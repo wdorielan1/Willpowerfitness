@@ -44,7 +44,7 @@ export default function Dashboard() {
         {ci.started && !ci.done && !rest && <WorkoutClock since={ci.started} />}
         {!ci.done && (rest
           ? <Link to="/workout" className="btn primary full">See cardio plan</Link>
-          : <button className="primary full" onClick={() => { if (!ci.started) ci.start(); nav('/workout') }}>{ci.started ? '▶ Continue workout' : '▶ Start workout'}</button>)}
+          : <button className="primary full" onClick={() => nav('/workout')}>{ci.started ? '▶ Continue workout' : '▶ Start workout'}</button>)}
         {!ci.done && <Link to="/workout?change=1" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Not feeling {day}? Change today’s workout</Link>}
         {ci.done && logged && <Link to="/workout" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Edit today’s logged sets</Link>}
         <div className="grid2">

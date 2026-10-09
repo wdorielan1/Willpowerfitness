@@ -66,9 +66,9 @@ export const dayFor = (date: string, d: AppData): DayType =>
 
 export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string }
 
-export function generateWorkout(date: string, d: AppData, short: boolean) {
+export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType) {
   const p = d.profile!
-  const day = dayFor(date, d)
+  const day = forceDay ?? dayFor(date, d)
   if (day === 'Rest/Cardio') return { day, items: [] as PlannedExercise[] }
   const all = pool(day, p)
   const keys = all.filter((x) => x.key).slice(0, 2)

@@ -38,7 +38,7 @@ export interface LogEntry { exId: string; name: string; sets: { weight: number; 
 export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; minutes?: number }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
-export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string> }
+export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string> }
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
 export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }
@@ -46,6 +46,7 @@ export interface CustomCommunity { id: string; name: string; time: string; vibe:
 
 export interface Settings {
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
+  rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set
   sound: boolean
