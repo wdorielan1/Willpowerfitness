@@ -68,7 +68,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       {t && (
         <div role="timer" aria-live="polite" style={{ position: 'fixed', left: 12, right: 12, bottom: 'calc(72px + env(safe-area-inset-bottom))', maxWidth: 536, margin: '0 auto', zIndex: 20, background: over ? '#12301f' : 'var(--card)', border: `1px solid ${over ? 'var(--ok)' : 'var(--line)'}`, borderRadius: 18, padding: 12, display: 'grid', gap: 8, boxShadow: '0 8px 30px rgba(0,0,0,.5)' }}>
           <div className="row">
-            <div><div className="small mute">{over ? 'Rest over' : 'Rest'} · {t.label}</div><b style={{ fontSize: 30, letterSpacing: -1 }}>{over ? 'Go lift! 💪' : fmtRest(left)}</b></div>
+            <div><div className="small mute">{over ? 'Rest over' : 'Rest'} · {t.label}</div><b style={{ fontSize: 44, lineHeight: 1.05, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{over ? 'Go lift! 💪' : fmtRest(left)}</b></div>
             <div className="row" style={{ gap: 6 }}>
               {!over && <button className="ghost small-btn" onClick={() => adjust(-15)}>−15</button>}
               {!over && <button className="ghost small-btn" onClick={() => adjust(15)}>+15</button>}

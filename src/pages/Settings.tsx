@@ -60,6 +60,12 @@ export default function Settings() {
       </section>
 
       <section className="card">
+        <h2>Workout length</h2>
+        <p className="small mute">If your workout clock is still running after this long, we ask “still working out?” and end it automatically 30 minutes later if you don’t answer.</p>
+        <div className="chips">{[2, 3, 4, 5, 8].map((h) => <button key={h} className={`chip ${s.maxWorkoutHours === h ? 'on' : ''}`} onClick={() => setS({ maxWorkoutHours: h })}>{h} hours</button>)}</div>
+      </section>
+
+      <section className="card">
         <h2>Training</h2>
         <h3>Goal</h3>
         <div className="chips">{(Object.keys(GOALS) as Goal[]).map((g) => <button key={g} className={`chip ${p.goal === g ? 'on' : ''}`} onClick={() => setP('goal', g)}>{GOALS[g]}</button>)}</div>

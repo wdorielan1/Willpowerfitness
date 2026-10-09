@@ -35,7 +35,7 @@ export interface Exercise {
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
-export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean }
+export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; minutes?: number }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string> }
@@ -46,6 +46,7 @@ export interface CustomCommunity { id: string; name: string; time: string; vibe:
 
 export interface Settings {
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
+  maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set
   sound: boolean
   vibrate: boolean
@@ -74,5 +75,6 @@ export interface AppData {
   photos: Photo[]
   qotd: Record<string, { answer?: string; skipped?: boolean }> // `${crew}|${date}`
   settings: Settings
+  extendHours: Record<string, number> // date -> extra hours the user said to keep going
   ts?: number // last local change, used to pick the newest copy when syncing
 }

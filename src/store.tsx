@@ -10,7 +10,13 @@ const dataKey = (email: string) => `wpf.data.${email}`
 export const blankData = (name: string): AppData => ({
   name, profile: null, joined: [], primary: null, checkins: {}, logs: [], cardio: [], weights: [],
   swaps: {}, short: {}, drafts: {}, meals: {}, messages: [], custom: [], partner: false,
-  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, settings: DEFAULT_SETTINGS,
+  dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, settings: DEFAULT_SETTINGS,
+})
+
+/** Saved data wins, but any setting added in a newer version falls back to its default. */
+const withDefaults = (base: AppData, saved: Partial<AppData>): AppData => ({
+  ...base, ...saved,
+  settings: { ...base.settings, ...(saved.settings ?? {}), rest: { ...base.settings.rest, ...(saved.settings?.rest ?? {}) } },
 })
 
 const read = <T,>(k: string, fallback: T): T => {
@@ -51,7 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => {
     if (supabase) return blankData('')
     const e = read<string | null>(SESSION, null)
-    return e ? { ...blankData(''), ...read<Partial<AppData>>(dataKey(e), {}) } : blankData('')
+    return e ? withDefaults(blankData(''), read<Partial<AppData>>(dataKey(e), {})) : blankData('')
   })
 
   // ---- local-only mode: persist per email on this device ----
@@ -86,7 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const name = (row?.name as string) || (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || (u.email ?? '').split('@')[0]
       // use whichever copy is newer
       const newest = remote && cached ? ((cached.ts ?? 0) > (remote.ts ?? 0) ? cached : remote) : remote ?? cached ?? {}
-      const base = { ...blankData(name), ...newest, name: (newest as Partial<AppData>).name || name }
+      const base = { ...withDefaults(blankData(name), newest as Partial<AppData>), name: (newest as Partial<AppData>).name || name }
       const crews = await fetchCrews()
       setData({ ...base, custom: crews })
       setUserId(u.id)
@@ -129,7 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const begin = useCallback((e: string, name: string) => {
     write(SESSION, e)
-    setData({ ...blankData(name), ...read<Partial<AppData>>(dataKey(e), {}) })
+    setData(withDefaults(blankData(name), read<Partial<AppData>>(dataKey(e), {})))
     setEmail(e)
   }, [])
 

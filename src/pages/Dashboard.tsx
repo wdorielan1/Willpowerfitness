@@ -3,6 +3,7 @@ import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { dayFor, fmtTime, streak, todayISO } from '../engine'
 import Qotd from './Qotd'
+import { WorkoutClock } from '../components'
 import { ENCOURAGEMENTS } from '../data'
 import { roster, stats, useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
@@ -40,6 +41,7 @@ export default function Dashboard() {
         <div className="row">
           <div><b style={{ fontSize: 22 }}>{day}</b><div className="mute small">Committed to {fmtTime(p.time)}{crew ? ` · ${crew.name}` : ''}</div></div>
         </div>
+        {ci.started && !ci.done && !rest && <WorkoutClock since={ci.started} />}
         {!ci.done && (rest
           ? <Link to="/workout" className="btn primary full">See cardio plan</Link>
           : <button className="primary full" onClick={() => { if (!ci.started) ci.start(); nav('/workout') }}>{ci.started ? '▶ Continue workout' : '▶ Start workout'}</button>)}

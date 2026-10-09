@@ -15,6 +15,7 @@ import Go from './pages/Go'
 import Landing from './pages/Landing'
 import Settings from './pages/Settings'
 import { RestTimerProvider } from './RestTimer'
+import { WorkoutGuard } from './components'
 import Photos from './pages/Photos'
 import ImportHistory from './pages/ImportHistory'
 import Privacy from './pages/Privacy'
@@ -59,6 +60,7 @@ export default function App() {
     <RestTimerProvider>
     <div className="shell">
       <ScrollTop />
+      <WorkoutGuard />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
         <nav className="top-links">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { Sheet } from '../components'
+import { Sheet, WorkoutClock } from '../components'
 import { SPLIT, WARMUP } from '../data'
 import { addableExercises, cardioFinisher, emptySets, fmtRest, generateWorkout, recommend, restFor, swapOptions, todayISO } from '../engine'
 import { useRestTimer } from '../RestTimer'
@@ -11,15 +11,6 @@ import type { DayType, LogEntry, SetEntry } from '../types'
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
 const TAG = { add_weight: 'ok', add_reps: 'warn', repeat: 'accent', start: '' } as const
 const DAYS: DayType[] = [...SPLIT, 'Rest/Cardio']
-
-function Elapsed({ since }: { since: number }) {
-  const [, tick] = useState(0)
-  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id) }, [])
-  const s = Math.max(0, Math.floor((Date.now() - since) / 1000))
-  const mm = String(Math.floor(s / 60)).padStart(2, '0')
-  const ss = String(s % 60).padStart(2, '0')
-  return <span className="tag accent">⏱ {mm}:{ss}</span>
-}
 
 export default function Workout() {
   const { data, update } = useApp()
@@ -58,8 +49,8 @@ export default function Workout() {
     })
 
   const begin = () => ci.start()
-  const [sp] = useSearchParams()
-  useEffect(() => { if (sp.get('change')) setSheet({ kind: 'day' }) }, [sp])
+  const [sp, setSp] = useSearchParams()
+  useEffect(() => { if (sp.get('change')) { setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp])
 
   const chooseDay = (day: DayType) => {
     const hasWork = Object.values(draft.sets).some((rows) => rows.some((r) => r.reps))
@@ -104,7 +95,7 @@ export default function Workout() {
       void _gone
       return {
         ...d, drafts,
-        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, short, entries }],
+        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, short, entries, minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
@@ -139,8 +130,8 @@ export default function Workout() {
     <>
       <div className="row">
         <div><h1>{plan.day}</h1><p className="mute">{short ? 'Short version · ~30 min' : 'Full session'} · {plan.items.length} exercises{todaysLog ? ' · logged' : ''}</p></div>
-        {started && !todaysLog ? <Elapsed since={started} /> : null}
       </div>
+      {started && !todaysLog ? <div style={{ position: 'sticky', top: 6, zIndex: 6 }}><WorkoutClock since={started} compact /></div> : null}
 
       {!started && !todaysLog && <button className="primary" onClick={begin}>▶ Start workout</button>}
       <div className="row wrap">
