@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useApp } from '../store'
 import { ConfirmSheet, Lightbox } from '../components'
 import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
-import { CREW_BUCKET, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
+import { CREW_BUCKET, withTimeout, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { ENCOURAGEMENTS } from '../data'
 import { todayISO } from '../engine'
 import type { CrewPost, PostKind } from '../types'
@@ -70,7 +70,9 @@ export default function Feed({ crewId }: { crewId: string }) {
     const body = override ?? { kind: (photo ? 'photo' : 'post') as PostKind, text: text.trim() }
     if (!body.text && !photo) return
     setBusy(true); setErr('')
-    const e = await post({ ...body, photo: override ? undefined : photo ?? undefined })
+    let e: string | null
+    try { e = await withTimeout(post({ ...body, photo: override ? undefined : photo ?? undefined }), 60000, 'Posting') }
+    catch (x) { e = (x as Error).message || 'Something went wrong posting.' }
     setBusy(false)
     if (e) { setErr(e); return }
     if (!override) { setText(''); setPhoto(null) }
