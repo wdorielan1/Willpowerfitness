@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { Sheet, WorkoutClock } from '../components'
+import { ConfirmSheet, Sheet, WorkoutClock } from '../components'
 import { SPLIT, WARMUP } from '../data'
 import { addableExercises, cardioFinisher, emptySets, fmtRest, generateWorkout, recommend, restFor, swapOptions, todayISO } from '../engine'
 import { useRestTimer } from '../RestTimer'
@@ -25,6 +25,7 @@ export default function Workout() {
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline)
   const started = data.started[today]
   const [saved, setSaved] = useState(false)
+  const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' }>(null)
   const [addDay, setAddDay] = useState<DayType | 'All'>('All')
   const cardio = cardioFinisher(p, plan.day)
@@ -81,6 +82,14 @@ export default function Workout() {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
     setSheet(null)
   }
+
+  const wipeToday = (d: typeof data) => {
+    const strip = <T,>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== today && !k.startsWith(`${today}|`)))
+    return { ...d, drafts: strip(d.drafts), started: strip(d.started), extras: strip(d.extras), removed: strip(d.removed), swaps: strip(d.swaps), dayOverride: strip(d.dayOverride), short: strip(d.short) }
+  }
+  const discard = () => { update(wipeToday); ci.reset(); setAsk(null); nav('/') }
+  const deleteLogged = () => { update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
+  const hasProgress = !!started || Object.values(draft.sets).some((rows) => rows.some((r) => r.reps))
 
   const finish = () => {
     const entries: LogEntry[] = plan.items.map(({ ex }) => {
@@ -193,6 +202,12 @@ export default function Workout() {
       <div className="sticky-cta">
         <button className="good full" onClick={finish} disabled={saved}>{saved ? '✓ Saved. Nice work.' : todaysLog ? 'Save changes' : 'Finish workout'}</button>
       </div>
+
+      {(todaysLog || hasProgress) && (
+        <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? '🗑 Delete this workout' : 'Discard this workout'}</button>
+      )}
+      {ask === 'discard' && <ConfirmSheet title="Discard this workout?" message="Are you sure you want to discard this workout? The sets you entered and the workout timer will be cleared." confirmLabel="Yes, discard it" onConfirm={discard} onCancel={() => setAsk(null)} />}
+      {ask === 'delete' && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and today's check-in will be undone. This can't be undone." confirmLabel="Yes, delete it" onConfirm={deleteLogged} onCancel={() => setAsk(null)} />}
 
       {DaySheet}
       {sheet?.kind === 'swap' && (() => {

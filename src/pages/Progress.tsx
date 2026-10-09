@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ConfirmSheet } from '../components'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { addDays, e1rm, streak, todayISO, weekCounts } from '../engine'
@@ -22,8 +23,15 @@ function Line({ pts, unit }: { pts: { x: string; y: number }[]; unit: string }) 
 }
 
 export default function Progress() {
-  const { data } = useApp()
+  const { data, update } = useApp()
   const today = todayISO()
+  const [del, setDel] = useState<string | null>(null)
+  const history = [...data.logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15)
+  const removeLog = (date: string, baseline?: boolean) => update((d) => ({
+    ...d,
+    logs: d.logs.filter((l) => !(l.date === date && !!l.baseline === !!baseline)),
+    checkins: baseline ? d.checkins : { ...d.checkins, [date]: { ...d.checkins[date], done: false } },
+  }))
   const lifts = useMemo(() => {
     const m = new Map<string, string>()
     data.logs.forEach((l) => l.entries.forEach((e) => m.set(e.exId, e.name)))
@@ -94,9 +102,21 @@ export default function Progress() {
       </section>
 
       <section className="card">
+        <h3>Workout history</h3>
+        {history.length === 0 && <p className="small mute">No workouts logged yet.</p>}
+        {history.map((l) => (
+          <div className="row small" key={l.date + (l.baseline ? 'b' : '')}>
+            <span><b>{l.baseline ? 'Starting weights' : l.dayType}</b> · {l.date.slice(5)}{l.imported ? ' · imported' : ''}<br /><span className="mute">{l.entries.length} exercises · {l.entries.reduce((a, e) => a + e.sets.length, 0)} sets{l.minutes ? ` · ${l.minutes} min` : ''}</span></span>
+            <button className="ghost small-btn" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}>Delete</button>
+          </div>
+        ))}
+      </section>
+
+      <section className="card">
         <div className="row"><h3>Cardio</h3><Link to="/log?t=cardio" className="small-btn btn ghost">Log</Link></div>
         {wkCardio.length ? wkCardio.map((c, i) => <div key={i} className="row small"><span>{c.date.slice(5)} · {c.kind}</span><b>{c.minutes} min</b></div>) : <p className="small mute">No cardio logged this week.</p>}
       </section>
+      {del && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => { const [dt, b] = del.split('|'); removeLog(dt, !!b); setDel(null) }} onCancel={() => setDel(null)} />}
     </>
   )
 }

@@ -135,3 +135,6 @@ html { scroll-behavior: smooth; }
 #nl-badge-frame { display: none !important; }
 
 input[type=range] { padding: 0; min-height: 32px; background: transparent; border: 0; accent-color: var(--accent); }
+
+.danger { background: #c62828; color: #fff; }
+.link-danger { background: transparent; color: #ff8a80; min-height: 0; padding: 8px; font-weight: 700; font-size: 14px; }

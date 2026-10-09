@@ -26,5 +26,6 @@ export function useCheckin() {
     imGoing: () => set({ going: true }),
     complete: () => set({ going: true, done: true }),
     undo: () => set({ done: false }),
+    reset: () => set({ going: false, done: false }),
   }
 }

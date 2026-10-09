@@ -58,3 +58,14 @@ export function WorkoutGuard() {
     </Sheet>
   )
 }
+
+/** "Are you sure?" dialog for anything destructive. */
+export function ConfirmSheet({ title, message, confirmLabel, onConfirm, onCancel }: { title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <Sheet title={title} onClose={onCancel} z={70}>
+      <p>{message}</p>
+      <button className="danger" onClick={onConfirm}>{confirmLabel}</button>
+      <button className="ghost" onClick={onCancel}>Cancel</button>
+    </Sheet>
+  )
+}
