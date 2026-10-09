@@ -18,6 +18,10 @@ export default function Onboarding() {
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
   const [pick, setPick] = useState<string | null>(null)
+  // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
+  const [wText, setWText] = useState(String(empty.weight))
+  const [tText, setTText] = useState(String(empty.target))
+  const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
   const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
 
@@ -63,8 +67,8 @@ export default function Onboarding() {
     <>
       <h2>Your numbers</h2>
       <div className="grid2">
-        <label>Current weight (lb)<input type="number" inputMode="decimal" value={p.weight} onChange={(e) => set('weight', Number(e.target.value))} /></label>
-        <label>Target weight (lb)<input type="number" inputMode="decimal" value={p.target} onChange={(e) => set('target', Number(e.target.value))} /></label>
+        <label>Current weight (lb)<input inputMode="decimal" value={wText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setWText(v); set('weight', num(v, p.weight)) }} /></label>
+        <label>Target weight (lb)<input inputMode="decimal" value={tText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setTText(v); set('target', num(v, p.target)) }} /></label>
       </div>
       <Toggle label="Include cardio" on={p.cardio} onClick={() => set('cardio', !p.cardio)} />
       <Toggle label="Send me accountability reminders" on={p.reminders} onClick={() => set('reminders', !p.reminders)} />

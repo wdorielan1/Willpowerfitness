@@ -176,7 +176,7 @@ export default function Workout() {
               {rows.map((r, i) => (
                 <div className="setrow" key={i}>
                   <button className="n" style={{ background: 'transparent', minHeight: 0, padding: 0, color: 'var(--mute)' }} title="Remove set" onClick={() => dropSet(ex.id, base, i)}>{i + 1}</button>
-                  <input inputMode="decimal" value={r.weight} onChange={(e) => edit(ex.id, base, i, 'weight', e.target.value)} placeholder="0" />
+                  <input inputMode="decimal" value={r.weight} onChange={(e) => edit(ex.id, base, i, 'weight', e.target.value)} placeholder="lb" />
                   <input inputMode="numeric" value={r.reps} onChange={(e) => edit(ex.id, base, i, 'reps', e.target.value)} placeholder={String(ex.reps[1])} />
                   <input inputMode="decimal" value={r.rpe} onChange={(e) => edit(ex.id, base, i, 'rpe', e.target.value)} placeholder="8" />
                 </div>
