@@ -811,3 +811,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .train-build-save { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .train-build-list .minirow b { font-size: 14px; font-weight: 550; }
 .train-build-list .minirow .small { font-size: 12px; line-height: 1.4; }
+
+/* Exercise finder (search + filters) and remove buttons */
+.train-finder { display: grid; gap: 10px; min-width: 0; }
+.train-preview-lift.has-remove { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.train-remove { min-height: 40px; min-width: 40px; padding: 0; justify-content: center; font-size: 16px; }

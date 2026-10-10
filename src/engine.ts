@@ -201,7 +201,7 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
   const extras = (d.extras?.[date] ?? [])
     .map((id) => EXERCISES.find((x) => x.id === id))
     .filter((x): x is Exercise => !!x && !base.some((i) => i.ex.id === x.id))
-    .map((ex) => ({ ex, sets: ex.sets, swapped: false, orig: ex.id }))
+    .map((ex) => { const t = tune(ex, p); return { ex: t, sets: t.sets, swapped: false, orig: ex.id } })
   return { day, items: [...base, ...extras] as PlannedExercise[] }
 }
 
