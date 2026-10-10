@@ -120,9 +120,11 @@ create table if not exists public.crew_posts (
   kind text not null default 'post',                 -- post | qotd | workout | photo
   text text not null default '' check (char_length(text) <= 1000),
   image_path text,
+  image_paths text[] not null default '{}',
   meta jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+alter table public.crew_posts add column if not exists image_paths text[] not null default '{}';
 create index if not exists crew_posts_crew_idx on public.crew_posts (crew_id, created_at desc);
 
 create table if not exists public.crew_post_likes (

@@ -50,7 +50,8 @@ export interface Photo { id: string; date: string; pose: Pose; path?: string }
 export type PostKind = 'post' | 'qotd' | 'workout' | 'photo'
 export interface CrewPost {
   id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
-  imagePath?: string; imageId?: string // cloud storage path, or local image id
+  imagePaths: string[]; imageIds?: string[]
+  imagePath?: string; imageId?: string // legacy single-photo posts
   meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean
 }
 export interface StepLog { date: string; steps: number }

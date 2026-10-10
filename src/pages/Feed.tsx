@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { ConfirmSheet, Lightbox } from '../components'
 import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
-import { CREW_BUCKET, withTimeout, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
+import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { ENCOURAGEMENTS } from '../data'
 import { todayISO } from '../engine'
 import type { CrewPost, PostKind } from '../types'
@@ -20,31 +20,42 @@ export function usePostActions(crewId: string) {
   const { data, update, userId } = useApp()
   const feed = useCrewFeed(crewId, userId)
   const name = data.name || 'Member'
-  const post = async (p: { kind: PostKind; text: string; photo?: Blob; meta?: Record<string, unknown> }): Promise<string | null> => {
-    let imagePath: string | undefined
-    let imageId: string | undefined
-    // Posting is only allowed for crew members. Repair a missing membership row first.
-    if (userId) {
-      const m = await ensureMemberCloud(crewId, userId, name)
-      if (m) return `Couldn’t confirm your crew membership: ${m}`
-    }
-    if (p.photo) {
-      const small = await compress(p.photo)
-      const id = `${Date.now()}`
+  const post = async (p: { kind: PostKind; text: string; photos?: Blob[]; meta?: Record<string, unknown>; progress?: (text: string) => void }): Promise<string | null> => {
+    const imagePaths: string[] = [], imageIds: string[] = []
+    const uploaded: { id: string; path?: string }[] = []
+    try {
+      if ((p.photos?.length ?? 0) > 10) throw new Error('Choose up to 10 photos.')
       if (userId) {
-        const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, `${crewId}/${userId}`)
-        if (r.where !== 'cloud') return `Photo upload failed${r.error ? `: ${r.error}` : ''}. If this says the bucket wasn’t found, the storage part of schema.sql needs to be run.`
-        imagePath = r.path
-      } else { await savePhotoBlob(id, small, null); imageId = id }
+        p.progress?.('Confirming membership…')
+        const m = await ensureMemberCloud(crewId, userId, name)
+        if (m) throw new Error(`Couldn’t confirm your crew membership: ${m}`)
+      }
+      for (const [i, photo] of (p.photos ?? []).entries()) {
+        p.progress?.(`Uploading ${i + 1} of ${p.photos!.length}`)
+        const small = await compress(photo)
+        const id = crypto.randomUUID()
+        const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, userId ? `${crewId}/${userId}` : '')
+        uploaded.push({ id, path: r.path })
+        if (userId) {
+          if (!r.path) throw new Error(r.error || 'Photo upload failed.')
+          imagePaths.push(r.path)
+        } else imageIds.push(id)
+      }
+      p.progress?.('Posting…')
+      if (userId) {
+        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta: p.meta })
+        if (error) throw new Error(error)
+        feed?.refresh()
+      } else {
+        const local: CrewPost = { id: crypto.randomUUID(), crewId, name, kind: p.kind, text: p.text, imagePaths, imageIds, meta: p.meta, ts: Date.now(), mine: true, likes: 0, liked: false }
+        update((d) => ({ ...d, posts: [local, ...d.posts] }))
+      }
+      return null
+    } catch (error) {
+      // Remove earlier photos if a later upload or the row insert fails.
+      await Promise.allSettled(uploaded.map((p) => deletePhotoBlob(p, CREW_BUCKET)))
+      return error instanceof Error ? error.message : String(error)
     }
-    if (userId) {
-      const err = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePath, meta: p.meta })
-      feed?.refresh()
-      return err ? `Couldn’t post: ${err}` : null
-    }
-    const local: CrewPost = { id: `${Date.now()}`, crewId, name, kind: p.kind, text: p.text, imageId, meta: p.meta, ts: Date.now(), mine: true, likes: 0, liked: false }
-    update((d) => ({ ...d, posts: [local, ...d.posts] }))
-    return null
   }
   return { post, feed }
 }
@@ -53,29 +64,35 @@ export default function Feed({ crewId }: { crewId: string }) {
   const { data, update, userId } = useApp()
   const { post, feed } = usePostActions(crewId)
   const [text, setText] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [progress, setProgress] = useState('Posting…')
+  const posting = useRef(false)
+  useEffect(() => {
+    const urls = photos.map((p) => URL.createObjectURL(p)); setPreviews(urls)
+    return () => urls.forEach(URL.revokeObjectURL)
+  }, [photos])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [del, setDel] = useState<CrewPost | null>(null)
-  const [big, setBig] = useState<string | null>(null)
+  const [big, setBig] = useState<{ srcs: string[]; start: number } | null>(null)
   const file = useRef<HTMLInputElement>(null)
-  const today = todayISO()
-  const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.imported)
-
+  const todaysLog = data.logs.find((l) => l.date === todayISO() && !l.baseline && !l.imported)
   const posts = feed ? feed.posts : data.posts.filter((p) => p.crewId === crewId).sort((a, b) => b.ts - a.ts)
-  const urls = usePhotoUrls(posts.filter((p) => p.imagePath || p.imageId).map((p) => ({ id: p.imageId ?? p.id, path: p.imagePath })), CREW_BUCKET)
-  const preview = photo ? URL.createObjectURL(photo) : null
+  const urls = usePhotoUrls(posts.flatMap(postPhotos), CREW_BUCKET)
 
   const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown> }) => {
-    const body = override ?? { kind: (photo ? 'photo' : 'post') as PostKind, text: text.trim() }
-    if (!body.text && !photo) return
-    setBusy(true); setErr('')
-    let e: string | null
-    try { e = await withTimeout(post({ ...body, photo: override ? undefined : photo ?? undefined }), 60000, 'Posting') }
-    catch (x) { e = (x as Error).message || 'Something went wrong posting.' }
-    setBusy(false)
-    if (e) { setErr(e); return }
-    if (!override) { setText(''); setPhoto(null) }
+    if (posting.current) return
+    const selected = override ? [] : photos
+    const body = override ?? { kind: (selected.length ? 'photo' : 'post') as PostKind, text: text.trim() }
+    if (!body.text && !selected.length) return
+    posting.current = true; setBusy(true); setErr(''); setProgress('Posting…')
+    try {
+      const error = await post({ ...body, photos: selected, progress: setProgress })
+      if (error) { setErr(error); return }
+      if (!override) { setText(''); setPhotos([]) }
+    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
+    finally { posting.current = false; setBusy(false) }
   }
 
   const shareWorkout = () => {
@@ -90,37 +107,44 @@ export default function Feed({ crewId }: { crewId: string }) {
     update((d) => ({ ...d, posts: d.posts.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)) }))
   }
   const remove = async (p: CrewPost) => {
-    if (userId) await deletePostCloud(p.id)
-    if (p.imagePath || p.imageId) await deletePhotoBlob({ id: p.imageId ?? p.id, path: p.imagePath }, CREW_BUCKET)
-    if (!userId) update((d) => ({ ...d, posts: d.posts.filter((x) => x.id !== p.id) }))
-    else feed?.refresh()
-    setDel(null)
+    try {
+      if (userId) await deletePostCloud(p.id)
+      else {
+        await Promise.all(postPhotos(p).map((photo) => deletePhotoBlob(photo, CREW_BUCKET)))
+        update((d) => ({ ...d, posts: d.posts.filter((x) => x.id !== p.id) }))
+      }
+      feed?.refresh(); setDel(null)
+    } catch (error) { setDel(null); setErr(error instanceof Error ? error.message : String(error)) }
   }
 
   return (
     <>
       <section className="card">
         <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share a win, a photo, or some encouragement" maxLength={1000} />
-        {preview && (
-          <div style={{ position: 'relative' }}>
-            <img src={preview} alt="Your photo" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 12 }} />
-            <button className="small-btn" style={{ position: 'absolute', top: 8, right: 8 }} onClick={() => setPhoto(null)}>✕</button>
-          </div>
-        )}
-        <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) setPhoto(f); e.target.value = '' }} />
+        {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
+          <img src={src} alt={`Selected photo ${i + 1}`} />
+          <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}>✕</button>
+        </div>)}</div>}
+        <input ref={file} type="file" accept="image/*" multiple disabled={busy} hidden onChange={(e) => {
+          const picked = Array.from(e.target.files ?? [])
+          if (picked.length + photos.length > 10) setErr('Choose up to 10 photos.')
+          else { setPhotos((p) => [...p, ...picked]); setErr('') }
+          e.target.value = ''
+        }} />
         <div className="row wrap">
-          <button className="ghost small-btn" onClick={() => file.current?.click()}>📷 Photo</button>
+          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}>📷 Photo</button>
           {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}>💪 Share today’s workout</button>}
           <span style={{ flex: 1 }} />
-          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photo)}>{busy ? 'Posting…' : 'Post'}</button>
+          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
         </div>
-        <div className="chips">{ENCOURAGEMENTS.slice(0, 3).map((m) => <button key={m} className="chip" onClick={() => void submit({ kind: 'post', text: m })}>{m}</button>)}</div>
-        {err && <p className="err small">{err}</p>}
+        <div className="chips">{ENCOURAGEMENTS.slice(0, 3).map((m) => <button key={m} disabled={busy} className="chip" onClick={() => void submit({ kind: 'post', text: m })}>{m}</button>)}</div>
+        {busy && <p className="small mute" role="status">{progress}</p>}
+        {err && <p role="alert" className="err small">{err}</p>}
       </section>
 
       {posts.length === 0 && <section className="card"><p className="mute">No posts yet. Be the first to share something.</p></section>}
       {posts.map((p) => {
-        const img = urls[p.imageId ?? p.id]
+        const images = postPhotos(p).map((photo) => urls[photo.id]).filter(Boolean)
         const meta = p.meta as { sets?: number; volume?: number; exercises?: number; q?: string } | undefined
         return (
           <article key={p.id} className="card post">
@@ -138,7 +162,7 @@ export default function Feed({ crewId }: { crewId: string }) {
                 <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
               </div>
             )}
-            {img && <img src={img} alt="" loading="lazy" onClick={() => setBig(img)} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 12, cursor: 'zoom-in' }} />}
+            {images.length > 0 && <PostCarousel srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
               <button className={`chip ${p.liked ? 'on' : ''}`} onClick={() => like(p)}>🔥 {p.likes || ''}</button>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
@@ -146,8 +170,19 @@ export default function Feed({ crewId }: { crewId: string }) {
           </article>
         )
       })}
-      {big && <Lightbox srcs={[big]} onClose={() => setBig(null)} />}
+      {big && <Lightbox srcs={big.srcs} start={big.start} onClose={() => setBig(null)} />}
       {del && <ConfirmSheet title="Delete this post?" message="Are you sure you want to delete this post? It will be removed for everyone in the crew." confirmLabel="Yes, delete it" onConfirm={() => void remove(del)} onCancel={() => setDel(null)} />}
     </>
   )
+}
+
+function PostCarousel({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => void }) {
+  const [index, setIndex] = useState(0)
+  const track = useRef<HTMLDivElement>(null)
+  return <div className="post-carousel">
+    <div className="post-photo-track" ref={track} onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+      {srcs.map((src, i) => <button className="post-photo" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
+    </div>
+    {srcs.length > 1 && <><span className="photo-counter">{index + 1}/{srcs.length}</span><div className="dots">{srcs.map((_, i) => <button key={i} aria-label={`Show photo ${i + 1}`} aria-current={i === index} className={`dot ${i === index ? 'on' : ''}`} onClick={() => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: 'smooth' })} />)}</div></>}
+  </div>
 }

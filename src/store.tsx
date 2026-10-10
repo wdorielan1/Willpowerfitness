@@ -16,6 +16,7 @@ export const blankData = (name: string): AppData => ({
 /** Saved data wins, but any setting added in a newer version falls back to its default. */
 const withDefaults = (base: AppData, saved: Partial<AppData>): AppData => ({
   ...base, ...saved,
+  posts: (saved.posts ?? []).map((p) => ({ ...p, imagePaths: p.imagePaths ?? (p.imagePath ? [p.imagePath] : []), imageIds: p.imageIds ?? (p.imageId ? [p.imageId] : []) })),
   settings: { ...base.settings, ...(saved.settings ?? {}), rest: { ...base.settings.rest, ...(saved.settings?.rest ?? {}) }, nutrition: { ...base.settings.nutrition, ...(saved.settings?.nutrition ?? {}) } },
 })
 

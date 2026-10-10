@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useCallback } from 'react'
 import type { CrewPost, CustomChallenge, PostKind } from './types'
 import { todayISO } from './engine'
+import { CREW_BUCKET, postPhotos, withRequestTimeout, withTimeout } from './photos'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -70,11 +71,14 @@ export async function joinCrewCloud(crewId: string, userId: string, name: string
 }
 /** Make sure the database knows you're in this crew, without touching an existing streak. Safe to call any time. */
 export async function ensureMemberCloud(crewId: string, userId: string, name: string) {
-  const { error } = (await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak: 0 }, { onConflict: 'crew_id,user_id', ignoreDuplicates: true })) ?? {}
+  if (!supabase) return null
+  const { error } = (await withRequestTimeout((signal) => supabase!.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak: 0 }, { onConflict: 'crew_id,user_id', ignoreDuplicates: true }).abortSignal(signal), 15000, 'Confirming crew membership')) ?? {}
   return error?.message ?? null
 }
 export async function leaveCrewCloud(crewId: string, userId: string) {
-  await supabase?.from('crew_members').delete().eq('crew_id', crewId).eq('user_id', userId)
+  if (!supabase) return
+  const { error } = await withTimeout(supabase.from('crew_members').delete().eq('crew_id', crewId).eq('user_id', userId), 15000, 'Leaving crew')
+  if (error) throw new Error(error.message)
 }
 export async function pushCheckin(crewId: string, userId: string, name: string, c: { going: boolean; done: boolean }, streak: number) {
   if (!supabase) return
@@ -135,12 +139,32 @@ export function useCrewCounts() {
 }
 
 // ---------------- crew feed ----------------
-export async function createPostCloud(p: { crewId: string; userId: string; name: string; kind: PostKind; text: string; imagePath?: string; meta?: Record<string, unknown> }) {
-  const { error } = await supabase!.from('crew_posts').insert({ crew_id: p.crewId, user_id: p.userId, name: p.name, kind: p.kind, text: p.text, image_path: p.imagePath ?? null, meta: p.meta ?? {} })
+export async function createPostCloud(p: { crewId: string; userId: string; name: string; kind: PostKind; text: string; imagePaths?: string[]; meta?: Record<string, unknown> }) {
+  const { error } = await withRequestTimeout((signal) => supabase!.from('crew_posts').insert({ crew_id: p.crewId, user_id: p.userId, name: p.name, kind: p.kind, text: p.text, image_path: p.imagePaths?.[0] ?? null, image_paths: p.imagePaths ?? [], meta: p.meta ?? {} }).abortSignal(signal), 30000, 'Saving post')
   return error?.message ?? null
 }
-export async function deletePostCloud(id: string) { await supabase?.from('crew_posts').delete().eq('id', id) }
-export async function deleteMyPostsCloud(crewId: string, userId: string) { await supabase?.from('crew_posts').delete().eq('crew_id', crewId).eq('user_id', userId) }
+export async function deletePostCloud(id: string) {
+  if (!supabase) return
+  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path').eq('id', id), 15000, 'Loading post')
+  if (error) throw new Error(error.message)
+  await removePostRows(data ?? [])
+}
+export async function deleteMyPostsCloud(crewId: string, userId: string) {
+  if (!supabase) return
+  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path').eq('crew_id', crewId).eq('user_id', userId), 15000, 'Loading posts')
+  if (error) throw new Error(error.message)
+  await removePostRows(data ?? [])
+}
+async function removePostRows(rows: { id: number; image_paths: string[]; image_path: string | null }[]) {
+  if (!supabase || !rows.length) return
+  const paths = rows.flatMap((r) => postPhotos({ id: String(r.id), imagePaths: r.image_paths, imagePath: r.image_path ?? undefined }).map((p) => p.id))
+  if (paths.length) {
+    const { error } = await withTimeout(supabase.storage.from(CREW_BUCKET).remove(paths), 30000, 'Deleting photos')
+    if (error) throw new Error(error.message)
+  }
+  const { error } = await withTimeout(supabase.from('crew_posts').delete().in('id', rows.map((r) => r.id)), 15000, 'Deleting posts')
+  if (error) throw new Error(error.message)
+}
 export async function toggleLikeCloud(postId: string, userId: string, liked: boolean) {
   if (liked) await supabase?.from('crew_post_likes').delete().eq('post_id', postId).eq('user_id', userId)
   else await supabase?.from('crew_post_likes').insert({ post_id: postId, user_id: userId })
@@ -155,7 +179,7 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
     if (!supabase || !crewId) return
     let alive = true
     const load = async () => {
-      const { data: rows } = await supabase.from('crew_posts').select('id,user_id,name,kind,text,image_path,meta,created_at').eq('crew_id', crewId).order('created_at', { ascending: false }).limit(40)
+      const { data: rows } = await supabase.from('crew_posts').select('id,user_id,name,kind,text,image_path,image_paths,meta,created_at').eq('crew_id', crewId).order('created_at', { ascending: false }).limit(40)
       const ids = (rows ?? []).map((r) => r.id as number)
       const { data: likes } = ids.length ? await supabase.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
       if (!alive) return
@@ -163,6 +187,7 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
         const l = (likes ?? []).filter((x) => x.post_id === r.id)
         return {
           id: String(r.id), crewId, userId: r.user_id as string, name: r.name as string, kind: r.kind as PostKind, text: r.text as string,
+          imagePaths: r.image_paths?.length ? r.image_paths as string[] : r.image_path ? [r.image_path as string] : [],
           imagePath: (r.image_path as string | null) ?? undefined, meta: (r.meta as Record<string, unknown>) ?? {}, ts: Date.parse(r.created_at as string),
           mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId),
         }

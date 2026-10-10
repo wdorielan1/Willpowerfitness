@@ -11,6 +11,7 @@ import { allCommunities, roster, stats } from './Crew'
 import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinCrewCloud, leaveCrewCloud, useCrewCounts, useLiveCrew } from '../cloud'
 import Qotd from './Qotd'
 import Feed from './Feed'
+import { postPhotos, deletePhotoBlob, CREW_BUCKET } from '../photos'
 
 export const MAX_CREWS = 3
 
@@ -60,15 +61,20 @@ export default function Communities() {
     reallyJoin(c.id)
   }
   const leave = async (c: CommunityDef, deletePosts: boolean) => {
-    if (userId) {
-      if (deletePosts) await deleteMyPostsCloud(c.id, userId)
-      await leaveCrewCloud(c.id, userId)
-    } else if (deletePosts) update((d) => ({ ...d, posts: d.posts.filter((p) => p.crewId !== c.id) }))
-    update((d) => {
-      const joined = d.joined.filter((x) => x !== c.id)
-      return { ...d, joined, primary: d.primary === c.id ? joined[0] ?? null : d.primary }
-    })
-    setLeaving(null); setAlsoDelete(false); setSel(null)
+    try {
+      if (userId) {
+        if (deletePosts) await deleteMyPostsCloud(c.id, userId)
+        await leaveCrewCloud(c.id, userId)
+      } else if (deletePosts) {
+        await Promise.all(data.posts.filter((p) => p.crewId === c.id).flatMap(postPhotos).map((p) => deletePhotoBlob(p, CREW_BUCKET)))
+        update((d) => ({ ...d, posts: d.posts.filter((p) => p.crewId !== c.id) }))
+      }
+      update((d) => {
+        const joined = d.joined.filter((x) => x !== c.id)
+        return { ...d, joined, primary: d.primary === c.id ? joined[0] ?? null : d.primary }
+      })
+      setLeaving(null); setAlsoDelete(false); setSel(null)
+    } catch (error) { window.alert(error instanceof Error ? error.message : String(error)) }
   }
   const create = () => {
     if (!name.trim()) return

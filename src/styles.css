@@ -165,3 +165,18 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 @keyframes slideL { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
 .pg-r { animation: slideR .22s ease both; }
 .pg-l { animation: slideL .22s ease both; }
+
+/* Crew posts: one photo per swipe, bounded to the mobile card. */
+.post, .post-carousel { min-width: 0; }
+.post-carousel { position: relative; }
+.post-photo-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 12px; }
+.post-photo-track::-webkit-scrollbar { display: none; }
+.post-photo { flex: 0 0 100%; min-width: 0; padding: 0; scroll-snap-align: start; scroll-snap-stop: always; background: var(--card2); border-radius: 0; }
+.post-photo:active { transform: none; }
+.post-photo img { width: 100%; height: 320px; object-fit: contain; display: block; }
+.photo-counter { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 12px; background: #000b; font-size: 12px; }
+.post-carousel .dots { padding-top: 10px; }
+.photo-previews { display: flex; gap: 8px; overflow-x: auto; min-width: 0; }
+.photo-previews > div { position: relative; flex: 0 0 80px; }
+.photo-previews img { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; }
+.photo-previews button { position: absolute; top: 0; right: 0; padding: 0; min-height: 32px; width: 32px; background: #000b; }
