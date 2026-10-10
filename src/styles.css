@@ -792,3 +792,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .checkin-button { min-height: 44px; }
 .checkin-button[aria-pressed=true]:not(:disabled) { color: var(--accent2); border-color: var(--accent); }
 @media (max-width:359px) { .train-session-choices button { font-size: 12px; padding: 10px; } .challenge-joined { font-size: 9px; } .challenge-title h2 { font-size: 17px; } }
+
+/* Build your own workout */
+.train-build { display: grid; gap: 10px; }
+.train-build-picked { display: grid; gap: 6px; }
+.train-build-picked .train-preview-lift { align-items: center; }
+.train-build-picked .quiet-action { min-height: 36px; min-width: 36px; padding: 0 8px; }
+.train-build-list { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.train-build-list .minirow[aria-pressed=true] { border-color: var(--accent); }
+.train-build-save { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.train-session-choices button[aria-pressed=true]:last-child { grid-column: auto; }

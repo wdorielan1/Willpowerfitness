@@ -3,7 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
-import { SPLIT, WARMUP } from '../data'
+import { EXERCISES, SPLIT, WARMUP } from '../data'
+import type { Exercise } from '../types'
 import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { imgUrl, mediaFor } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
@@ -103,34 +104,64 @@ function Thumb({ id }: { id: string }) {
   return m ? <img src={imgUrl(m.slug, 0)} alt="" loading="lazy" /> : <span />
 }
 
-type SessionChoice = { id: string; day: DayType; focus?: WorkoutFocus; label: string }
-const sessionChoices = (suggested: DayType): SessionChoice[] => [
+type SessionChoice = { id: string; day: DayType; focus?: WorkoutFocus; label: string; ids?: string[] }
+const sessionChoices = (suggested: DayType, saved: { id: string; name: string; ids: string[] }[]): SessionChoice[] => [
   { id: 'usual', day: suggested, label: 'Usual plan' },
   { id: 'chest-triceps', day: 'Push', focus: 'chest-triceps', label: 'Chest + Triceps' },
   { id: 'back-biceps', day: 'Pull', focus: 'back-biceps', label: 'Back + Biceps' },
   ...SPLIT.map((day) => ({ id: day, day, label: workoutName(day) })),
   { id: 'cardio', day: 'Rest/Cardio', label: 'Cardio / recovery' },
+  ...saved.map((w) => ({ id: `my:${w.id}`, day: 'Full Body' as DayType, focus: 'custom' as WorkoutFocus, label: w.name, ids: w.ids })),
+  { id: 'build', day: 'Full Body', focus: 'custom', label: 'Build your own' },
 ]
 
-function Chooser({ data, today, short, suggested, current, onStart, onShort }: {
+function BuildOwn({ data, ids, setIds, onStart, onSave }: { data: AppData; ids: string[]; setIds: (ids: string[]) => void; onStart: () => void; onSave: (name: string, ids: string[]) => void }) {
+  const [muscle, setMuscle] = useState('All')
+  const [q, setQ] = useState('')
+  const [name, setName] = useState('')
+  const [savedMsg, setSavedMsg] = useState(false)
+  const all = addableExercises([], data.profile!)
+  const muscles = ['All', ...Array.from(new Set(all.map((x) => x.muscle.split('/')[0]))).sort()]
+  const list = all.filter((x) => (muscle === 'All' || x.muscle.split('/')[0] === muscle) && (!q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase())))
+  const toggle = (id: string) => { setSavedMsg(false); setIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]) }
+  const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= ids.length) return; const n = [...ids];[n[i], n[j]] = [n[j], n[i]]; setIds(n) }
+  const byId = (id: string) => all.find((x) => x.id === id)
+  return <div className="train-build">
+    <p className="small mute">Pick the exercises you want, in the order you want them. You can save the workout to reuse it.</p>
+    {ids.length > 0 && <div className="train-build-picked">{ids.map((id, i) => { const ex = byId(id); return ex ? <div className="train-preview-lift" key={id}><span className="thumbs"><Thumb id={id} /></span><div><b>{i + 1}. {ex.name}</b><span>{ex.muscle}</span></div><button className="quiet-action" aria-label={`Move ${ex.name} up`} onClick={() => move(i, -1)} disabled={i === 0}>↑</button><button className="quiet-action" aria-label={`Move ${ex.name} down`} onClick={() => move(i, 1)} disabled={i === ids.length - 1}>↓</button><button className="quiet-action" aria-label={`Remove ${ex.name}`} onClick={() => toggle(id)}>✕</button></div> : null })}</div>}
+    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search exercises" aria-label="Search exercises" />
+    <div className="chips">{muscles.map((m) => <button key={m} className={`chip ${muscle === m ? 'on' : ''}`} aria-pressed={muscle === m} onClick={() => setMuscle(m)}>{m}</button>)}</div>
+    <div className="train-build-list">{list.map((x) => <button key={x.id} className="minirow" aria-pressed={ids.includes(x.id)} onClick={() => toggle(x.id)}><span className="thumbs"><Thumb id={x.id} /></span><span style={{ flex: 1, textAlign: 'left' }}><b>{x.name}</b><br /><span className="small mute">{x.muscle} · {x.sets} sets · {x.reps[0]}–{x.reps[1]} reps</span></span><span className={`tag ${ids.includes(x.id) ? 'accent' : ''}`}>{ids.includes(x.id) ? 'Added' : 'Add'}</span></button>)}{list.length === 0 && <p className="small mute">No exercises match. Try another muscle group.</p>}</div>
+    <button className="primary" disabled={!ids.length} onClick={onStart}>Start lifting · {ids.length} exercise{ids.length === 1 ? '' : 's'}<Icon name="arrow" /></button>
+    {ids.length > 0 && <div className="train-build-save"><input value={name} onChange={(e) => { setName(e.target.value); setSavedMsg(false) }} placeholder="Name it to save (e.g. Arm day)" maxLength={30} aria-label="Workout name" /><button className="ghost" disabled={!name.trim()} onClick={() => { onSave(name.trim(), ids); setName(''); setSavedMsg(true) }}>Save</button></div>}
+    {savedMsg && <p className="small ok-text" role="status">Saved. It now shows up in your session list.</p>}
+  </div>
+}
+
+function Chooser({ data, today, short, suggested, current, onStart, onShort, onSave, onDeleteSaved }: {
   data: AppData; today: string; short: boolean; suggested: DayType; current: DayType
-  onStart: (d: DayType, focus?: WorkoutFocus) => void; onShort: () => void
+  onStart: (d: DayType, focus?: WorkoutFocus, ids?: string[]) => void; onShort: () => void
+  onSave: (name: string, ids: string[]) => void; onDeleteSaved: (id: string) => void
 }) {
-  const choices = sessionChoices(suggested)
-  const [selected, setSelected] = useState(data.workoutFocus?.[today] ?? (current === suggested ? 'usual' : current === 'Rest/Cardio' ? 'cardio' : current))
+  const choices = sessionChoices(suggested, data.myWorkouts ?? [])
+  const [selected, setSelected] = useState(data.workoutFocus?.[today] === 'custom' ? 'build' : data.workoutFocus?.[today] ?? (current === suggested ? 'usual' : current === 'Rest/Cardio' ? 'cardio' : current))
+  const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
-  const preview = generateWorkout(today, data, short, choice.day, choice.focus)
-  const name = workoutName(choice.day, choice.focus)
+  const isBuild = choice.id === 'build'
+  const isSaved = choice.id.startsWith('my:')
+  const preview = isBuild ? { day: choice.day, items: [] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets })) } : generateWorkout(today, data, short, choice.day, choice.focus)
+  const name = isBuild ? 'Build your own' : isSaved ? choice.label : workoutName(choice.day, choice.focus)
   return <>
     <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
     <div className="train-session-choices" role="group" aria-label="Choose workout">{choices.map((item) => <button key={item.id} aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}>{item.label}{item.id === 'usual' && <span>{workoutName(suggested)}</span>}</button>)}</div>
     <section className="card train-session-preview"><div className="section-head"><h2>{name}</h2><Icon name={choice.day === 'Rest/Cardio' ? 'clock' : 'weight'} /></div>
-      <p className="small mute">{choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
-      {choice.day !== 'Rest/Cardio' ? <>
+      <p className="small mute">{isBuild ? 'Choose your own exercises.' : isSaved ? 'One of your saved workouts.' : choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
+      {isBuild ? <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => onStart('Full Body', 'custom', buildIds)} onSave={onSave} /> : choice.day !== 'Rest/Cardio' ? <>
         <button className="train-short-toggle" aria-pressed={short} onClick={onShort}><Icon name="clock" /><span>Shorter session</span><span>{short ? 'On' : 'Off'}</span></button>
         {preview.items.map(({ ex, sets }) => <div className="train-preview-lift" key={ex.id}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span></div></div>)}
         {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session or adjust your profile.</p>}
-        <button className="primary" disabled={!preview.items.length} onClick={() => onStart(choice.day, choice.focus)}>Start lifting<Icon name="arrow" /></button>
+        <button className="primary" disabled={!preview.items.length} onClick={() => onStart(choice.day, choice.focus, choice.ids)}>Start lifting<Icon name="arrow" /></button>
+        {isSaved && <button className="quiet-action" onClick={() => { if (window.confirm(`Delete the saved workout "${choice.label}"?`)) { onDeleteSaved(choice.id.slice(3)); setSelected('usual') } }}>Delete this saved workout</button>}
       </> : <><p className="small mute">Choose an easy walk, bike ride, or your own cardio session. Log the time when you finish.</p><button className="primary" onClick={() => onStart(choice.day)}>Log cardio<Icon name="arrow" /></button></>}
     </section>
   </>
@@ -228,19 +259,19 @@ export default function Workout() {
     return { rec, base, rows, completed, done: rows.length > 0 && completed.every(Boolean) }
   })
 
-  const selectSession = (d: AppData, day: DayType, focus?: WorkoutFocus): AppData => ({
-    ...d, dayOverride: day === dayTypeFor(today, d.profile!, d.logs) ? stripToday(d.dayOverride) : { ...d.dayOverride, [today]: day },
+  const selectSession = (d: AppData, day: DayType, focus?: WorkoutFocus, ids?: string[]): AppData => ({
+    ...d, customSession: focus === 'custom' && ids ? { [today]: ids } : stripToday(d.customSession ?? {}), dayOverride: day === dayTypeFor(today, d.profile!, d.logs) ? stripToday(d.dayOverride) : { ...d.dayOverride, [today]: day },
     workoutFocus: focus ? { ...d.workoutFocus, [today]: focus } : stripToday(d.workoutFocus ?? {}),
     extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts),
   })
-  const beginWith = (day: DayType, focus?: WorkoutFocus) => {
-    timer.stop(); update((d) => selectSession(d, day, focus)); setIdx(0)
+  const beginWith = (day: DayType, focus?: WorkoutFocus, ids?: string[]) => {
+    timer.stop(); update((d) => selectSession(d, day, focus, ids)); setIdx(0)
     if (day === 'Rest/Cardio') { nav('/log?t=cardio'); return }
     ci.start()
   }
-  const chooseDay = (day: DayType, focus?: WorkoutFocus) => {
+  const chooseDay = (day: DayType, focus?: WorkoutFocus, ids?: string[]) => {
     if (hasEntered && !confirm(`Switch to ${workoutName(day, focus)}? The sets you entered for today will be cleared.`)) return
-    timer.stop(); update((d) => selectSession(d, day, focus)); setSheet(null); setIdx(0)
+    timer.stop(); update((d) => selectSession(d, day, focus, ids)); setSheet(null); setIdx(0)
     if (day === 'Rest/Cardio') nav('/log?t=cardio')
   }
   const swapTo = (orig: string, cur: string, next: string) => {
@@ -262,7 +293,7 @@ export default function Workout() {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
     setSheet(null); go(items.length + 1)
   }
-  const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}) })
+  const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
   const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
@@ -306,7 +337,9 @@ export default function Workout() {
   if (!active) {
     return (
       <div className="workout-chooser"><WeekCard onPick={chooseDay} /><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
-        onStart={beginWith} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
+        onStart={beginWith}
+        onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
+        onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
     )
   }
 
@@ -322,7 +355,7 @@ export default function Workout() {
   const DaySheet = sheet?.kind === 'day' && (
     <Sheet title="Change today's workout" onClose={() => setSheet(null)}>
       <p className="small mute">Change this session while keeping your usual weekly plan.</p>
-      <div className="train-session-choices">{sessionChoices(suggested).map((choice) => <button key={choice.id} onClick={() => chooseDay(choice.day, choice.focus)}>{choice.label}</button>)}</div>
+      <div className="train-session-choices">{sessionChoices(suggested, data.myWorkouts ?? []).filter((choice) => choice.id !== 'build').map((choice) => <button key={choice.id} onClick={() => chooseDay(choice.day, choice.focus, choice.ids)}>{choice.label}</button>)}</div>
     </Sheet>
   )
 

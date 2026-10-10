@@ -67,7 +67,7 @@ export const dayFor = (date: string, d: AppData): DayType =>
 export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string }
 
 export const workoutName = (day: DayType, focus?: WorkoutFocus) =>
-  day === 'Push' && focus === 'chest-triceps' ? 'Chest + Triceps' : day === 'Pull' && focus === 'back-biceps' ? 'Back + Biceps' : day === 'Shoulders/Abs' ? 'Shoulders + Abs' : day === 'Rest/Cardio' ? 'Cardio' : day
+  day === 'Push' && focus === 'chest-triceps' ? 'Chest + Triceps' : day === 'Pull' && focus === 'back-biceps' ? 'Back + Biceps' : focus === 'custom' ? 'Custom workout' : day === 'Shoulders/Abs' ? 'Shoulders + Abs' : day === 'Rest/Cardio' ? 'Cardio' : day
 
 export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType, forceFocus?: WorkoutFocus) {
   const p = d.profile!
@@ -102,7 +102,9 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
     if (short) sets -= 1
     return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
   }
-  const base = [...keys, ...accessories].map(build).filter((i) => !removed.includes(i.orig) && !removed.includes(i.ex.id))
+  const customIds = focus === 'custom' ? (d.customSession?.[date] ?? []) : null
+  const picked = customIds ? customIds.map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x) : null
+  const base = (picked ?? [...keys, ...accessories]).map(build).filter((i) => !removed.includes(i.orig) && !removed.includes(i.ex.id))
   const extras = (d.extras?.[date] ?? [])
     .map((id) => EXERCISES.find((x) => x.id === id))
     .filter((x): x is Exercise => !!x && !base.some((i) => i.ex.id === x.id))

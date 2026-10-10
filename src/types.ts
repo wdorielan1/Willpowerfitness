@@ -2,7 +2,7 @@ export type Goal = 'fat_loss' | 'muscle_gain' | 'maintenance' | 'strength' | 'co
 export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Gear = 'gym' | 'db' | 'bw'
 export type DayType = 'Push' | 'Pull' | 'Legs' | 'Shoulders/Abs' | 'Full Body' | 'Rest/Cardio'
-export type WorkoutFocus = 'chest-triceps' | 'back-biceps'
+export type WorkoutFocus = 'chest-triceps' | 'back-biceps' | 'custom'
 export type CarbDay = 'low' | 'medium' | 'high'
 export type Metric = 'workouts' | 'earlyWorkouts' | 'steps' | 'cardioMin' | 'volume'
 
@@ -91,6 +91,8 @@ export interface AppData {
   custom: CustomCommunity[]
   partner: boolean
   dayOverride: Record<string, DayType> // date -> workout type chosen by the user
+  customSession?: Record<string, string[]> // date -> exercise ids picked in Build your own
+  myWorkouts?: { id: string; name: string; ids: string[] }[] // saved Build-your-own workouts
   workoutFocus?: Record<string, WorkoutFocus> // date -> focused alternative for this session
   extras: Record<string, string[]> // date -> exercise ids added
   removed: Record<string, string[]> // date -> exercise ids removed
