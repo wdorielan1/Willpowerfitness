@@ -36,6 +36,7 @@ export default function Communities() {
   const [leaving, setLeaving] = useState<CommunityDef | null>(null)
   const [alsoDelete, setAlsoDelete] = useState(false)
   const [name, setName] = useState('')
+  const [newCat, setNewCat] = useState<CrewCat>('time')
   const [time, setTime] = useState('06:00')
   const [vibe, setVibe] = useState('')
   const [checkingIn, setCheckingIn] = useState(false)
@@ -107,8 +108,8 @@ export default function Communities() {
   const createNow = () => {
     const id = `c${Date.now()}`
     const v = vibe.trim() || 'Time-based crew'
-    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: v, created: Date.now() }], joined: [...d.joined, id], primary: d.primary ?? id }))
-    if (userId) void createCrewCloud(id, userId, name.trim(), time, v).then(() => joinCrewCloud(id, userId, myName, streak(data)))
+    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: v, cat: newCat, created: Date.now() }], joined: [...d.joined, id], primary: d.primary ?? id }))
+    if (userId) void createCrewCloud(id, userId, name.trim(), time, v, newCat).then(() => joinCrewCloud(id, userId, myName, streak(data)))
     setName(''); setVibe(''); setSel(id); setFinder(false)
   }
   const checkIn = async () => {
@@ -151,7 +152,7 @@ export default function Communities() {
       <button className="ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide all crews' : `Browse all crews (${visible.length})`}</button>
       {showAll && (
         <>
-          <div className="chips">{(['all', 'time', 'goal', 'life', 'work', 'age'] as const).map((k) => <button key={k} className={`chip ${cat === k ? 'on' : ''}`} onClick={() => setCat(k)}>{k === 'all' ? 'All' : CAT_LABEL[k]}</button>)}</div>
+          <div className="chips">{(['all', 'life', 'fan', 'interest', 'goal', 'work', 'time', 'age'] as const).map((k) => <button key={k} className={`chip ${cat === k ? 'on' : ''}`} onClick={() => setCat(k)}>{k === 'all' ? 'All' : CAT_LABEL[k]}</button>)}</div>
           {browse.map((c) => (
             <section key={c.id} className="card">
               <div className="row"><div><h3>{c.name}</h3><div className="small mute">{c.vibe}</div></div><span className="tag accent">{fmtTime(c.time)}</span></div>
@@ -163,9 +164,10 @@ export default function Communities() {
       )}
       <section className="card">
         <h2>Start a new crew</h2>
-        <p className="small mute">Pick a time and rally people around it.</p>
+        <p className="small mute">Build a crew around anything: a team, a job, a goal, a lifestyle, or a time.</p>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 5:45 AM Legs Crew" /></label>
-        <label>Workout time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        <label>What brings you together?<select value={newCat} onChange={(e) => setNewCat(e.target.value as CrewCat)}>{(['life', 'fan', 'interest', 'goal', 'work', 'time', 'age'] as CrewCat[]).map((k) => <option key={k} value={k}>{CAT_LABEL[k]}</option>)}</select></label>
+        <label>Usual workout time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
         <label>Vibe (optional)<input value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder="e.g. Heavy lifts, no excuses" /></label>
         <button className="primary" onClick={create}>Create crew</button>
       </section>
@@ -195,7 +197,7 @@ export default function Communities() {
 
       {!crew ? (
         <>
-          <header className="crew-heading"><div className="overline">YOUR CREW</div><h1 className="crew-title">Find your people.</h1><p className="small mute">Join a crew around your training time, goals, or routine. You can be in up to {MAX_CREWS}.</p></header>
+          <header className="crew-heading"><div className="overline">YOUR CREW</div><h1 className="crew-title">Find your people.</h1><p className="small mute">Join a crew around who you are and how you train: your life, your team, your goals, or your schedule. You can be in up to {MAX_CREWS}.</p></header>
           <SocialTabs />
           {Finder}
         </>
@@ -206,7 +208,7 @@ export default function Communities() {
             <div className="row"><span className="small mute">{yours.length} of {MAX_CREWS} crews</span><button className="quiet-action" onClick={() => setFinder(true)}><Icon name="plus" size={15} /> Find crews</button></div>
           </div>
           <header className="crew-heading">
-            <div className="overline">{!crew.cat || crew.cat === 'time' ? 'TIME-BASED CREW' : `${CAT_LABEL[crew.cat]} CREW`}</div>
+            <div className="overline">{!crew.cat || crew.cat === 'time' ? 'TIME-BASED CREW' : `${CAT_LABEL[crew.cat].toUpperCase()} CREW`}</div>
             <h1 className="crew-title">{crew.name}</h1>
             <div className="crew-meta"><span><Icon name="clock" size={16} /> {fmtTime(crew.time)} training time</span>{cloudEnabled && cc && <><span>{cc.members} member{cc.members === 1 ? '' : 's'}</span><span>{cc.done} done today</span></>}</div>
             {archived(crew) && <div className="banner">This crew has been quiet for {INACTIVE_DAYS}+ days. Post something to wake it up.</div>}

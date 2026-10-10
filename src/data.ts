@@ -77,8 +77,8 @@ export const WARMUP: Record<DayType, string[]> = {
   'Rest/Cardio': ['Take it easy — this is a recovery day.'],
 }
 
-export type CrewCat = 'time' | 'goal' | 'life' | 'work' | 'age'
-export const CAT_LABEL: Record<CrewCat, string> = { time: 'Time of day', goal: 'Goals', life: 'Parents & life', work: 'Work & jobs', age: 'Age' }
+export type CrewCat = 'time' | 'goal' | 'life' | 'work' | 'age' | 'fan' | 'interest'
+export const CAT_LABEL: Record<CrewCat, string> = { time: 'Time of day', goal: 'Goals', life: 'Parents & life', work: 'Work & jobs', age: 'Age', fan: 'Fans & teams', interest: 'Interests & community' }
 
 export interface CommunityDef {
   id: string
@@ -107,6 +107,11 @@ export const IDENTITIES: { id: string; label: string; reason: string }[] = [
   { id: 'edu', label: 'Teacher / school staff', reason: 'For school staff' },
   { id: 'responder', label: 'First responder / military', reason: 'For first responders & military' },
   { id: 'athlete', label: 'Athlete / team sport', reason: 'For athletes' },
+  { id: 'fan', label: 'Sports fan', reason: 'For sports fans' },
+  { id: 'faith', label: 'Faith / church', reason: 'Faith-based' },
+  { id: 'runner', label: 'Runner', reason: 'For runners' },
+  { id: 'outdoors', label: 'Outdoors / hiking', reason: 'For people who love the outdoors' },
+  { id: 'gamer', label: 'Gamer', reason: 'For gamers' },
 ]
 export const VIBES = [
   { id: 'quiet', label: 'Quiet grind' },
@@ -133,6 +138,16 @@ export const COMMUNITIES: CommunityDef[] = [
   { id: 'edu', name: 'Teachers & School Staff', time: '16:30', members: 132, rate: 0.73, vibe: 'Grade papers later. Lift first.', blurb: 'Educators and school staff training after the bell.', cat: 'work', tags: ['edu'], vibes: ['social', 'chill'] },
   { id: 'responders', name: 'First Responders & Military', time: '05:30', members: 158, rate: 0.82, vibe: 'Discipline is the standard.', blurb: 'Police, fire, EMS, and service members holding each other to it.', cat: 'work', tags: ['responder'], vibes: ['competitive', 'quiet'] },
   { id: 'athletes', name: 'Athletes & Team Sport', time: '17:00', members: 174, rate: 0.77, vibe: 'Off-season is on-season.', blurb: 'Strength and conditioning for people who play.', cat: 'goal', tags: ['athlete'], goals: ['conditioning'], vibes: ['competitive'] },
+  { id: 'giants', name: 'Giants Fans', time: '18:00', members: 96, rate: 0.7, vibe: 'Big Blue, big lifts.', blurb: 'Talk Sundays, train the rest of the week. Fans keep each other going.', cat: 'fan', tags: ['fan'], vibes: ['social'] },
+  { id: 'jets', name: 'Jets Fans', time: '18:00', members: 71, rate: 0.68, vibe: 'Pain loves company. So do PRs.', blurb: 'Suffer on Sundays, win in the gym.', cat: 'fan', tags: ['fan'], vibes: ['social', 'chill'] },
+  { id: 'cowboys', name: 'Cowboys Fans', time: '18:00', members: 104, rate: 0.7, vibe: 'America’s team, America’s gym.', blurb: 'Fans who lift. Game-day talk included.', cat: 'fan', tags: ['fan'], vibes: ['social', 'competitive'] },
+  { id: 'eagles', name: 'Eagles Fans', time: '18:00', members: 112, rate: 0.72, vibe: 'Fly together.', blurb: 'Philly energy. Lift like it is fourth and one.', cat: 'fan', tags: ['fan'], vibes: ['competitive', 'social'] },
+  { id: 'patriots', name: 'Patriots Fans', time: '18:00', members: 64, rate: 0.69, vibe: 'Do your job.', blurb: 'Fans who show up every day, game day or not.', cat: 'fan', tags: ['fan'], vibes: ['quiet', 'competitive'] },
+  { id: 'packers', name: 'Packers Fans', time: '18:00', members: 58, rate: 0.7, vibe: 'Cold weather, warm crew.', blurb: 'Cheeseheads who lift. Show up and stay strong.', cat: 'fan', tags: ['fan'], vibes: ['chill', 'social'] },
+  { id: 'runners', name: 'Runners Who Lift', time: '06:00', members: 133, rate: 0.75, vibe: 'Miles and plates.', blurb: 'Runners adding strength so they stay fast and healthy.', cat: 'interest', tags: ['runner'], goals: ['conditioning'], vibes: ['social', 'chill'] },
+  { id: 'faith', name: 'Faith & Fitness', time: '06:00', members: 119, rate: 0.77, vibe: 'Strong body, strong faith.', blurb: 'Train with people who share your faith and keep each other encouraged.', cat: 'interest', tags: ['faith'], vibes: ['chill', 'social'] },
+  { id: 'outdoors', name: 'Outdoors & Hikers', time: '07:00', members: 88, rate: 0.7, vibe: 'Train for the trail.', blurb: 'Strength for hiking, camping and anything outside.', cat: 'interest', tags: ['outdoors'], vibes: ['chill', 'social'] },
+  { id: 'gamers', name: 'Gamers Who Lift', time: '19:00', members: 92, rate: 0.68, vibe: 'Level up IRL.', blurb: 'Close the console, open the gym, keep each other honest.', cat: 'interest', tags: ['gamer'], vibes: ['chill', 'quiet'] },
   { id: 'age18', name: 'Under 25 Crew', time: '18:00', members: 212, rate: 0.74, vibe: 'Build the habit early.', blurb: 'Young lifters building a strong foundation.', cat: 'age', ages: ['18–24'], vibes: ['social', 'competitive'] },
   { id: 'age25', name: '25–34 Crew', time: '06:00', members: 238, rate: 0.75, vibe: 'Career, life, and lifting.', blurb: 'Balancing a busy decade without losing the gym.', cat: 'age', ages: ['25–34'], vibes: ['social'] },
   { id: 'age35', name: '35–44 Crew', time: '05:30', members: 196, rate: 0.77, vibe: 'Stronger than you were at 25.', blurb: 'Prime years. Smart training that lasts.', cat: 'age', ages: ['35–44'], vibes: ['quiet', 'chill'] },

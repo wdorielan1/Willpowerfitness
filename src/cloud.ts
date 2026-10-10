@@ -94,12 +94,15 @@ export async function pushCheckin(crewId: string, userId: string, name: string, 
 export async function postMessageCloud(crewId: string, userId: string, name: string, text: string) {
   await supabase?.from('crew_messages').insert({ crew_id: crewId, user_id: userId, name, text })
 }
-export async function createCrewCloud(id: string, userId: string, name: string, time: string, vibe = 'Time-based crew') {
-  await supabase?.from('crews').insert({ id, name, time, vibe, created_by: userId })
+export async function createCrewCloud(id: string, userId: string, name: string, time: string, vibe = 'Time-based crew', cat = 'time') {
+  const first = await supabase?.from('crews').insert({ id, name, time, vibe, cat, created_by: userId })
+  // Older databases do not have the cat column yet: save the crew without it rather than losing it.
+  if (first?.error) await supabase?.from('crews').insert({ id, name, time, vibe, created_by: userId })
 }
 export async function fetchCrews() {
-  const r = await supabase?.from('crews').select('id,name,time,vibe,created_at')
-  return (r?.data ?? []).map((x) => ({ id: x.id as string, name: x.name as string, time: x.time as string, vibe: x.vibe as string, created: Date.parse(x.created_at as string) }))
+  let r = await supabase?.from('crews').select('id,name,time,vibe,cat,created_at')
+  if (r?.error) r = await supabase?.from('crews').select('id,name,time,vibe,created_at')
+  return (r?.data ?? []).map((x) => ({ id: x.id as string, name: x.name as string, time: x.time as string, vibe: x.vibe as string, cat: ((x as { cat?: string }).cat ?? 'time') as string, created: Date.parse(x.created_at as string) }))
 }
 
 export const INACTIVE_DAYS = 35

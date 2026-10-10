@@ -56,7 +56,7 @@ export interface CrewPost {
   meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean
 }
 export interface StepLog { date: string; steps: number }
-export interface CustomCommunity { id: string; name: string; time: string; vibe: string; created?: number }
+export interface CustomCommunity { id: string; name: string; time: string; vibe: string; cat?: string; created?: number }
 
 export interface FoodItem { id: string; name: string; serving: string; cal: number; p: number; c: number; f: number; cat: string }
 /** A logged food. Macro numbers are already multiplied by qty. */

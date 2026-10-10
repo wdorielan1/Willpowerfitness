@@ -30,7 +30,7 @@ const CHALLENGE_DURATION: Record<ChallengeDef['period'], string> = {
   custom: 'Custom dates',
 }
 const featuredChallenges = CHALLENGES.filter((challenge) => challenge.id in CHALLENGE_COPY)
-const featuredCrews = COMMUNITIES.filter((crew) => ['5am', 'lunch', 'afterwork'].includes(crew.id))
+const featuredCrews = COMMUNITIES.filter((crew) => ['moms', 'giants', 'health', '5am'].includes(crew.id))
 
 function StepsIcon() {
   return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M6 4h4l1 5 6 2 3 4v3H4v-5l2-4Z M4 15h16 M8 10l2-1 M12 11l1-2" /></svg>
@@ -155,7 +155,7 @@ export default function Landing() {
 
           <section id="crews" className="lp-section lp-crew-section" aria-labelledby="crew-heading">
             <div className="lp-crew-visual"><div className="lp-visual-title"><Icon name="crew" />Your crew, inside the app</div><div className="lp-phone"><img src={`${import.meta.env.BASE_URL}landing/crew.png`} alt={PREVIEW_ALT.crew} width="390" height="844" loading="lazy" decoding="async" /></div></div>
-            <div className="lp-crew-copy"><div className="lp-eyebrow"><span className="lp-dash" />Crews</div><h2 id="crew-heading">Train with people who train when you do.</h2><p className="lp-section-copy">Early mornings, lunch breaks, or after work. Find a crew that fits your routine and your goals.</p><div className="lp-crew-checks"><div><Icon name="check" /><p><b>Check in before you train.</b>See who’s planning to show up today.</p></div><div><Icon name="check" /><p><b>Share your workout after.</b>Post a session, photos, or a quick update.</p></div><div><Icon name="check" /><p><b>Keep each other going.</b>Follow along and celebrate the work.</p></div></div><Link className="lp-text-link" to="/join">Find your crew<Icon name="arrow" /></Link><div className="lp-crew-names">{featuredCrews.map((crew) => <span key={crew.id}>{crew.name}</span>)}</div></div>
+            <div className="lp-crew-copy"><div className="lp-eyebrow"><span className="lp-dash" />Crews</div><h2 id="crew-heading">Your crew, your people, your goals.</h2><p className="lp-section-copy">Moms, night-shift nurses, Giants fans, early risers. Join a crew around who you are and how you train.</p><div className="lp-crew-checks"><div><Icon name="check" /><p><b>Check in before you train.</b>See who’s planning to show up today.</p></div><div><Icon name="check" /><p><b>Share your workout after.</b>Post a session, photos, or a quick update.</p></div><div><Icon name="check" /><p><b>Keep each other going.</b>Follow along and celebrate the work.</p></div></div><Link className="lp-text-link" to="/join">Find your crew<Icon name="arrow" /></Link><div className="lp-crew-names">{featuredCrews.map((crew) => <span key={crew.id}>{crew.name}</span>)}</div></div>
           </section>
 
           <section id="the-app" className="lp-section lp-training-section" aria-labelledby="app-heading">

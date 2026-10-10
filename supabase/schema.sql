@@ -17,6 +17,8 @@ create table if not exists public.crews (            -- user-created crews (buil
   created_at timestamptz not null default now()
 );
 
+alter table public.crews add column if not exists cat text not null default 'time';   -- time | goal | life | work | age | fan | interest
+
 create table if not exists public.crew_members (
   crew_id text not null,
   user_id uuid not null references auth.users on delete cascade,
