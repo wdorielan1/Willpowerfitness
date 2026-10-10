@@ -44,7 +44,7 @@ export default function Settings() {
       <section className="card">
         <h2>⏱ Rest timer</h2>
         <p className="small mute">Bigger muscles and heavy main lifts need longer rests. Small muscles recover faster.</p>
-        <Toggle label="Start timer automatically" hint="When you log the reps for a set" on={s.autoTimer} onClick={() => setS({ autoTimer: !s.autoTimer })} />
+        <Toggle label="Start timer automatically" hint="When you tap Log set" on={s.autoTimer} onClick={() => setS({ autoTimer: !s.autoTimer })} />
         <Toggle label="Sound when rest is over" on={s.sound} onClick={() => setS({ sound: !s.sound })} />
         <Toggle label="Vibrate when rest is over" hint="Android phones. iPhones don’t allow web vibration." on={s.vibrate} onClick={() => setS({ vibrate: !s.vibrate })} />
         <h3>Presets</h3>

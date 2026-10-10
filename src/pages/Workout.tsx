@@ -2,15 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { ConfirmSheet, Lightbox, Sheet, WorkoutClock } from '../components'
+import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { SPLIT, WARMUP } from '../data'
 import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, type WeekDay } from '../engine'
 import { imgUrl, mediaFor } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
-import type { AppData, DayType, LogEntry, SetEntry } from '../types'
+import { Icon } from '../icons'
+import type { AppData, DayType, Draft, LogEntry, SetEntry } from '../types'
 
 const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
+
+const validSet = (row: SetEntry) => row.weight.trim() !== '' && row.reps.trim() !== ''
+  && Number.isFinite(Number(row.weight)) && Number(row.weight) >= 0
+  && Number.isFinite(Number(row.reps)) && Number(row.reps) > 0
+
+function SessionElapsed({ since }: { since: number }) {
+  const [, tick] = useState(0)
+  useEffect(() => { const id = window.setInterval(() => tick((n) => n + 1), 1000); return () => window.clearInterval(id) }, [])
+  return <span className="workout-elapsed" aria-label="Workout elapsed time"><Icon name="clock" />{fmtClock(Date.now() - since)}</span>
+}
 
 /** This week's lifting plan: what's done, what was missed, and how to get back on track. */
 function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
@@ -28,7 +39,7 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
   const sum = (w: WeekDay) => (w.logged ? `${w.logged.entries.length} exercises · ${w.logged.entries.reduce((a, e) => a + e.sets.length, 0)} sets${w.logged.minutes ? ` · ${w.logged.minutes} min` : ''}` : '')
   return (
     <section className="card">
-      <div className="row"><h3>📅 This week</h3><span className="tag">{done} of {planned} done</span></div>
+      <div className="row"><h3><Icon name="calendar" /> This week</h3><span className="tag">{done} of {planned} done</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center' }}>
         {week.map((w) => (
           <button key={w.date} onClick={() => setOpen(w)} style={{ minHeight: 64, padding: '6px 0', borderRadius: 12, background: 'var(--card2)', border: w.status === 'today' ? '2px solid var(--accent)' : '1px solid var(--line)', display: 'grid', gap: 2, justifyItems: 'center', fontSize: 11, color: 'var(--text)' }}>
@@ -117,7 +128,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort }: {
   const day = DAYS[sel]
   return (
     <>
-      <div><h1>Today’s workout</h1><p className="mute">Swipe to pick a different one, then start.</p></div>
+      <div><div className="overline">YOUR TRAINING PLAN</div><h1>Choose your session.</h1><p className="mute">Pick a workout, then start.</p></div>
       <WeekCard onPick={(d) => { place(DAYS.indexOf(d), true); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
       <div className="carousel" ref={ref} onScroll={onScroll}>
         {previews.map(({ day: d, items }, i) => {
@@ -142,8 +153,8 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort }: {
       </div>
       {day === 'Rest/Cardio'
         ? <Link className="btn primary" to="/log">Log cardio</Link>
-        : <button className="primary" onClick={() => onStart(day)}>▶ Start {day}</button>}
-      {day !== 'Rest/Cardio' && <button className={`chip ${short ? 'on' : ''}`} style={{ justifySelf: 'center' }} onClick={onShort}>{short ? '✓ Short on time / fatigued' : 'Short on time or fatigued?'}</button>}
+        : <button className="primary" onClick={() => onStart(day)}>Start {day}<Icon name="arrow" /></button>}
+      {day !== 'Rest/Cardio' && <button className={`chip ${short ? 'on' : ''}`} style={{ justifySelf: 'center' }} onClick={onShort}>{short && <Icon name="check" />}{short ? 'Short session selected' : 'Short on time or fatigued?'}</button>}
     </>
   )
 }
@@ -159,7 +170,7 @@ export default function Workout() {
   const short = !!data.short[today]
   const suggested = dayTypeFor(today, p, data.logs)
   const plan = generateWorkout(today, data, short)
-  const draft = data.drafts[today] ?? { sets: {}, notes: {} }
+  const draft: Draft = data.drafts[today] ?? { sets: {}, notes: {} }
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline)
   const started = data.started[today]
   const hasEntered = Object.values(draft.sets).some((rows) => rows.some((r) => r.reps))
@@ -172,8 +183,9 @@ export default function Workout() {
   const dir = useRef(1)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const [saved, setSaved] = useState(false)
+  const [validation, setValidation] = useState('')
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
-  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' }>(null)
+  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
   const [addDay, setAddDay] = useState<DayType | 'All'>('All')
   const [sp, setSp] = useSearchParams()
   useEffect(() => { if (sp.get('change')) { if (active) setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp, active])
@@ -184,6 +196,7 @@ export default function Workout() {
     const t = Math.max(0, Math.min(pageCount - 1, n))
     dir.current = t >= page ? 1 : -1
     setIdx(t)
+    setValidation('')
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }
 
@@ -191,12 +204,39 @@ export default function Workout() {
   const stripToday = <T,>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== today && !k.startsWith(`${today}|`)))
   const setDraft = (fn: (d: typeof draft) => typeof draft) =>
     update((d) => ({ ...d, drafts: { ...d.drafts, [today]: fn(d.drafts[today] ?? { sets: {}, notes: {} }) } }))
-  const edit = (exId: string, base: SetEntry[], i: number, k: keyof SetEntry, v: string) =>
-    setDraft((dr) => ({ ...dr, sets: { ...dr.sets, [exId]: (dr.sets[exId] ?? base).map((r, j) => (j === i ? { ...r, [k]: v } : r)) } }))
+  const completionFor = (dr: Draft, exId: string, rows: SetEntry[]) => rows.map((row, i) => {
+    const explicit = dr.completed?.[exId]
+    if (explicit) return !!explicit[i] && validSet(row)
+    // Saved workouts predate explicit set completion. Keep their logged sets checked.
+    const previous = todaysLog?.entries.find((e) => e.exId === exId)?.sets[i]
+    return !!previous && validSet(row) && Number(row.weight) === previous.weight && Number(row.reps) === previous.reps
+  })
+  const edit = (exId: string, base: SetEntry[], i: number, k: keyof SetEntry, v: string) => {
+    setValidation('')
+    setDraft((dr) => {
+      const rows = dr.sets[exId] ?? base
+      return { ...dr, sets: { ...dr.sets, [exId]: rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)) }, completed: { ...dr.completed, [exId]: completionFor(dr, exId, rows).map((done, j) => j === i ? false : done) } }
+    })
+  }
   const addSet = (exId: string, base: SetEntry[]) =>
-    setDraft((dr) => { const rows = dr.sets[exId] ?? base; return { ...dr, sets: { ...dr.sets, [exId]: [...rows, { ...rows[rows.length - 1], reps: '', rpe: '' }] } } })
+    setDraft((dr) => { const rows = dr.sets[exId] ?? base; return { ...dr, sets: { ...dr.sets, [exId]: [...rows, { weight: rows[rows.length - 1]?.weight ?? '', reps: '', rpe: '' }] }, completed: { ...dr.completed, [exId]: [...completionFor(dr, exId, rows), false] } } })
   const dropSet = (exId: string, base: SetEntry[], i: number) =>
-    setDraft((dr) => { const rows = (dr.sets[exId] ?? base).filter((_, j) => j !== i); return { ...dr, sets: { ...dr.sets, [exId]: rows.length ? rows : base.slice(0, 1) } } })
+    setDraft((dr) => {
+      const current = dr.sets[exId] ?? base, rows = current.filter((_, j) => j !== i)
+      return { ...dr, sets: { ...dr.sets, [exId]: rows.length ? rows : [{ weight: current[0]?.weight ?? '', reps: '', rpe: '' }] }, completed: { ...dr.completed, [exId]: rows.length ? completionFor(dr, exId, current).filter((_, j) => j !== i) : [false] } }
+    })
+  const logSet = (exId: string, base: SetEntry[], i: number, rest: number, name: string) => {
+    const rows = draft.sets[exId] ?? base
+    if (!rows[i] || !validSet(rows[i])) {
+      setValidation(`Set ${i + 1}: enter a weight of 0 or more and reps greater than 0.`)
+      document.getElementById(`set-${exId}-${i}-${rows[i]?.weight.trim() === '' || Number(rows[i]?.weight) < 0 ? 'weight' : 'reps'}`)?.focus()
+      return
+    }
+    if (completionFor(draft, exId, rows)[i]) return
+    setValidation('')
+    setDraft((dr) => ({ ...dr, sets: { ...dr.sets, [exId]: dr.sets[exId] ?? base }, completed: { ...dr.completed, [exId]: completionFor(dr, exId, dr.sets[exId] ?? base).map((done, j) => j === i || done) } }))
+    if (data.settings.autoTimer) timer.start(rest, name)
+  }
 
   const baseFor = (exId: string, nSets: number, weight: number | null): SetEntry[] => {
     const logged = todaysLog?.entries.find((e) => e.exId === exId)
@@ -206,10 +246,12 @@ export default function Workout() {
     const rec = recommend(it.ex, data.logs.filter((l) => l.date !== today), today)
     const base = baseFor(it.ex.id, it.sets, rec.weight)
     const rows = draft.sets[it.ex.id] ?? base
-    return { rec, base, rows, done: rows.length > 0 && rows.every((r) => r.reps) }
+    const completed = completionFor(draft, it.ex.id, rows)
+    return { rec, base, rows, completed, done: rows.length > 0 && completed.every(Boolean) }
   })
 
   const beginWith = (day: DayType) => {
+    timer.stop()
     update((d) => {
       const next = { ...d, extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts) }
       if (day === dayTypeFor(today, d.profile!, d.logs)) { const { [today]: _x, ...rest } = d.dayOverride; void _x; return { ...next, dayOverride: rest } }
@@ -220,13 +262,14 @@ export default function Workout() {
   }
   const chooseDay = (day: DayType) => {
     if (hasEntered && !confirm(`Switch to ${day}? The sets you entered for today will be cleared.`)) return
+    timer.stop()
     update((d) => ({ ...d, dayOverride: { ...d.dayOverride, [today]: day }, extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts) }))
     setSheet(null); setIdx(0)
   }
   const swapTo = (orig: string, cur: string, next: string) => {
     const isExtra = (data.extras[today] ?? []).includes(cur)
     update((d) => {
-      const drafts = { ...d.drafts, [today]: { ...(d.drafts[today] ?? { sets: {}, notes: {} }), sets: Object.fromEntries(Object.entries(d.drafts[today]?.sets ?? {}).filter(([k]) => k !== cur)) } }
+      const drafts = { ...d.drafts, [today]: { ...(d.drafts[today] ?? { sets: {}, notes: {} }), sets: Object.fromEntries(Object.entries(d.drafts[today]?.sets ?? {}).filter(([k]) => k !== cur)), completed: Object.fromEntries(Object.entries(d.drafts[today]?.completed ?? {}).filter(([k]) => k !== cur)) } }
       if (isExtra) return { ...d, extras: { ...d.extras, [today]: (d.extras[today] ?? []).map((x) => (x === cur ? next : x)) }, drafts }
       return { ...d, swaps: { ...d.swaps, [`${today}|${orig}`]: next }, drafts }
     })
@@ -243,15 +286,21 @@ export default function Workout() {
     setSheet(null); go(items.length + 1)
   }
   const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short) })
-  const discard = () => { update(wipeToday); ci.reset(); setAsk(null); nav('/') }
-  const deleteLogged = () => { update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
+  const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
+  const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
   const finish = () => {
+    const invalid = exState.findIndex((s) => s.rows.some((r) => r.reps.trim() !== '' && !validSet(r)))
+    if (invalid >= 0) {
+      go(invalid + 1)
+      setValidation('Check the entered sets before finishing. Each needs a weight of 0 or more and reps greater than 0.')
+      return
+    }
     const entries: LogEntry[] = items.map(({ ex }) => {
       const logged = todaysLog?.entries.find((e) => e.exId === ex.id)
       const rpeStr = draft.rpe?.[ex.id] ?? (logged ? String(logged.sets[logged.sets.length - 1]?.rpe ?? '') : '')
       const sets = (draft.sets[ex.id] ?? exState[items.findIndex((i) => i.ex.id === ex.id)].rows)
-        .filter((r) => r.weight !== '' && Number(r.weight) >= 0 && Number(r.reps) > 0)
+        .filter(validSet)
         .map((r) => ({ weight: Number(r.weight), reps: Number(r.reps), rpe: undefined as number | undefined }))
       if (data.settings.rpeEnabled && rpeStr && sets.length) sets[sets.length - 1].rpe = Number(rpeStr)
       return { exId: ex.id, name: ex.name, sets, note: draft.notes[ex.id] ?? logged?.note ?? '' }
@@ -271,6 +320,7 @@ export default function Workout() {
       const mins = started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : 0
       void postToCrew({ kind: 'workout', text: `Finished ${plan.day}${mins ? ` in ${mins} min` : ''}`, meta: { sets, volume, exercises: entries.length } })
     }
+    timer.stop()
     setSaved(true)
     setTimeout(() => nav('/'), 900)
   }
@@ -278,13 +328,13 @@ export default function Workout() {
   // ---------- before the workout starts ----------
   if (!active) {
     return (
-      <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
-        onStart={beginWith} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} />
+      <div className="workout-chooser"><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
+        onStart={beginWith} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
     )
   }
 
   // ---------- guided workout ----------
-  const onTouchStart = (e: React.TouchEvent) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }
+  const onTouchStart = (e: React.TouchEvent) => { touch.current = (e.target as HTMLElement).closest('input, button, textarea, select, details') ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY } }
   const onTouchEnd = (e: React.TouchEvent) => {
     const t = touch.current; touch.current = null
     if (!t) return
@@ -301,86 +351,100 @@ export default function Workout() {
 
   const ex = page >= 1 && page <= items.length ? items[page - 1] : null
   const st = ex ? exState[page - 1] : null
+  const nextSet = st ? st.completed.findIndex((done) => !done) : -1
+  const enteredSets = exState.reduce((sum, s) => sum + s.rows.filter(validSet).length, 0)
+  const pendingSets = exState.reduce((sum, s) => sum + s.rows.filter((row, i) => validSet(row) && !s.completed[i]).length, 0)
 
   return (
-    <>
-      <div className="row"><div><h1>{plan.day}</h1><p className="mute small">{short ? 'Short version' : 'Full session'}{todaysLog ? ' · logged' : ''}</p></div></div>
-      {started && !todaysLog ? <div style={{ position: 'sticky', top: 6, zIndex: 6 }}><WorkoutClock since={started} compact /></div> : null}
-      <div className="dots" role="tablist" aria-label="Workout progress">
+    <div className="workout-session">
+      <header className="workout-header">
+        <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
+        <div className="workout-header-title"><b>{plan.day} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
+        {started && !todaysLog ? <SessionElapsed since={started} /> : <Icon name="weight" />}
+      </header>
+      <div className="workout-progress" role="tablist" aria-label="Workout progress">
         {Array.from({ length: pageCount }, (_, i) => {
           const done = i >= 1 && i <= items.length && exState[i - 1].done
-          return <button key={i} className={`dot ${i === page ? 'on' : ''} ${done ? 'done' : ''}`} aria-label={i === 0 ? 'Warm-up' : i === pageCount - 1 ? 'Finish' : items[i - 1].ex.name} onClick={() => go(i)} />
+          return <button key={i} role="tab" aria-selected={i === page} className={`${i === page ? 'on' : ''} ${done ? 'done' : ''}`} aria-label={i === 0 ? 'Warm-up' : i === pageCount - 1 ? 'Finish' : items[i - 1].ex.name} onClick={() => go(i)} />
         })}
       </div>
 
-      <div key={page} className={dir.current >= 0 ? 'pg-r' : 'pg-l'} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ display: 'grid', gap: 14 }}>
+      <div key={page} className={`workout-page ${dir.current >= 0 ? 'pg-r' : 'pg-l'}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {page === 0 && (
           <>
-            <section className="card">
-              <h2>Warm-up</h2>
+            <section className="card workout-warmup">
+              <div className="overline">BEFORE YOU LIFT</div>
+              <h1>Warm up.</h1>
               <ol className="steps">{WARMUP[plan.day].map((w) => <li className="step" key={w}>{w}</li>)}</ol>
             </section>
-            <WeekCard onPick={(d) => chooseDay(d)} />
             <section className="card">
               <h3>Today’s lifts</h3>
               {items.map((it, i) => (
                 <button key={it.ex.id} className="minirow" onClick={() => go(i + 1)}>
                   <span className="thumbs"><Thumb id={it.ex.id} /></span>
                   <span style={{ flex: 1, textAlign: 'left' }}><b>{it.ex.name}</b><br /><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></span>
-                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].done ? 'Done' : '›'}</span>
+                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].done ? <Icon name="check" /> : <Icon name="chevron" />}</span>
                 </button>
               ))}
               <div className="row wrap">
-                <button className="chip" onClick={() => setSheet({ kind: 'day' })}>↔ Change workout</button>
-                <button className={`chip ${short ? 'on' : ''}`} onClick={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))}>{short ? '✓ Short / fatigued' : 'Short on time?'}</button>
+                <button className="chip" onClick={() => setSheet({ kind: 'day' })}>Change workout</button>
+                <button className={`chip ${short ? 'on' : ''}`} onClick={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))}>{short && <Icon name="check" />}{short ? 'Short session' : 'Short on time?'}</button>
               </div>
             </section>
+            <details className="workout-week-guide"><summary>Your weekly plan<Icon name="chevron" /></summary><WeekCard onPick={chooseDay} /></details>
           </>
         )}
 
         {ex && st && (
-          <section className="card ex">
-            <ExPhotos id={ex.ex.id} />
-            <div>
-              <span className="tag">{page} of {items.length} · {ex.ex.muscle}{ex.ex.key ? ' · key lift' : ''}</span>
-              <h2 style={{ marginTop: 6 }}>{ex.ex.name}</h2>
-              <div className="small mute">{ex.sets} × {ex.ex.reps[0]}–{ex.ex.reps[1]} reps · rest {fmtRest(restFor(ex.ex, data.settings.rest))}{ex.swapped ? ' · swapped' : ''}</div>
+          <section className="ex workout-exercise">
+            <div className="overline">EXERCISE {page} OF {items.length} · {ex.ex.muscle}{ex.ex.key ? ' · KEY LIFT' : ''}</div>
+            <h1 className="exercise-title">{ex.ex.name}</h1>
+            <div className="exercise-meta">
+              <span><Icon name="weight" />{st.rows.length} sets · {ex.ex.reps[0]}–{ex.ex.reps[1]} reps</span>
+              <span><Icon name="clock" />{fmtRest(restFor(ex.ex, data.settings.rest))} rest</span>
+              {ex.swapped && <span>Swapped</span>}
             </div>
             {(() => {
               const m = mediaFor(ex.ex.id)
               return (
-                <details>
-                  <summary style={{ cursor: 'pointer', fontWeight: 800 }}>How to do it</summary>
-                  <p className="small" style={{ margin: '8px 0 4px' }}>{ex.ex.note}</p>
-                  {m && <ol className="small" style={{ paddingLeft: 18, margin: 0, display: 'grid', gap: 6 }}>{m.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>}
-                  {m && m.primary.length > 0 && <p className="small mute" style={{ marginTop: 8 }}>Works: {m.primary.join(', ')}{m.secondary.length ? ` · also ${m.secondary.join(', ')}` : ''}</p>}
+                <details className="exercise-guide">
+                  <summary><span><Icon name="photo" />Exercise guide</span><Icon name="chevron" /></summary>
+                  <div className="exercise-guide-body">
+                    <ExPhotos id={ex.ex.id} />
+                    <p className="small">{ex.ex.note}</p>
+                    {m && <ol className="small">{m.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>}
+                    {m && m.primary.length > 0 && <p className="small mute">Works: {m.primary.join(', ')}{m.secondary.length ? ` · also ${m.secondary.join(', ')}` : ''}</p>}
+                  </div>
                 </details>
               )
             })()}
-            <div className={`rec ${st.rec.action}`}>
-              <div className="row"><b>{st.rec.last ? `Last time: ${st.rec.last.sets.map((s) => `${s.weight}×${s.reps}`).join(', ')}` : 'First time logging this lift'}</b><span className={`tag ${TAG[st.rec.action]}`}>{LABEL[st.rec.action]}</span></div>
-              <div>{st.rec.text}{st.rec.weight ? ` Target: ${st.rec.weight} lb.` : ''}</div>
+            <div className={`exercise-recommendation ${st.rec.action}`}>
+              <b>{st.rec.last ? `Last session: ${st.rec.last.sets.map((s) => `${s.weight} × ${s.reps}`).join(', ')}` : 'First session for this lift'}</b>
+              <p>{st.rec.text}{st.rec.weight ? ` Target: ${st.rec.weight} lb.` : ''}</p>
+              {st.rec.last && <span className={`tag ${TAG[st.rec.action]}`}>{LABEL[st.rec.action]}</span>}
             </div>
 
-            <div className="sets">
-              <div className="setrow4 sethead"><span /><span>lb</span><span>reps</span><span /></div>
+            <div className="workout-set-table">
+              <div className="workout-set-head"><span>Set</span><span>Weight / lb</span><span>Reps</span><span /></div>
               {st.rows.map((r, i) => (
-                <div className="setrow4" key={i}>
+                <div className={`workout-set-row ${i === nextSet ? 'current' : ''} ${st.completed[i] ? 'completed' : ''}`} key={i}>
                   <span className="n">{i + 1}</span>
-                  <input inputMode="decimal" value={r.weight} onChange={(e) => edit(ex.ex.id, st.base, i, 'weight', e.target.value)} placeholder="lb" />
-                  <input inputMode="numeric" value={r.reps} onChange={(e) => { if (!r.reps && e.target.value && data.settings.autoTimer) timer.start(restFor(ex.ex, data.settings.rest), ex.ex.name); edit(ex.ex.id, st.base, i, 'reps', e.target.value) }} placeholder={String(ex.ex.reps[1])} />
-                  <button className="x" aria-label={`Delete set ${i + 1}`} onClick={() => dropSet(ex.ex.id, st.base, i)}>✕</button>
+                  <input id={`set-${ex.ex.id}-${i}-weight`} type="number" min="0" step="any" inputMode="decimal" aria-label={`Set ${i + 1} weight`} value={r.weight} onChange={(e) => edit(ex.ex.id, st.base, i, 'weight', e.target.value)} placeholder="—" />
+                  <input id={`set-${ex.ex.id}-${i}-reps`} type="number" min="1" inputMode="numeric" aria-label={`Set ${i + 1} reps`} value={r.reps} onChange={(e) => edit(ex.ex.id, st.base, i, 'reps', e.target.value)} placeholder="—" />
+                  <button className={`set-check ${st.completed[i] ? 'done' : ''}`} aria-label={st.completed[i] ? `Set ${i + 1} logged` : `Log set ${i + 1}`} aria-pressed={st.completed[i]} onClick={() => logSet(ex.ex.id, st.base, i, restFor(ex.ex, data.settings.rest), ex.ex.name)}><Icon name="check" /></button>
                 </div>
               ))}
             </div>
-            <div className="row wrap">
-              <button className="ghost small-btn" onClick={() => addSet(ex.ex.id, st.base)}>+ Add set</button>
-              <button className="ghost small-btn" onClick={() => timer.start(restFor(ex.ex, data.settings.rest), ex.ex.name)}>⏱ Rest</button>
+            <div className="workout-set-tools">
+              <button className="quiet-button" onClick={() => addSet(ex.ex.id, st.base)}><Icon name="plus" />Add set</button>
+              <button className="icon-button" aria-label="Exercise options" onClick={() => setSheet({ kind: 'options', exId: ex.ex.id })}><Icon name="more" /></button>
             </div>
+            {validation && <p className="workout-validation" role="alert">{validation}</p>}
 
             {data.settings.rpeEnabled && st.rows.length > 0 && st.rows[st.rows.length - 1].reps && (
-              <div className="rec start">
-                <div className="row"><b>How hard was your last set?</b><button className="ghost small-btn" onClick={() => setSheet({ kind: 'rpe' })}>ⓘ What’s RPE?</button></div>
+              <details className="workout-rpe">
+                <summary>How hard was your last set?<Icon name="chevron" /></summary>
+                <button className="quiet-button" onClick={() => setSheet({ kind: 'rpe' })}>What’s RPE?</button>
                 {(() => {
                   const logged = todaysLog?.entries.find((e) => e.exId === ex.ex.id)
                   const cur = draft.rpe?.[ex.ex.id] ?? (logged?.sets[logged.sets.length - 1]?.rpe ? String(logged.sets[logged.sets.length - 1].rpe) : '')
@@ -391,45 +455,67 @@ export default function Workout() {
                     </>
                   )
                 })()}
-              </div>
+              </details>
             )}
-
-            <input value={draft.notes[ex.ex.id] ?? todaysLog?.entries.find((e) => e.exId === ex.ex.id)?.note ?? ''} onChange={(e) => setDraft((dr) => ({ ...dr, notes: { ...dr.notes, [ex.ex.id]: e.target.value } }))} placeholder="Notes" />
-            <div className="row wrap">
-              <button className="ghost small-btn" onClick={() => setSheet({ kind: 'swap', orig: ex.orig, cur: ex.ex.id })}>Swap exercise</button>
-              <button className="ghost small-btn" onClick={() => removeEx(ex.orig, ex.ex.id)}>Remove</button>
-            </div>
           </section>
         )}
 
         {page === pageCount - 1 && (
           <>
-            <section className="card hero">
-              <h2>{exState.filter((s) => s.done).length} of {items.length} exercises done</h2>
+            <section className="card workout-review">
+              <div className="overline">SESSION REVIEW</div>
+              <h1>Ready to finish?</h1>
+              <p className="mute">{enteredSets} {enteredSets === 1 ? 'set' : 'sets'} entered · {exState.filter((s) => s.done).length} of {items.length} exercises completed</p>
+              {pendingSets > 0 && <p className="banner">{pendingSets} entered {pendingSets === 1 ? 'set has' : 'sets have'} not been checked. These valid sets will also be saved when you finish.</p>}
               {items.map((it, i) => (
                 <button key={it.ex.id} className="minirow" onClick={() => go(i + 1)}>
                   <span style={{ flex: 1, textAlign: 'left' }}>{it.ex.name}</span>
-                  <span className={`tag ${exState[i].done ? 'ok' : 'warn'}`}>{exState[i].done ? 'Done' : 'Not logged'}</span>
+                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].rows.filter(validSet).length} sets{exState[i].done && <Icon name="check" />}</span>
                 </button>
               ))}
-              <button className="ghost" onClick={() => setSheet({ kind: 'add' })}>＋ Add an exercise</button>
+              <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
             </section>
             {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><Link className="btn ghost" to="/log">Log cardio</Link></section>}
-            <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? '🗑 Delete this workout' : 'Discard this workout'}</button>
+            <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? 'Delete this workout' : 'Discard this workout'}</button>
           </>
         )}
       </div>
 
-      <div className="navbar">
-        <button className="ghost" onClick={() => go(page - 1)} disabled={page === 0}>‹ Back</button>
+      <footer className="workout-footer">
+        {ex && st && <p>{nextSet < 0 ? 'All sets logged. Ready for the next exercise.' : data.settings.autoTimer ? 'Log a set to start your rest timer.' : 'Tap the check to log each set.'}</p>}
         {page === pageCount - 1
-          ? <button className="good" onClick={finish} disabled={saved}>{saved ? '✓ Saved. Nice work.' : todaysLog ? 'Save changes' : 'Finish workout'}</button>
-          : <button className="primary" onClick={() => go(page + 1)}>{page === 0 ? 'Start lifting ›' : 'Next ›'}</button>}
-      </div>
+          ? <button className="primary" onClick={finish} disabled={saved}>{saved ? 'Workout saved' : todaysLog ? 'Save changes' : 'Finish workout'}<Icon name="check" /></button>
+          : ex && st && nextSet >= 0
+            ? <button className="primary" onClick={() => logSet(ex.ex.id, st.base, nextSet, restFor(ex.ex, data.settings.rest), ex.ex.name)}>Log set {nextSet + 1}<Icon name="check" /></button>
+            : <button className="primary" onClick={() => go(page + 1)}>{page === 0 ? 'Start lifting' : page === items.length ? 'Review workout' : 'Next exercise'}<Icon name="arrow" /></button>}
+        <div className="workout-footer-next">
+          <button className="quiet-button" onClick={() => go(page - 1)} disabled={page === 0}><Icon name="back" />Back</button>
+          {page > 0 && page < pageCount - 1 && <button className="quiet-button" onClick={() => go(page + 1)}><span>{page === items.length ? 'Review workout' : `Next: ${items[page].ex.name}`}</span><Icon name="chevron" /></button>}
+          {page === 0 && <span>{items.length} exercises</span>}
+        </div>
+      </footer>
 
       {ask === 'discard' && <ConfirmSheet title="Discard this workout?" message="Are you sure you want to discard this workout? The sets you entered and the workout timer will be cleared." confirmLabel="Yes, discard it" onConfirm={discard} onCancel={() => setAsk(null)} />}
       {ask === 'delete' && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and today's check-in will be undone. This can't be undone." confirmLabel="Yes, delete it" onConfirm={deleteLogged} onCancel={() => setAsk(null)} />}
       {DaySheet}
+      {sheet?.kind === 'options' && (() => {
+        const item = items.find((it) => it.ex.id === sheet.exId)
+        if (!item) return null
+        const state = exState[items.indexOf(item)]
+        return (
+          <Sheet title="Exercise options" onClose={() => setSheet(null)}>
+            <h3>{item.ex.name}</h3>
+            <label>Notes<textarea aria-label="Exercise notes" value={draft.notes[item.ex.id] ?? todaysLog?.entries.find((e) => e.exId === item.ex.id)?.note ?? ''} onChange={(e) => setDraft((dr) => ({ ...dr, notes: { ...dr.notes, [item.ex.id]: e.target.value } }))} placeholder="Add a note for next time" /></label>
+            <button className="ghost" onClick={() => { timer.start(restFor(item.ex, data.settings.rest), item.ex.name); setSheet(null) }}><Icon name="clock" />Start rest timer</button>
+            <button className="ghost" onClick={() => setSheet({ kind: 'swap', orig: item.orig, cur: item.ex.id })}>Swap exercise</button>
+            <button className="ghost" onClick={() => { removeEx(item.orig, item.ex.id); setSheet(null) }}>Remove exercise</button>
+            <div className="workout-options">
+              <h3>Manage sets</h3>
+              {state.rows.map((row, i) => <div className="row" key={i}><span>Set {i + 1}{validSet(row) ? ` · ${row.weight} lb × ${row.reps}` : ''}</span><button className="icon-button" aria-label={`Delete set ${i + 1}`} onClick={() => dropSet(item.ex.id, state.base, i)}><Icon name="close" /></button></div>)}
+            </div>
+          </Sheet>
+        )
+      })()}
       {sheet?.kind === 'rpe' && (
         <Sheet title="What is RPE?" onClose={() => setSheet(null)} z={50}>
           <p>RPE is <b>how hard your last set felt</b>, from 1 to 10. It tells Will Power when to add weight.</p>
@@ -467,6 +553,6 @@ export default function Workout() {
           ))}
         </Sheet>
       )}
-    </>
+    </div>
   )
 }

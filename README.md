@@ -63,3 +63,21 @@ validation covered multi-file selection, removal, local posting, carousel
 navigation, lightbox indexing/swipe, text-only posting, and invalid-image errors
 at 390×844. Live Supabase permissions and real iPhone HEIC uploads require a
 configured project and device verification.
+
+## Training app layout
+
+Today leads with the next session, one Start/Resume action, the actual weekly
+plan, and crew check-ins. Train has a focused session view with large set inputs,
+an expandable exercise guide, and notes/swaps/set management in Exercise options.
+Tap **Log set** to check a valid set and start rest when automatic rest is enabled;
+typing alone does not start a timer. Editing a checked set clears its check.
+
+Set checks are stored in the optional `Draft.completed` field inside the existing
+profile data. Older drafts and workouts still load; the session review explicitly
+includes valid entered sets that have not been checked. No new database migration
+is required for the design changes. Existing crew-photo schema and RLS repairs
+still need to be applied to the live project as described above.
+
+Crew leads with real check-ins and the photo feed; questions, leaderboard, and
+crew details are secondary expandable sections. Account settings and Siri remain
+available through the profile icon. Local mode shows only this device's activity.

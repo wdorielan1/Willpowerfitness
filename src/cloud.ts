@@ -81,9 +81,11 @@ export async function leaveCrewCloud(crewId: string, userId: string) {
   if (error) throw new Error(error.message)
 }
 export async function pushCheckin(crewId: string, userId: string, name: string, c: { going: boolean; done: boolean }, streak: number) {
-  if (!supabase) return
-  await supabase.from('crew_checkins').upsert({ crew_id: crewId, user_id: userId, day: todayISO(), name, going: c.going, done: c.done, updated_at: new Date().toISOString() })
-  await supabase.from('crew_members').update({ streak }).eq('crew_id', crewId).eq('user_id', userId)
+  if (!supabase) return null
+  const checkin = await supabase.from('crew_checkins').upsert({ crew_id: crewId, user_id: userId, day: todayISO(), name, going: c.going, done: c.done, updated_at: new Date().toISOString() })
+  if (checkin.error) return checkin.error.message
+  const member = await supabase.from('crew_members').update({ streak }).eq('crew_id', crewId).eq('user_id', userId)
+  return member.error?.message ?? null
 }
 export async function postMessageCloud(crewId: string, userId: string, name: string, text: string) {
   await supabase?.from('crew_messages').insert({ crew_id: crewId, user_id: userId, name, text })

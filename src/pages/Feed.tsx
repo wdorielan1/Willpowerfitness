@@ -3,7 +3,7 @@ import { useApp } from '../store'
 import { ConfirmSheet, Lightbox } from '../components'
 import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
-import { ENCOURAGEMENTS } from '../data'
+import { Icon } from '../icons'
 import { todayISO } from '../engine'
 import type { CrewPost, PostKind } from '../types'
 
@@ -119,11 +119,11 @@ export default function Feed({ crewId }: { crewId: string }) {
 
   return (
     <>
-      <section className="card">
-        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share a win, a photo, or some encouragement" maxLength={1000} />
+      <section className="card feed-composer">
+        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew" maxLength={1000} />
         {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
           <img src={src} alt={`Selected photo ${i + 1}`} />
-          <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}>✕</button>
+          <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><Icon name="close" size={16} /></button>
         </div>)}</div>}
         <input ref={file} type="file" accept="image/*" multiple disabled={busy} hidden onChange={(e) => {
           const picked = Array.from(e.target.files ?? [])
@@ -131,18 +131,17 @@ export default function Feed({ crewId }: { crewId: string }) {
           else { setPhotos((p) => [...p, ...picked]); setErr('') }
           e.target.value = ''
         }} />
-        <div className="row wrap">
-          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}>📷 Photo</button>
-          {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}>💪 Share today’s workout</button>}
+        <div className="row wrap composer-actions">
+          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
+          {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}><Icon name="weight" size={18} />Share workout</button>}
           <span style={{ flex: 1 }} />
           <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
         </div>
-        <div className="chips">{ENCOURAGEMENTS.slice(0, 3).map((m) => <button key={m} disabled={busy} className="chip" onClick={() => void submit({ kind: 'post', text: m })}>{m}</button>)}</div>
         {busy && <p className="small mute" role="status">{progress}</p>}
         {err && <p role="alert" className="err small">{err}</p>}
       </section>
 
-      {posts.length === 0 && <section className="card"><p className="mute">No posts yet. Be the first to share something.</p></section>}
+      {posts.length === 0 && <section className="feed-empty"><span className="icon-surface"><Icon name="weight" /></span><h3>No posts yet.</h3><p>Post a workout, ask a question,<br />or let your crew know you’re coming.</p></section>}
       {posts.map((p) => {
         const images = postPhotos(p).map((photo) => urls[photo.id]).filter(Boolean)
         const meta = p.meta as { sets?: number; volume?: number; exercises?: number; q?: string } | undefined
@@ -164,7 +163,7 @@ export default function Feed({ crewId }: { crewId: string }) {
             )}
             {images.length > 0 && <PostCarousel srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
-              <button className={`chip ${p.liked ? 'on' : ''}`} onClick={() => like(p)}>🔥 {p.likes || ''}</button>
+              <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} />{p.likes || ''}</button>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
           </article>

@@ -1,12 +1,31 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { dayFor, fmtTime, streak, todayISO } from '../engine'
-import Qotd from './Qotd'
-import { WorkoutClock } from '../components'
-import { ENCOURAGEMENTS } from '../data'
-import { roster, stats, useCrew } from './Crew'
+import { dayFor, fmtTime, generateWorkout, restFor, todayISO, weekSchedule } from '../engine'
+import { fmtClock } from '../components'
+import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
+import { Icon } from '../icons'
+import type { DayType } from '../types'
+
+const sessionDescription: Record<DayType, string> = {
+  Push: 'Chest, shoulders & triceps',
+  Pull: 'Back & biceps',
+  Legs: 'Quads, hamstrings & glutes',
+  'Shoulders/Abs': 'Shoulders & core',
+  'Full Body': 'A little of everything',
+  'Rest/Cardio': 'Easy movement. Time to recover.',
+}
+
+function SessionElapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+  return <span className="session-elapsed"><Icon name="clock" />{fmtClock(now - since)} elapsed</span>
+}
 
 export default function Dashboard() {
   const { data, userId } = useApp()
@@ -16,75 +35,91 @@ export default function Dashboard() {
   const today = todayISO()
   const nav = useNavigate()
   const day = dayFor(today, data)
-  const logged = data.logs.some((l) => l.date === today && !l.baseline)
+  const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.skipped)
   const rest = day === 'Rest/Cardio'
-  const s = streak(data)
+  const plan = generateWorkout(today, data, !!data.short[today])
+  const estimatedMinutes = Math.round(plan.items.reduce((minutes, item) => minutes + item.sets * (restFor(item.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
+  const week = weekSchedule(data, today)
+  const completedThisWeek = week.filter((d) => d.status === 'done').length
   const live = useLiveCrew(crew?.id ?? null, userId)
-  const g = !crew ? null : live ? { pct: live.members ? Math.round((live.done / live.members) * 100) : 0, done: live.done, members: live.members } : stats(crew, ci.done)
-  const who = !crew ? [] : live ? live.people.map((x) => ({ ...x, name: x.mine ? `${x.name} (you)` : x.name })) : roster(crew, today, ci.going ? { name: data.name || 'You', going: true, done: ci.done } : undefined)
-  const quote = ENCOURAGEMENTS[new Date().getDate() % ENCOURAGEMENTS.length]
-  const hour = new Date().getHours()
-  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const people = live?.people ?? (ci.going ? [{ name: data.name || 'You', status: ci.done ? 'done' as const : 'going' as const, mine: true }] : [])
+  const start = () => {
+    ci.start()
+    nav('/workout')
+  }
 
   return (
     <>
-      <div>
-        <p className="mute">{greet}, {data.name || 'lifter'}</p>
-        <h1>{ci.done ? 'Done. That is how it is done.' : rest ? 'Recovery day.' : `Today: ${day}.`}</h1>
+      <div className="today-heading">
+        <p className="overline">{ci.done ? 'TODAY’S SESSION' : rest ? 'YOUR RECOVERY' : 'YOUR NEXT SESSION'}</p>
+        <h1>{ci.done ? <>{todaysLog ? 'Workout logged.' : 'Workout complete.'}</> : rest ? <>Recovery<br />day.</> : <>Your next<br />workout.</>}</h1>
       </div>
 
-      <section className="card hero">
-        <div className="row">
-          <span className="tag accent">{rest ? 'Rest / cardio' : 'Today’s workout'}</span>
-          <span className="tag">🔥 {s} day streak</span>
+      <section className="session-card" aria-label="Today’s workout">
+        <div className="session-topline">
+          <span className="section-label">{ci.done ? 'COMPLETE' : ci.started && !rest ? 'IN PROGRESS' : 'PLANNED'} · {fmtTime(p.time)}</span>
+          <span className="icon-surface"><Icon name={ci.done ? 'check' : 'weight'} /></span>
         </div>
-        <div className="row">
-          <div><b style={{ fontSize: 22 }}>{day}</b><div className="mute small">Committed to {fmtTime(p.time)}{crew ? ` · ${crew.name}` : ''}</div></div>
+        <h2 className="session-heading">{rest ? 'Recovery' : day}</h2>
+        <p className="session-subtitle">{sessionDescription[day]}</p>
+        {!rest && <div className="session-meta">
+          <span><Icon name="weight" />{plan.items.length} {plan.items.length === 1 ? 'exercise' : 'exercises'}</span>
+          {ci.started && !ci.done
+            ? <SessionElapsed since={ci.started} />
+            : todaysLog?.minutes
+              ? <span><Icon name="clock" />{todaysLog.minutes} min logged</span>
+              : estimatedMinutes > 0 && <span><Icon name="clock" />About {estimatedMinutes} min</span>}
+        </div>}
+
+        {ci.done
+          ? <Link to="/workout" className="btn primary session-primary">{todaysLog ? 'View logged workout' : 'View workout'}<Icon name="arrow" /></Link>
+          : rest
+            ? <Link to="/workout" className="btn primary session-primary">See recovery plan<Icon name="arrow" /></Link>
+            : <button className="primary session-primary" onClick={start}>{ci.started ? 'Resume workout' : 'Start workout'}<Icon name="arrow" /></button>}
+
+        <div className="session-secondary">
+          {!ci.done && <Link to="/workout?change=1" className="quiet-action">Change workout</Link>}
+          {ci.done && todaysLog && <Link to="/workout" className="quiet-action">Edit logged sets</Link>}
+          {ci.done && <button className="quiet-action" onClick={ci.undo}>Undo completion</button>}
         </div>
-        {ci.started && !ci.done && !rest && <WorkoutClock since={ci.started} />}
-        {!ci.done && (rest
-          ? <Link to="/workout" className="btn primary full">See cardio plan</Link>
-          : <button className="primary full" onClick={() => nav('/workout')}>{ci.started ? '▶ Continue workout' : '▶ Start workout'}</button>)}
-        {!ci.done && <Link to="/workout?change=1" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Not feeling {day}? Change today’s workout</Link>}
-        {ci.done && logged && <Link to="/workout" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Edit today’s logged sets</Link>}
-        <div className="grid2">
-          <button className={ci.going ? 'good' : 'primary'} disabled={ci.going} onClick={ci.imGoing}>{ci.going ? '✓ I’m going' : 'I’m going'}</button>
-          <button className={ci.done ? 'good' : ''} onClick={ci.done ? ci.undo : ci.complete}>{ci.done ? '✓ Complete' : 'Workout complete'}</button>
-        </div>
-        <p className="small mute">“{quote}”</p>
+
       </section>
 
-      {crew && g ? (
-        <section className="card">
-          <div className="row"><h2>{crew.name}</h2><Link to="/crew" className="small mute">Switch</Link></div>
-          <div className="row small"><span>Group completion today</span><b>{g.pct}%</b></div>
-          <div className="bar"><i style={{ width: `${g.pct}%` }} /></div>
-          <p className="small mute">{g.done} of {g.members} members checked in</p>
-          <h3>Training today</h3>
-          {live && who.length === 0 && <p className="small mute">Nobody has checked in yet. Be the first.</p>}
-          <div className="people">
-            {who.map((w) => (
-              <div className="person" key={w.name}>
-                <span className={`avatar ${w.status}`}>{w.name[0]}</span>
-                <span className="grow">{w.name}</span>
-                <span className={`tag ${w.status === 'done' ? 'ok' : 'accent'}`}>{w.status === 'done' ? 'Done' : 'Going'}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section className="card">
-          <span className="tag">Solo mode</span>
-          <h2>Training on your own</h2>
-          <p className="mute small">Your workouts, logs and streak all work without a crew. Join one anytime if you want company.</p>
-          <Link to="/crew" className="btn ghost">Browse crews (optional)</Link>
-        </section>
-      )}
-      {crew && <Qotd crewId={crew.id} />}
+      <section className="week-summary" aria-label="This week’s training">
+        <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
+        <div className="week-strip">
+          {week.map((d) => <div className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}`}>
+            <span aria-hidden="true">{d.label[0]}</span>
+            <span className="week-day-dot" aria-hidden="true">{d.status === 'done' && <Icon name="check" />}</span>
+          </div>)}
+        </div>
+      </section>
 
-      <div className="grid2">
-        <Link to="/log" className="stat"><b>＋</b><span>Log cardio or body weight</span></Link>
-        <Link to="/shortcuts" className="stat"><b>🎙</b><span>Set up Siri wake-up</span></Link>
+      {crew ? <section className="crew-summary" aria-label="Your crew">
+        <div className="crew-summary-top">
+          <span className="icon-surface"><Icon name="crew" /></span>
+          <div className="grow"><h2>{crew.name}</h2><p className="crew-summary-meta">{fmtTime(crew.time)} training time</p></div>
+          <Link to="/crew" className="icon-button" aria-label={`Open ${crew.name}`}><Icon name="chevron" /></Link>
+        </div>
+        {live && live.members > 0 && <p className="crew-summary-meta">{live.done} of {live.members} {live.members === 1 ? 'member' : 'members'} completed today</p>}
+        {people.length > 0 ? <div className="crew-summary-people">
+          {people.slice(0, 3).map((person, i) => <div className="crew-summary-person" key={`${person.name}-${i}`}>
+            <span className={`avatar ${person.status}`}>{person.name[0]}</span>
+            <span className="grow">{person.name}{person.mine ? ' (you)' : ''}</span>
+            <span className="small mute">{person.status === 'done' ? 'Done' : 'Training today'}</span>
+          </div>)}
+          {people.length > 3 && <Link to="/crew" className="quiet-action">View all check-ins</Link>}
+        </div> : <p className="crew-summary-meta">No check-ins to show yet.</p>}
+        {!live && <p className="crew-summary-meta">Your check-in is saved on this device.</p>}
+      </section> : <Link to="/crew" className="crew-summary crew-summary-link">
+        <span className="icon-surface"><Icon name="crew" /></span>
+        <div className="grow"><h2>Find your crew</h2><p className="crew-summary-meta">People who train when you do.</p></div>
+        <Icon name="chevron" />
+      </Link>}
+
+      <div className="dashboard-shortcuts">
+        <Link to="/log" className="quiet-action"><Icon name="plus" />Quick log</Link>
+        <Link to="/shortcuts" className="quiet-action"><Icon name="clock" />Siri shortcuts</Link>
       </div>
     </>
   )

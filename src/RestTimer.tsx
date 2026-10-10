@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from './store'
 import { fmtRest } from './engine'
+import { Icon } from './icons'
 
 interface Ctx { start: (seconds: number, label: string) => void; stop: () => void }
 const C = createContext<Ctx>({ start: () => {}, stop: () => {} })
@@ -66,10 +67,13 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     <C.Provider value={{ start, stop }}>
       {children}
       {t && (
-        <div role="timer" aria-live="polite" style={{ position: 'fixed', left: 12, right: 12, top: 'calc(8px + env(safe-area-inset-top))', maxWidth: 536, margin: '0 auto', zIndex: 20, background: over ? '#12301f' : 'var(--card)', border: `1px solid ${over ? 'var(--ok)' : 'var(--line)'}`, borderRadius: 18, padding: 12, display: 'grid', gap: 8, boxShadow: '0 8px 30px rgba(0,0,0,.5)' }}>
-          <div className="row">
-            <div><div className="small mute">{over ? 'Rest over' : 'Rest'} · {t.label}</div><b style={{ fontSize: 44, lineHeight: 1.05, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{over ? 'Go lift! 💪' : fmtRest(left)}</b></div>
-            <div className="row" style={{ gap: 6 }}>
+        <div className={`rest-timer ${over ? 'over' : ''}`} role="timer" aria-label="Rest timer">
+          <div className="rest-timer-main">
+            <div className="rest-timer-info">
+              <div className="rest-timer-label"><span><Icon name="clock" />{over ? 'Rest complete' : 'Rest'}</span><span className="small mute">{t.label}</span></div>
+              <b className="rest-timer-time" role="status" aria-live={over ? 'polite' : 'off'}>{over ? 'Ready' : fmtRest(left)}</b>
+            </div>
+            <div className="rest-timer-controls">
               {!over && <button className="ghost small-btn" onClick={() => adjust(-15)}>−15</button>}
               {!over && <button className="ghost small-btn" onClick={() => adjust(15)}>+15</button>}
               <button className="small-btn" onClick={stop}>{over ? 'Done' : 'Skip'}</button>

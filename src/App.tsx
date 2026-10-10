@@ -1,6 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, Link, useLocation } from 'react-router-dom'
 import { useApp } from './store'
+import { dayFor, todayISO } from './engine'
+import { Icon, type IconName } from './icons'
+import { Sheet } from './components'
 import Auth from './pages/Auth'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
@@ -28,13 +31,13 @@ export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power Fitness" />
 )
 
-const tabs = [
-  ['/', 'Today', '◉'],
-  ['/crew', 'Crew', '👥'],
-  ['/workout', 'Lift', '🏋'],
-  ['/progress', 'Progress', '📈'],
-  ['/nutrition', 'Fuel', '🍽'],
-] as const
+const tabs: [string, string, IconName][] = [
+  ['/', 'Today', 'home'],
+  ['/workout', 'Train', 'weight'],
+  ['/crew', 'Crew', 'crew'],
+  ['/progress', 'Progress', 'chart'],
+  ['/nutrition', 'Nutrition', 'food'],
+]
 
 function ScrollTop() {
   const { pathname } = useLocation()
@@ -45,6 +48,15 @@ function ScrollTop() {
 export default function App() {
   const { email, data, loading } = useApp()
   const loc = useLocation()
+  const [accountMenu, setAccountMenu] = useState(false)
+  const today = todayISO()
+  const hasSession = !!data.started[today] || data.logs.some((l) => l.date === today && !l.baseline) || Object.values(data.drafts[today]?.sets ?? {}).some((rows) => rows.some((r) => r.reps))
+  const training = loc.pathname === '/workout' && !!data.profile && hasSession && dayFor(today, data) !== 'Rest/Cardio'
+  useEffect(() => { setAccountMenu(false) }, [loc.pathname])
+  useEffect(() => {
+    document.body.classList.toggle('training-mode', training)
+    return () => document.body.classList.remove('training-mode')
+  }, [training])
   if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
   if (!email) {
     return (
@@ -62,17 +74,13 @@ export default function App() {
   if (!data.profile) return <Onboarding />
   return (
     <RestTimerProvider>
-    <div className="shell">
+    <div className={`shell ${training ? 'training' : ''}`}>
       <ScrollTop />
       <WorkoutGuard />
       <ChallengeSync />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
-        <nav className="top-links">
-          <Link to="/shortcuts">Siri</Link>
-          <Link to="/settings">Settings</Link>
-          <Link to="/profile">Profile</Link>
-        </nav>
+        <button className="icon-button account-button" aria-label="Open account menu" onClick={() => setAccountMenu(true)}><Icon name="person" /></button>
       </header>
       <main>
         <Routes>
@@ -96,13 +104,18 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
-      <nav className="tabbar">
+      <nav className="tabbar" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => (
           <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && ['/challenges', '/friends'].includes(loc.pathname)) ? 'on' : '')}>
-            <span>{icon}</span>{label}
+            <Icon name={icon} /><span className="tab-label">{label}</span>
           </NavLink>
         ))}
       </nav>
+      {accountMenu && <Sheet title="Your account" onClose={() => setAccountMenu(false)}>
+        <Link className="account-link" to="/profile"><Icon name="person" />Profile</Link>
+        <Link className="account-link" to="/settings"><Icon name="settings" />Settings</Link>
+        <Link className="account-link" to="/shortcuts"><Icon name="clock" />Siri & Apple Shortcuts</Link>
+      </Sheet>}
     </div>
     </RestTimerProvider>
   )

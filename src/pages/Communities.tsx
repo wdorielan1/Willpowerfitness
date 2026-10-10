@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { CAT_LABEL, NAMES, type CommunityDef, type CrewCat } from '../data'
+import { CAT_LABEL, type CommunityDef, type CrewCat } from '../data'
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
 import SocialTabs from '../SocialTabs'
 import { Sheet } from '../components'
 import { fmtTime, streak, todayISO } from '../engine'
-import { allCommunities, roster, stats } from './Crew'
-import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinCrewCloud, leaveCrewCloud, useCrewCounts, useLiveCrew } from '../cloud'
+import { allCommunities } from './Crew'
+import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinCrewCloud, leaveCrewCloud, pushCheckin, useCrewCounts, useLiveCrew } from '../cloud'
 import Qotd from './Qotd'
 import Feed from './Feed'
-import { postPhotos, deletePhotoBlob, CREW_BUCKET } from '../photos'
+import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
+import { Icon } from '../icons'
 
 export const MAX_CREWS = 3
 
@@ -36,6 +37,7 @@ export default function Communities() {
   const [name, setName] = useState('')
   const [time, setTime] = useState('06:00')
   const [vibe, setVibe] = useState('')
+  const [checkingIn, setCheckingIn] = useState(false)
 
   // A user-made crew with no activity for 35 days is archived. Its posts and history are kept, and any new activity wakes it up.
   const isCustom = (c: CommunityDef) => data.custom.some((x) => x.id === c.id)
@@ -45,7 +47,11 @@ export default function Communities() {
     const last = counts[c.id]?.lastActive ?? created
     return Date.now() - last > INACTIVE_DAYS * 86400000
   }
-  const countOf = (c: CommunityDef) => (cloudEnabled ? counts[c.id]?.members ?? 0 : c.members)
+  const memberLabel = (c: CommunityDef) => {
+    if (!cloudEnabled) return 'Local crew'
+    const count = counts[c.id]?.members
+    return count === undefined ? 'Member count loading' : `${count} member${count === 1 ? '' : 's'}`
+  }
   const visible = all.filter((c) => !data.joined.includes(c.id) && !archived(c))
   const suggested = suggestCrews(data.profile!, visible).slice(0, 3)
   const browse = visible.filter((c) => cat === 'all' || (c.cat ?? 'time') === cat)
@@ -88,6 +94,23 @@ export default function Communities() {
     if (userId) void createCrewCloud(id, userId, name.trim(), time, v).then(() => joinCrewCloud(id, userId, myName, streak(data)))
     setName(''); setVibe(''); setSel(id); setFinder(false)
   }
+  const checkIn = async () => {
+    if (!crew || checkingIn) return
+    setCheckingIn(true)
+    try {
+      if (userId) {
+        const error = await withTimeout(pushCheckin(crew.id, userId, myName, { going: true, done: ci.done }, streak(data)), 15000, 'Checking in')
+        if (error) throw new Error(error)
+      }
+      const today = todayISO()
+      update((d) => ({ ...d, checkins: { ...d.checkins, [today]: { ...d.checkins[today], going: true } } }))
+      live?.refresh()
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error))
+    } finally {
+      setCheckingIn(false)
+    }
+  }
 
   const Finder = (
     <>
@@ -98,7 +121,7 @@ export default function Communities() {
             <section key={s.crew.id} className="card">
               <div className="row"><div><h3>{s.crew.name}</h3><div className="small mute">{s.crew.vibe}</div></div><span className="tag accent">{fmtTime(s.crew.time)}</span></div>
               <div className="chips">{s.reasons.map((r) => <span key={r} className="tag">{r}</span>)}</div>
-              <div className="row"><span className="small mute">{countOf(s.crew)} member{countOf(s.crew) === 1 ? '' : 's'}</span><button className="primary small-btn" onClick={() => join(s.crew)}>Join</button></div>
+              <div className="row"><span className="small mute">{memberLabel(s.crew)}</span><button className="primary small-btn" onClick={() => join(s.crew)}>Join</button></div>
             </section>
           ))}
         </>
@@ -110,7 +133,7 @@ export default function Communities() {
           {browse.map((c) => (
             <section key={c.id} className="card">
               <div className="row"><div><h3>{c.name}</h3><div className="small mute">{c.vibe}</div></div><span className="tag accent">{fmtTime(c.time)}</span></div>
-              <div className="row"><span className="small mute">{countOf(c)} member{countOf(c) === 1 ? '' : 's'}</span><button className="primary small-btn" onClick={() => join(c)}>Join</button></div>
+              <div className="row"><span className="small mute">{memberLabel(c)}</span><button className="primary small-btn" onClick={() => join(c)}>Join</button></div>
             </section>
           ))}
           {browse.length === 0 && <p className="small mute">Nothing here. Try another filter.</p>}
@@ -128,59 +151,61 @@ export default function Communities() {
   )
 
   const cc = crew ? counts[crew.id] : undefined
-  const sample = crew && !cloudEnabled ? stats(crew, ci.done) : null
   const people = crew
     ? cloudEnabled && live
       ? live.people.map((x) => ({ ...x, name: x.mine ? `${x.name} (you)` : x.name }))
-      : roster(crew, todayISO(), ci.going ? { name: myName, going: true, done: ci.done } : undefined)
+      : ci.going ? [{ name: `${myName} (you)`, status: ci.done ? 'done' as const : 'going' as const, streak: streak(data), mine: true }] : []
     : []
   const board = crew
-    ? (cloudEnabled && live ? live.board.map((r) => ({ name: r.mine ? `${r.name} (you)` : r.name, streak: r.streak })) : [...roster(crew).map((r) => ({ name: r.name, streak: r.streak })), { name: `${myName} (you)`, streak: streak(data) }])
+    ? (cloudEnabled && live ? live.board.map((r) => ({ name: r.mine ? `${r.name} (you)` : r.name, streak: r.streak })) : [{ name: `${myName} (you)`, streak: streak(data) }])
         .sort((a, b) => b.streak - a.streak).slice(0, 6)
     : []
+  const checkedIn = cloudEnabled ? people.some((p) => p.mine) || (crew?.id === data.primary && ci.going) : ci.going
+  const checkedInDone = people.some((p) => p.mine && p.status === 'done') || (checkedIn && ci.done)
 
   return (
     <>
-      <SocialTabs />
-      {!cloudEnabled && <div className="banner">Beta preview: teammates and counts are sample data until live crews launch. Your own posts are real.</div>}
+      {!cloudEnabled && <div className="banner">Local mode. Your check-ins and posts are saved on this device. Connect live crews to see other members.</div>}
 
       {!crew ? (
         <>
-          <section className="card"><span className="tag">Solo mode</span><h2>You’re training on your own</h2><p className="small mute">That’s totally fine. Join a crew whenever you want company. You can be in up to {MAX_CREWS}.</p></section>
+          <header className="crew-heading"><div className="overline">YOUR CREW</div><h1 className="crew-title">Find your people.</h1><p className="small mute">Join a crew around your training time, goals, or routine. You can be in up to {MAX_CREWS}.</p></header>
+          <SocialTabs />
           {Finder}
         </>
       ) : (
         <>
-          <div className="tabs">
-            {yours.map((c) => <button key={c.id} className={c.id === crew.id ? 'on' : ''} onClick={() => setSel(c.id)} style={{ fontSize: 13 }}>{c.name.length > 14 ? c.name.slice(0, 13) + '…' : c.name}</button>)}
+          <div className="crew-switcher">
+            {yours.length > 1 && <div className="chips" aria-label="Your crews">{yours.map((c) => <button key={c.id} className={`chip ${c.id === crew.id ? 'on' : ''}`} aria-pressed={c.id === crew.id} onClick={() => setSel(c.id)}>{c.name}</button>)}</div>}
+            <div className="row"><span className="small mute">{yours.length} of {MAX_CREWS} crews</span><button className="quiet-action" onClick={() => setFinder(true)}><Icon name="plus" size={15} /> Find crews</button></div>
           </div>
-          <div className="row"><span className="small mute">{yours.length} of {MAX_CREWS} crews</span><button className="ghost small-btn" onClick={() => setFinder(true)}>＋ Find crews</button></div>
-
-          <section className="card hero">
-            <div className="row"><div><h2>{crew.name}</h2><div className="small mute">{crew.vibe}</div></div><span className="tag accent">{fmtTime(crew.time)}</span></div>
+          <header className="crew-heading">
+            <div className="overline">{!crew.cat || crew.cat === 'time' ? 'TIME-BASED CREW' : `${CAT_LABEL[crew.cat]} CREW`}</div>
+            <h1 className="crew-title">{crew.name}</h1>
+            <div className="crew-meta"><span><Icon name="clock" size={16} /> {fmtTime(crew.time)} training time</span>{cloudEnabled && cc && <><span>{cc.members} member{cc.members === 1 ? '' : 's'}</span><span>{cc.done} done today</span></>}</div>
             {archived(crew) && <div className="banner">This crew has been quiet for {INACTIVE_DAYS}+ days. Post something to wake it up.</div>}
-            <div className="grid3">
-              <div className="stat"><b>{cloudEnabled ? cc?.members ?? 1 : crew.members}</b><span>members</span></div>
-              <div className="stat"><b>{cloudEnabled ? cc?.active ?? 0 : Math.round(crew.rate * 100) + '%'}</b><span>{cloudEnabled ? `active (${INACTIVE_DAYS}d)` : 'avg. rate'}</span></div>
-              <div className="stat"><b>{cloudEnabled ? (cc?.members ? Math.round(((cc.done ?? 0) / cc.members) * 100) : 0) : sample?.pct}%</b><span>done today</span></div>
-            </div>
-            <p className="small mute">{crew.blurb}</p>
+          </header>
+          <SocialTabs />
+
+          <section className="crew-checkin card">
+            <div className="section-heading"><h2>Training today</h2><Icon name="crew" size={19} /></div>
+            {people.length === 0 ? <p className="small mute">No check-ins to show yet.</p> : <div className="crew-activity people">
+              {people.map((r, i) => <div className="person" key={`${r.name}-${i}`}><span className={`avatar ${r.status}`}>{r.name[0]}</span><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Training'}</span></div>)}
+            </div>}
+            <button className="checkin-button" disabled={checkedIn || checkingIn} onClick={() => void checkIn()}><Icon name={checkedIn ? 'check' : 'plus'} size={16} />{checkingIn ? 'Checking in…' : checkedInDone ? 'Workout done' : checkedIn ? 'You’re training today' : 'I’m training today'}</button>
           </section>
 
-          <Qotd crewId={crew.id} />
           <Feed key={crew.id} crewId={crew.id} />
 
-          <details className="card">
-            <summary style={{ fontWeight: 800, cursor: 'pointer' }}>Training today · Leaderboard</summary>
-            <div className="people" style={{ marginTop: 10 }}>
-              {cloudEnabled && people.length === 0 && <span className="small mute">Nobody has checked in yet. Be the first.</span>}
-              {people.map((r) => <div className="person" key={r.name}><span className={`avatar ${r.status}`}>{r.name[0]}</span><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Going'}</span></div>)}
-            </div>
-            <h3 style={{ marginTop: 14 }}>Streaks</h3>
+          <details className="crew-optional card">
+            <summary>Streak leaderboard</summary>
             <div className="people" style={{ marginTop: 6 }}>
-              {board.map((r, i) => <div className="person" key={r.name}><span className="avatar">{i + 1}</span><span className="grow">{r.name}</span><b>🔥 {r.streak}</b></div>)}
+              {board.length === 0 && <p className="small mute">Member streaks will appear here.</p>}
+              {board.map((r, i) => <div className="person" key={`${r.name}-${i}`}><span className="avatar">{i + 1}</span><span className="grow">{r.name}</span><span className="small">{r.streak} day{r.streak === 1 ? '' : 's'}</span></div>)}
             </div>
           </details>
+          <details className="crew-optional card"><summary>Question of the day</summary><Qotd crewId={crew.id} /></details>
+          <details className="crew-optional card"><summary>About this crew</summary><p className="small mute">{crew.vibe}</p>{crew.blurb && <p className="small mute">{crew.blurb}</p>}{cloudEnabled && cc && <p className="small mute">{cc.active} active in the last {INACTIVE_DAYS} days.</p>}</details>
 
           <button className="link-danger" onClick={() => setLeaving(crew)}>Leave this crew</button>
         </>
@@ -218,4 +243,3 @@ export default function Communities() {
     </>
   )
 }
-export const sampleName = (id: string) => NAMES[Array.from(id).reduce((a, c) => a + c.charCodeAt(0), 0) % NAMES.length]
