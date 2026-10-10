@@ -26,7 +26,7 @@ export function WorkoutClock({ since, compact }: { since: number; compact?: bool
   const [, tick] = useState(0)
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id) }, [])
   return (
-    <div style={{ display: 'grid', justifyItems: 'center', gap: 2, background: 'var(--card)', border: '1px solid #4a2217', borderRadius: 18, padding: compact ? '10px 14px' : '14px 16px' }}>
+    <div style={{ display: 'grid', justifyItems: 'center', gap: 2, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: compact ? '10px 14px' : '14px 16px' }}>
       <span className="small mute" style={{ letterSpacing: 2, fontWeight: 800 }}>WORKOUT TIME</span>
       <b style={{ fontSize: compact ? 44 : 64, lineHeight: 1, letterSpacing: -2, fontVariantNumeric: 'tabular-nums', color: 'var(--accent2)' }}>{fmtClock(Date.now() - since)}</b>
     </div>

@@ -35,7 +35,7 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
   const next = week.find((w) => w.status === 'today' || w.status === 'upcoming')
   const skip = (w: WeekDay) => { update((d) => ({ ...d, logs: [...d.logs, { date: w.date, dayType: w.planned, short: false, entries: [], skipped: true }].sort((a, b) => a.date.localeCompare(b.date)) })); setOpen(null) }
   const icon: Record<WeekDay['status'], string> = { done: '✓', missed: '✕', skipped: '⤼', today: '●', upcoming: '○', rest: '–' }
-  const color: Record<WeekDay['status'], string> = { done: 'var(--ok)', missed: '#ff6b6b', skipped: 'var(--mute)', today: 'var(--accent)', upcoming: 'var(--mute)', rest: '#55555e' }
+  const color: Record<WeekDay['status'], string> = { done: 'var(--ok)', missed: '#ff6b6b', skipped: 'var(--mute)', today: 'var(--accent)', upcoming: 'var(--mute)', rest: 'var(--mute)' }
   const sum = (w: WeekDay) => (w.logged ? `${w.logged.entries.length} exercises · ${w.logged.entries.reduce((a, e) => a + e.sets.length, 0)} sets${w.logged.minutes ? ` · ${w.logged.minutes} min` : ''}` : '')
   return (
     <section className="card">
@@ -43,7 +43,7 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center' }}>
         {week.map((w) => (
           <button key={w.date} onClick={() => setOpen(w)} style={{ minHeight: 64, padding: '6px 0', borderRadius: 12, background: 'var(--card2)', border: w.status === 'today' ? '2px solid var(--accent)' : '1px solid var(--line)', display: 'grid', gap: 2, justifyItems: 'center', fontSize: 11, color: 'var(--text)' }}>
-            <span className="mute">{w.label}</span><b style={{ color: color[w.status], fontSize: 17 }}>{icon[w.status]}</b><span style={{ color: w.status === 'rest' ? '#55555e' : undefined }}>{ABBR[w.planned]}</span>
+            <span className="mute">{w.label}</span><b style={{ color: color[w.status], fontSize: 17 }}>{icon[w.status]}</b><span style={{ color: w.status === 'rest' ? 'var(--mute)' : undefined }}>{ABBR[w.planned]}</span>
           </button>
         ))}
       </div>
