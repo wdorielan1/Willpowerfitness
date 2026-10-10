@@ -3,9 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import SocialTabs from '../SocialTabs'
 import { CHALLENGES, METRIC_LABELS, METRIC_UNITS, customInstance, instanceFor, instanceFromCohort, scoreFor, type Instance } from '../challenges'
-import { cloudEnabled, createChallengeCloud, fetchChallengeById, fetchPublicChallenges, pushScore, useLeaderboard } from '../cloud'
+import { cloudEnabled, createChallengeCloud, leaveChallengeCloud, fetchChallengeById, fetchPublicChallenges, pushScore, useLeaderboard } from '../cloud'
 import { addDays, fromISO, todayISO } from '../engine'
-import { Sheet } from '../components'
+import { ConfirmSheet, Sheet } from '../components'
 import { Icon, type IconName } from '../icons'
 import type { CustomChallenge, Metric } from '../types'
 
@@ -38,6 +38,7 @@ function Card({ inst, cc, onJoined }: { inst: Instance; cc?: CustomChallenge; on
   const joined = data.challengesJoined.includes(inst.cohort)
   const mine = scoreFor(inst, data, today)
   const board = useLeaderboard(joined ? inst.cohort : null, userId)
+  const [leaving, setLeaving] = useState(false)
   const [inviteStatus, setInviteStatus] = useState('')
   const [inviteFallback, setInviteFallback] = useState(false)
   const link = cc ? `${location.origin}${location.pathname}#/challenges?join=${cc.id}` : ''
@@ -45,6 +46,11 @@ function Card({ inst, cc, onJoined }: { inst: Instance; cc?: CustomChallenge; on
     update((d) => ({ ...d, challengesJoined: d.challengesJoined.includes(inst.cohort) ? d.challengesJoined : [...d.challengesJoined, inst.cohort], customChallenges: cc && !d.customChallenges.some((x) => x.id === cc.id) ? [...d.customChallenges, cc] : d.customChallenges }))
     if (userId) void pushScore(inst.cohort, userId, data.name || 'Member', mine)
     onJoined?.()
+  }
+  const leave = () => {
+    update((d) => ({ ...d, challengesJoined: d.challengesJoined.filter((c) => c !== inst.cohort) }))
+    if (userId) void leaveChallengeCloud(inst.cohort, userId)
+    setLeaving(false)
   }
   const invite = async () => {
     if (!cc) return
@@ -72,9 +78,11 @@ function Card({ inst, cc, onJoined }: { inst: Instance; cc?: CustomChallenge; on
           {cloudEnabled ? board.length ? <ol className="challenge-rankings">{board.slice(0, 10).map((r, i) => <li key={r.userId}><span className="challenge-rank">{i + 1}</span><span className="challenge-rank-name">{r.name}{r.mine ? ' (you)' : ''}</span><strong>{Math.round(r.score).toLocaleString()}</strong></li>)}</ol> : <p className="social-supporting">No leaderboard entries to show yet.</p> : <p className="social-supporting">Connect your account to see the shared leaderboard.</p>}
         </details>
         {inst.def.metric === 'steps' && <Link to="/log?t=steps" className="btn ghost challenge-log">Log today’s steps<Icon name="plus" size={17} /></Link>}
+        <button className="quiet-action" onClick={() => setLeaving(true)}>Leave challenge</button>
       </> : <button className="ghost challenge-join" onClick={join}>Join challenge<Icon name="plus" size={18} /></button>}
       <div className="challenge-footer"><details className="challenge-rules"><summary>How it works<Icon name="chevron" size={15} /></summary><p>{rules}</p></details>{cc && <button className="quiet-action" onClick={() => void invite()}>Invite friends<Icon name="arrow" size={16} /></button>}</div>
       {inviteStatus && <p className="social-feedback" role="status">{inviteStatus}</p>}
+      {leaving && <ConfirmSheet title={`Leave ${inst.def.name}?`} message="You’ll be removed from the leaderboard. Your workouts and steps stay saved, and you can rejoin while the challenge is running." confirmLabel="Leave challenge" onConfirm={leave} onCancel={() => setLeaving(false)} />}
       {inviteFallback && <input className="social-invite-url" value={link} readOnly aria-label="Challenge invite link" onFocus={(event) => event.currentTarget.select()} />}
     </section>
   )

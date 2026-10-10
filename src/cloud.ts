@@ -230,6 +230,9 @@ export async function fetchChallengeById(id: string): Promise<CustomChallenge | 
   const { data } = await supabase.from('custom_challenges').select('*').eq('id', id).maybeSingle()
   return data ? toCC(data) : null
 }
+export async function leaveChallengeCloud(cohort: string, userId: string) {
+  await supabase?.from('challenge_scores').delete().eq('cohort', cohort).eq('user_id', userId)
+}
 export function useLeaderboard(cohort: string | null, userId: string | null) {
   const [rows, setRows] = useState<(ChallengeRow & { mine: boolean })[]>([])
   useEffect(() => {

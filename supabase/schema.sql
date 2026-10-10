@@ -188,6 +188,8 @@ drop policy if exists "write own score" on public.challenge_scores;
 create policy "write own score" on public.challenge_scores for insert to authenticated with check (auth.uid() = user_id);
 drop policy if exists "update own score" on public.challenge_scores;
 create policy "update own score" on public.challenge_scores for update to authenticated using (auth.uid() = user_id);
+drop policy if exists "delete own score" on public.challenge_scores;
+create policy "delete own score" on public.challenge_scores for delete to authenticated using (auth.uid() = user_id);
 
 -- ---------- user-created challenges ----------
 create table if not exists public.custom_challenges (
