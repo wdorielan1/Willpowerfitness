@@ -10,8 +10,9 @@ export default function Qotd({ crewId }: { crewId: string }) {
   const { data, update } = useApp()
   const { post } = usePostActions(crewId)
   const today = todayISO()
-  const key = `${crewId}|${today}`
-  const state = data.qotd[key] ?? {}
+  // One question a day for everyone: answering (or skipping) in any crew hides it in all of them.
+  const old = Object.entries(data.qotd).filter(([k]) => k.endsWith(`|${today}`)).map(([, v]) => v)
+  const state = { answer: data.qotd[today]?.answer ?? old.find((v) => v.answer)?.answer, skipped: data.qotd[today]?.skipped ?? old.some((v) => v.skipped) }
   const [text, setText] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -26,14 +27,17 @@ export default function Qotd({ crewId }: { crewId: string }) {
     try {
       const error = await post({ kind: 'qotd', text: t, meta: { q } })
       if (error) throw new Error(error)
-      update((d) => ({ ...d, qotd: { ...d.qotd, [key]: { answer: t } } })); setText('')
+      update((d) => ({ ...d, qotd: { ...d.qotd, [today]: { answer: t } } })); setText('')
     } catch (error) {
       setErr(error instanceof Error ? error.message : String(error))
     } finally {
       pending.current = false; setBusy(false)
     }
   }
-  const skip = () => update((d) => ({ ...d, qotd: { ...d.qotd, [key]: { skipped: true } } }))
+  const skip = () => update((d) => ({ ...d, qotd: { ...d.qotd, [today]: { skipped: true } } }))
+
+  if (state.answer) return null // answered: the card gets out of the way (it returns if the answer is deleted)
+  if (state.skipped) return <div className="row"><p className="small mute">Question of the day skipped.</p><button className="quiet-action" onClick={() => update((d) => ({ ...d, qotd: { ...d.qotd, [today]: { skipped: false } } }))}>Answer instead</button></div>
 
   return (
     <section className="card crew-question" aria-labelledby={titleId}>
@@ -48,7 +52,7 @@ export default function Qotd({ crewId }: { crewId: string }) {
       )}
       {err && <p className="small err" role="alert">{err}</p>}
       {state.answer && <p className="small ok-text qotd-status"><Icon name="check" size={16} />You answered. See it in the feed.</p>}
-      {state.skipped && <div className="row"><p className="small mute">Skipped for today.</p><button className="quiet-action" onClick={() => update((d) => ({ ...d, qotd: { ...d.qotd, [key]: { skipped: false } } }))}>Answer instead</button></div>}
+      {state.skipped && <div className="row"><p className="small mute">Skipped for today.</p><button className="quiet-action" onClick={() => update((d) => ({ ...d, qotd: { ...d.qotd, [today]: { skipped: false } } }))}>Answer instead</button></div>}
     </section>
   )
 }

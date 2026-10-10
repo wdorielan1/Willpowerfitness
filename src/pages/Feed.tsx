@@ -113,6 +113,10 @@ export default function Feed({ crewId }: { crewId: string }) {
         await Promise.all(postPhotos(p).map((photo) => deletePhotoBlob(photo, CREW_BUCKET)))
         update((d) => ({ ...d, posts: d.posts.filter((x) => x.id !== p.id) }))
       }
+      if (p.kind === 'qotd') { // deleting the answer brings the question back
+        const when = new Date(p.ts), day = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`
+        update((d) => ({ ...d, qotd: Object.fromEntries(Object.entries(d.qotd).filter(([k]) => k !== day && !k.endsWith(`|${day}`))) }))
+      }
       feed?.refresh(); setDel(null)
     } catch (error) { setDel(null); setErr(error instanceof Error ? error.message : String(error)) }
   }
