@@ -794,11 +794,20 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 @media (max-width:359px) { .train-session-choices button { font-size: 12px; padding: 10px; } .challenge-joined { font-size: 9px; } .challenge-title h2 { font-size: 17px; } }
 
 /* Build your own workout */
-.train-build { display: grid; gap: 10px; }
-.train-build-picked { display: grid; gap: 6px; }
-.train-build-picked .train-preview-lift { align-items: center; }
-.train-build-picked .quiet-action { min-height: 36px; min-width: 36px; padding: 0 8px; }
-.train-build-list { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
-.train-build-list .minirow[aria-pressed=true] { border-color: var(--accent); }
+.train-build { display: grid; gap: 12px; }
+.train-build-picked { display: grid; gap: 8px; }
+.train-build-picked .train-preview-lift { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 58px; }
+.train-build-picked .train-preview-lift .thumbs { width: 52px; }
+.train-build-picked .train-preview-lift > .train-build-controls { display: flex; gap: 2px; flex: none; }
+.train-build-controls .quiet-action { min-height: 40px; min-width: 40px; padding: 0; justify-content: center; font-size: 16px; }
+.train-build-muscles { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.train-build-muscles::-webkit-scrollbar { display: none; }
+.train-build-muscles .chip { flex: none; white-space: nowrap; }
+.train-build-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; overscroll-behavior: contain; }
+.train-build-list .minirow { flex: none; min-height: 64px; padding: 8px 12px; }
+.train-build-list .minirow > span:nth-child(2) { min-width: 0; line-height: 1.35; }
+.train-build-list .minirow > .tag { flex: none; }
+.train-build-list .minirow[aria-pressed=true] { border: 1px solid var(--accent); }
 .train-build-save { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.train-session-choices button[aria-pressed=true]:last-child { grid-column: auto; }
+.train-build-list .minirow b { font-size: 14px; font-weight: 550; }
+.train-build-list .minirow .small { font-size: 12px; line-height: 1.4; }
