@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { CAT_LABEL, type CommunityDef, type CrewCat } from '../data'
+import { CAT_LABEL, GOALS, type CommunityDef, type CrewCat } from '../data'
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
 import SocialTabs from '../SocialTabs'
@@ -38,6 +39,22 @@ export default function Communities() {
   const [time, setTime] = useState('06:00')
   const [vibe, setVibe] = useState('')
   const [checkingIn, setCheckingIn] = useState(false)
+  const [checkinError, setCheckinError] = useState('')
+  const [checkinOverrides, setCheckinOverrides] = useState<Record<string, boolean>>({})
+  const checkinPending = useRef(false)
+  const today = todayISO()
+  const completedToday = ci.done || data.logs.some((log) => log.date === today && !log.baseline && !log.skipped)
+
+  // Keep the just-saved state visible while the live roster refreshes, then use live data again.
+  const remoteCheckedIn = live?.people.some((person) => person.mine) ?? false
+  useEffect(() => {
+    if (!cloudEnabled || !crew || checkinOverrides[crew.id] === undefined || checkinOverrides[crew.id] !== remoteCheckedIn) return
+    setCheckinOverrides((current) => {
+      const next = { ...current }
+      delete next[crew.id]
+      return next
+    })
+  }, [crew?.id, remoteCheckedIn, checkinOverrides])
 
   // A user-made crew with no activity for 35 days is archived. Its posts and history are kept, and any new activity wakes it up.
   const isCustom = (c: CommunityDef) => data.custom.some((x) => x.id === c.id)
@@ -95,19 +112,24 @@ export default function Communities() {
     setName(''); setVibe(''); setSel(id); setFinder(false)
   }
   const checkIn = async () => {
-    if (!crew || checkingIn) return
+    if (!crew || checkinPending.current || completedToday) return
+    const going = !checkedIn
+    checkinPending.current = true
     setCheckingIn(true)
+    setCheckinError('')
     try {
       if (userId) {
-        const error = await withTimeout(pushCheckin(crew.id, userId, myName, { going: true, done: ci.done }, streak(data)), 15000, 'Checking in')
+        const error = await pushCheckin(crew.id, userId, myName, { going, done: false }, streak(data))
         if (error) throw new Error(error)
       }
-      const today = todayISO()
-      update((d) => ({ ...d, checkins: { ...d.checkins, [today]: { ...d.checkins[today], going: true } } }))
+      // A check-in is a plan, so changing it never deletes sets, workout logs, or completion.
+      update((d) => ({ ...d, checkins: { ...d.checkins, [today]: { ...d.checkins[today], going } } }))
+      if (cloudEnabled) setCheckinOverrides((current) => ({ ...current, [crew.id]: going }))
       live?.refresh()
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error))
+      setCheckinError(error instanceof Error ? error.message : String(error))
     } finally {
+      checkinPending.current = false
       setCheckingIn(false)
     }
   }
@@ -151,7 +173,7 @@ export default function Communities() {
   )
 
   const cc = crew ? counts[crew.id] : undefined
-  const people = crew
+  const remotePeople = crew
     ? cloudEnabled && live
       ? live.people.map((x) => ({ ...x, name: x.mine ? `${x.name} (you)` : x.name }))
       : ci.going ? [{ name: `${myName} (you)`, status: ci.done ? 'done' as const : 'going' as const, streak: streak(data), mine: true }] : []
@@ -160,8 +182,12 @@ export default function Communities() {
     ? (cloudEnabled && live ? live.board.map((r) => ({ name: r.mine ? `${r.name} (you)` : r.name, streak: r.streak })) : [{ name: `${myName} (you)`, streak: streak(data) }])
         .sort((a, b) => b.streak - a.streak).slice(0, 6)
     : []
-  const checkedIn = cloudEnabled ? people.some((p) => p.mine) || (crew?.id === data.primary && ci.going) : ci.going
-  const checkedInDone = people.some((p) => p.mine && p.status === 'done') || (checkedIn && ci.done)
+  const checkedInDone = completedToday || remotePeople.some((p) => p.mine && p.status === 'done')
+  const checkedIn = checkedInDone || (crew && cloudEnabled && checkinOverrides[crew.id] !== undefined
+    ? checkinOverrides[crew.id]
+    : cloudEnabled ? remotePeople.some((p) => p.mine) || (crew?.id === data.primary && ci.going) : ci.going)
+  const ownPerson = remotePeople.find((p) => p.mine)
+  const people = [...remotePeople.filter((p) => !p.mine), ...(checkedIn ? [{ name: ownPerson?.name ?? `${myName} (you)`, status: checkedInDone ? 'done' as const : 'going' as const, streak: streak(data), mine: true }] : [])]
 
   return (
     <>
@@ -187,24 +213,35 @@ export default function Communities() {
           </header>
           <SocialTabs />
 
+          <Qotd key={crew.id} crewId={crew.id} />
+
+          <section className="crew-streaks card">
+            <div className="section-heading"><h2>Streak leaderboard</h2><Icon name="chart" size={19} /></div>
+            {board.length === 0 ? <p className="small mute">Member streaks will appear here.</p> : <div className="people">
+              {board.map((r, i) => <div className="person crew-streak-row" key={`${r.name}-${i}`}><span className="avatar">{i + 1}</span><span className="grow">{r.name}</span><span className="small">{r.streak} day{r.streak === 1 ? '' : 's'}</span></div>)}
+            </div>}
+          </section>
+
+          <section className="crew-goals card">
+            <div className="section-heading"><h2>Crew goals</h2><Icon name="weight" size={19} /></div>
+            {!!crew.goals?.length && <div className="chips">{crew.goals.map((goal) => <span className="tag" key={goal}>{GOALS[goal]}</span>)}</div>}
+            <p className="small mute">Pick a challenge to work toward with your crew.</p>
+            <Link className="crew-goal-link quiet-action" to="/challenges">View challenges <Icon name="arrow" size={16} /></Link>
+          </section>
+
           <section className="crew-checkin card">
             <div className="section-heading"><h2>Training today</h2><Icon name="crew" size={19} /></div>
             {people.length === 0 ? <p className="small mute">No check-ins to show yet.</p> : <div className="crew-activity people">
               {people.map((r, i) => <div className="person" key={`${r.name}-${i}`}><span className={`avatar ${r.status}`}>{r.name[0]}</span><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Training'}</span></div>)}
             </div>}
-            <button className="checkin-button" disabled={checkedIn || checkingIn} onClick={() => void checkIn()}><Icon name={checkedIn ? 'check' : 'plus'} size={16} />{checkingIn ? 'Checking in…' : checkedInDone ? 'Workout done' : checkedIn ? 'You’re training today' : 'I’m training today'}</button>
+            <button className="checkin-button" aria-pressed={checkedIn} disabled={checkedInDone || checkingIn} onClick={() => void checkIn()}><Icon name={checkedIn ? 'check' : 'plus'} size={16} />{checkingIn ? 'Saving…' : checkedInDone ? 'Workout done' : checkedIn ? 'Cancel check-in' : 'I’m training today'}</button>
+            {checkedIn && !checkedInDone && <p className="small mute checkin-note">You’re training today. Tap again if your plans change.</p>}
+            {checkedInDone && <p className="small mute checkin-note">Your completed workout stays checked in.</p>}
+            {checkinError && <p className="err" role="alert">{checkinError}</p>}
           </section>
 
           <Feed key={crew.id} crewId={crew.id} />
 
-          <details className="crew-optional card">
-            <summary>Streak leaderboard</summary>
-            <div className="people" style={{ marginTop: 6 }}>
-              {board.length === 0 && <p className="small mute">Member streaks will appear here.</p>}
-              {board.map((r, i) => <div className="person" key={`${r.name}-${i}`}><span className="avatar">{i + 1}</span><span className="grow">{r.name}</span><span className="small">{r.streak} day{r.streak === 1 ? '' : 's'}</span></div>)}
-            </div>
-          </details>
-          <details className="crew-optional card"><summary>Question of the day</summary><Qotd crewId={crew.id} /></details>
           <details className="crew-optional card"><summary>About this crew</summary><p className="small mute">{crew.vibe}</p>{crew.blurb && <p className="small mute">{crew.blurb}</p>}{cloudEnabled && cc && <p className="small mute">{cc.active} active in the last {INACTIVE_DAYS} days.</p>}</details>
 
           <button className="link-danger" onClick={() => setLeaving(crew)}>Leave this crew</button>

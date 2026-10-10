@@ -28,7 +28,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
-  <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power Fitness" />
+  <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Wilpow" />
 )
 
 const tabs: [string, string, IconName][] = [
@@ -46,7 +46,7 @@ function ScrollTop() {
 }
 
 export default function App() {
-  const { email, data, loading } = useApp()
+  const { email, data, loading, accountError, syncError, retryAccount, logOut } = useApp()
   const loc = useLocation()
   const [accountMenu, setAccountMenu] = useState(false)
   const today = todayISO()
@@ -58,6 +58,7 @@ export default function App() {
     return () => document.body.classList.remove('training-mode')
   }, [training])
   if (loading) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
+  if (accountError) return <div className="auth account-reconnect"><Logo size={48} /><h1>Reconnect your account</h1><p className="mute">We couldn’t load your saved profile. Your setup hasn’t been reset.</p><p className="err" role="alert">{accountError}</p><button className="primary" onClick={retryAccount}>Try again</button><button className="ghost" onClick={logOut}>Sign out</button></div>
   if (!email) {
     return (
       <>
@@ -79,10 +80,11 @@ export default function App() {
       <WorkoutGuard />
       <ChallengeSync />
       <header className="top">
-        <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
+        <Link to="/" className="brand"><Logo size={30} /><span>WILPOW</span></Link>
         <button className="icon-button account-button" aria-label="Open account menu" onClick={() => setAccountMenu(true)}><Icon name="person" /></button>
       </header>
       <main>
+        {syncError && <div className="account-sync-note" role="status"><p>{syncError}</p><button className="quiet-action" onClick={retryAccount}>Retry connection</button></div>}
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/crew" element={<Communities />} />

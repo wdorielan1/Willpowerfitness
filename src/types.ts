@@ -2,6 +2,7 @@ export type Goal = 'fat_loss' | 'muscle_gain' | 'maintenance' | 'strength' | 'co
 export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Gear = 'gym' | 'db' | 'bw'
 export type DayType = 'Push' | 'Pull' | 'Legs' | 'Shoulders/Abs' | 'Full Body' | 'Rest/Cardio'
+export type WorkoutFocus = 'chest-triceps' | 'back-biceps'
 export type CarbDay = 'low' | 'medium' | 'high'
 export type Metric = 'workouts' | 'earlyWorkouts' | 'steps' | 'cardioMin' | 'volume'
 
@@ -40,7 +41,7 @@ export interface Exercise {
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
-export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number }
+export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number; rotationDay?: DayType }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]> }
@@ -90,6 +91,7 @@ export interface AppData {
   custom: CustomCommunity[]
   partner: boolean
   dayOverride: Record<string, DayType> // date -> workout type chosen by the user
+  workoutFocus?: Record<string, WorkoutFocus> // date -> focused alternative for this session
   extras: Record<string, string[]> // date -> exercise ids added
   removed: Record<string, string[]> // date -> exercise ids removed
   started: Record<string, number> // date -> start timestamp

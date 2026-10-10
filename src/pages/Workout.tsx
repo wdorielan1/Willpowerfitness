@@ -4,12 +4,12 @@ import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { SPLIT, WARMUP } from '../data'
-import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, type WeekDay } from '../engine'
+import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { imgUrl, mediaFor } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
 import { Icon } from '../icons'
-import type { AppData, DayType, Draft, LogEntry, SetEntry } from '../types'
+import type { AppData, DayType, Draft, LogEntry, SetEntry, WorkoutFocus } from '../types'
 
 const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
 
@@ -38,7 +38,7 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
   const color: Record<WeekDay['status'], string> = { done: 'var(--ok)', missed: '#ff6b6b', skipped: 'var(--mute)', today: 'var(--accent)', upcoming: 'var(--mute)', rest: 'var(--mute)' }
   const sum = (w: WeekDay) => (w.logged ? `${w.logged.entries.length} exercises · ${w.logged.entries.reduce((a, e) => a + e.sets.length, 0)} sets${w.logged.minutes ? ` · ${w.logged.minutes} min` : ''}` : '')
   return (
-    <section className="card">
+    <section className="card train-week-plan" aria-label="This week’s plan">
       <div className="row"><h3><Icon name="calendar" /> This week</h3><span className="tag">{done} of {planned} done</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center' }}>
         {week.map((w) => (
@@ -76,7 +76,6 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
 
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
 const TAG = { add_weight: 'ok', add_reps: 'warn', repeat: 'accent', start: '' } as const
-const DAYS: DayType[] = [...SPLIT, 'Rest/Cardio']
 const FOCUS: Record<DayType, string> = {
   Push: 'Chest · Shoulders · Triceps', Pull: 'Back · Biceps · Rear delts', Legs: 'Quads · Hamstrings · Glutes · Calves',
   'Shoulders/Abs': 'Delts · Traps · Abs', 'Full Body': 'Head to toe', 'Rest/Cardio': 'Recovery & cardio',
@@ -92,7 +91,7 @@ function ExPhotos({ id }: { id: string }) {
     <>
       <div className="exphotos">
         {srcs.map((s, i) => (
-          <img key={i} src={s} alt={`${m.name}, position ${i + 1}`} loading="lazy" onClick={() => setAt(i)} style={{ cursor: 'zoom-in' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+          <button key={i} className="exercise-photo" aria-label={`View ${m.name}, position ${i + 1}`} onClick={() => setAt(i)}><img src={s} alt={`${m.name}, position ${i + 1}`} loading="lazy" /><span>{i === 0 ? 'Start' : 'Finish'}</span></button>
         ))}
       </div>
       {at !== null && <Lightbox srcs={srcs} start={at} caption={srcs.map((_, i) => `${m.name} · ${i === 0 ? 'start' : 'finish'}`)} onClose={() => setAt(null)} />}
@@ -104,59 +103,37 @@ function Thumb({ id }: { id: string }) {
   return m ? <img src={imgUrl(m.slug, 0)} alt="" loading="lazy" /> : <span />
 }
 
-/** Swipeable picker shown before the workout starts: pick today's workout, then start. */
+type SessionChoice = { id: string; day: DayType; focus?: WorkoutFocus; label: string }
+const sessionChoices = (suggested: DayType): SessionChoice[] => [
+  { id: 'usual', day: suggested, label: 'Usual plan' },
+  { id: 'chest-triceps', day: 'Push', focus: 'chest-triceps', label: 'Chest + Triceps' },
+  { id: 'back-biceps', day: 'Pull', focus: 'back-biceps', label: 'Back + Biceps' },
+  ...SPLIT.map((day) => ({ id: day, day, label: workoutName(day) })),
+  { id: 'cardio', day: 'Rest/Cardio', label: 'Cardio / recovery' },
+]
+
 function Chooser({ data, today, short, suggested, current, onStart, onShort }: {
   data: AppData; today: string; short: boolean; suggested: DayType; current: DayType
-  onStart: (d: DayType) => void; onShort: () => void
+  onStart: (d: DayType, focus?: WorkoutFocus) => void; onShort: () => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [sel, setSel] = useState(Math.max(0, DAYS.indexOf(current)))
-  const previews = DAYS.map((day) => ({ day, items: generateWorkout(today, data, short, day).items }))
-  const place = (i: number, smooth: boolean) => {
-    const el = ref.current, c = el?.children[i] as HTMLElement | undefined
-    if (el && c) el.scrollTo({ left: c.offsetLeft - (el.clientWidth - c.offsetWidth) / 2, behavior: smooth ? 'smooth' : ('instant' as ScrollBehavior) })
-  }
-  useEffect(() => { place(sel, false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const onScroll = () => {
-    const el = ref.current
-    if (!el) return
-    const mid = el.scrollLeft + el.clientWidth / 2
-    let best = 0, bd = Infinity
-    Array.from(el.children).forEach((c, i) => { const ch = c as HTMLElement; const d = Math.abs(ch.offsetLeft + ch.offsetWidth / 2 - mid); if (d < bd) { bd = d; best = i } })
-    if (best !== sel) setSel(best)
-  }
-  const day = DAYS[sel]
-  return (
-    <>
-      <div><div className="overline">YOUR TRAINING PLAN</div><h1>Choose your session.</h1><p className="mute">Pick a workout, then start.</p></div>
-      <WeekCard onPick={(d) => { place(DAYS.indexOf(d), true); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
-      <div className="carousel" ref={ref} onScroll={onScroll}>
-        {previews.map(({ day: d, items }, i) => {
-          const mins = Math.round(items.reduce((a, it) => a + it.sets * (restFor(it.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
-          return (
-            <div key={d} className={`daycard ${i === sel ? 'sel' : ''}`} onClick={() => i !== sel && place(i, true)}>
-              <div className="row"><h2>{d}</h2>{d === suggested && <span className="tag ok">Suggested</span>}</div>
-              <p className="small mute">{FOCUS[d]}</p>
-              {items.length ? (
-                <>
-                  <div className="small mute">{items.length} exercises · about {mins} min</div>
-                  <div className="thumbs">{items.slice(0, 5).map((it) => <Thumb key={it.ex.id} id={it.ex.id} />)}</div>
-                  <ol className="mini">{items.map((it) => <li key={it.ex.id}>{it.ex.name}</li>)}</ol>
-                </>
-              ) : <p className="small">Walk, bike, or stairs. Easy day to move and recover.</p>}
-            </div>
-          )
-        })}
-      </div>
-      <div className="dots" role="tablist" aria-label="Choose workout">
-        {DAYS.map((d, i) => <button key={d} className={`dot ${i === sel ? 'on' : ''}`} aria-label={d} onClick={() => place(i, true)} />)}
-      </div>
-      {day === 'Rest/Cardio'
-        ? <Link className="btn primary" to="/log">Log cardio</Link>
-        : <button className="primary" onClick={() => onStart(day)}>Start {day}<Icon name="arrow" /></button>}
-      {day !== 'Rest/Cardio' && <button className={`chip ${short ? 'on' : ''}`} style={{ justifySelf: 'center' }} onClick={onShort}>{short && <Icon name="check" />}{short ? 'Short session selected' : 'Short on time or fatigued?'}</button>}
-    </>
-  )
+  const choices = sessionChoices(suggested)
+  const [selected, setSelected] = useState(data.workoutFocus?.[today] ?? (current === suggested ? 'usual' : current === 'Rest/Cardio' ? 'cardio' : current))
+  const choice = choices.find((item) => item.id === selected) ?? choices[0]
+  const preview = generateWorkout(today, data, short, choice.day, choice.focus)
+  const name = workoutName(choice.day, choice.focus)
+  return <>
+    <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
+    <div className="train-session-choices" role="group" aria-label="Choose workout">{choices.map((item) => <button key={item.id} aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}>{item.label}{item.id === 'usual' && <span>{workoutName(suggested)}</span>}</button>)}</div>
+    <section className="card train-session-preview"><div className="section-head"><h2>{name}</h2><Icon name={choice.day === 'Rest/Cardio' ? 'clock' : 'weight'} /></div>
+      <p className="small mute">{choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
+      {choice.day !== 'Rest/Cardio' ? <>
+        <button className="train-short-toggle" aria-pressed={short} onClick={onShort}><Icon name="clock" /><span>Shorter session</span><span>{short ? 'On' : 'Off'}</span></button>
+        {preview.items.map(({ ex, sets }) => <div className="train-preview-lift" key={ex.id}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span></div></div>)}
+        {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session or adjust your profile.</p>}
+        <button className="primary" disabled={!preview.items.length} onClick={() => onStart(choice.day, choice.focus)}>Start lifting<Icon name="arrow" /></button>
+      </> : <><p className="small mute">Choose an easy walk, bike ride, or your own cardio session. Log the time when you finish.</p><button className="primary" onClick={() => onStart(choice.day)}>Log cardio<Icon name="arrow" /></button></>}
+    </section>
+  </>
 }
 
 export default function Workout() {
@@ -170,6 +147,7 @@ export default function Workout() {
   const short = !!data.short[today]
   const suggested = dayTypeFor(today, p, data.logs)
   const plan = generateWorkout(today, data, short)
+  const sessionName = workoutName(plan.day, data.workoutFocus?.[today])
   const draft: Draft = data.drafts[today] ?? { sets: {}, notes: {} }
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline)
   const started = data.started[today]
@@ -250,21 +228,20 @@ export default function Workout() {
     return { rec, base, rows, completed, done: rows.length > 0 && completed.every(Boolean) }
   })
 
-  const beginWith = (day: DayType) => {
-    timer.stop()
-    update((d) => {
-      const next = { ...d, extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts) }
-      if (day === dayTypeFor(today, d.profile!, d.logs)) { const { [today]: _x, ...rest } = d.dayOverride; void _x; return { ...next, dayOverride: rest } }
-      return { ...next, dayOverride: { ...d.dayOverride, [today]: day } }
-    })
-    setIdx(0)
+  const selectSession = (d: AppData, day: DayType, focus?: WorkoutFocus): AppData => ({
+    ...d, dayOverride: day === dayTypeFor(today, d.profile!, d.logs) ? stripToday(d.dayOverride) : { ...d.dayOverride, [today]: day },
+    workoutFocus: focus ? { ...d.workoutFocus, [today]: focus } : stripToday(d.workoutFocus ?? {}),
+    extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts),
+  })
+  const beginWith = (day: DayType, focus?: WorkoutFocus) => {
+    timer.stop(); update((d) => selectSession(d, day, focus)); setIdx(0)
+    if (day === 'Rest/Cardio') { nav('/log?t=cardio'); return }
     ci.start()
   }
-  const chooseDay = (day: DayType) => {
-    if (hasEntered && !confirm(`Switch to ${day}? The sets you entered for today will be cleared.`)) return
-    timer.stop()
-    update((d) => ({ ...d, dayOverride: { ...d.dayOverride, [today]: day }, extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts) }))
-    setSheet(null); setIdx(0)
+  const chooseDay = (day: DayType, focus?: WorkoutFocus) => {
+    if (hasEntered && !confirm(`Switch to ${workoutName(day, focus)}? The sets you entered for today will be cleared.`)) return
+    timer.stop(); update((d) => selectSession(d, day, focus)); setSheet(null); setIdx(0)
+    if (day === 'Rest/Cardio') nav('/log?t=cardio')
   }
   const swapTo = (orig: string, cur: string, next: string) => {
     const isExtra = (data.extras[today] ?? []).includes(cur)
@@ -285,7 +262,7 @@ export default function Workout() {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
     setSheet(null); go(items.length + 1)
   }
-  const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short) })
+  const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}) })
   const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
@@ -310,7 +287,7 @@ export default function Workout() {
       void _gone
       return {
         ...d, drafts,
-        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, short, entries, minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
+        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
@@ -318,7 +295,7 @@ export default function Workout() {
       const sets = entries.reduce((a, e) => a + e.sets.length, 0)
       const volume = Math.round(entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0))
       const mins = started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : 0
-      void postToCrew({ kind: 'workout', text: `Finished ${plan.day}${mins ? ` in ${mins} min` : ''}`, meta: { sets, volume, exercises: entries.length } })
+      void postToCrew({ kind: 'workout', text: `Finished ${sessionName}${mins ? ` in ${mins} min` : ''}`, meta: { sets, volume, exercises: entries.length } })
     }
     timer.stop()
     setSaved(true)
@@ -328,7 +305,7 @@ export default function Workout() {
   // ---------- before the workout starts ----------
   if (!active) {
     return (
-      <div className="workout-chooser"><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
+      <div className="workout-chooser"><WeekCard onPick={chooseDay} /><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
         onStart={beginWith} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
     )
   }
@@ -344,8 +321,8 @@ export default function Workout() {
 
   const DaySheet = sheet?.kind === 'day' && (
     <Sheet title="Change today's workout" onClose={() => setSheet(null)}>
-      <p className="small mute">Your split will continue from whatever you finish today.</p>
-      <div className="chips">{DAYS.map((d) => <button key={d} className={`chip ${plan.day === d ? 'on' : ''}`} onClick={() => chooseDay(d)}>{d}</button>)}</div>
+      <p className="small mute">Change this session while keeping your usual weekly plan.</p>
+      <div className="train-session-choices">{sessionChoices(suggested).map((choice) => <button key={choice.id} onClick={() => chooseDay(choice.day, choice.focus)}>{choice.label}</button>)}</div>
     </Sheet>
   )
 
@@ -359,7 +336,7 @@ export default function Workout() {
     <div className="workout-session">
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
-        <div className="workout-header-title"><b>{plan.day} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
+        <div className="workout-header-title"><b>{sessionName} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
         {started && !todaysLog ? <SessionElapsed since={started} /> : <Icon name="weight" />}
       </header>
       <div className="workout-progress" role="tablist" aria-label="Workout progress">
@@ -372,6 +349,7 @@ export default function Workout() {
       <div key={page} className={`workout-page ${dir.current >= 0 ? 'pg-r' : 'pg-l'}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {page === 0 && (
           <>
+            <WeekCard onPick={chooseDay} />
             <section className="card workout-warmup">
               <div className="overline">BEFORE YOU LIFT</div>
               <h1>Warm up.</h1>
@@ -391,7 +369,6 @@ export default function Workout() {
                 <button className={`chip ${short ? 'on' : ''}`} onClick={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))}>{short && <Icon name="check" />}{short ? 'Short session' : 'Short on time?'}</button>
               </div>
             </section>
-            <details className="workout-week-guide"><summary>Your weekly plan<Icon name="chevron" /></summary><WeekCard onPick={chooseDay} /></details>
           </>
         )}
 
@@ -404,13 +381,13 @@ export default function Workout() {
               <span><Icon name="clock" />{fmtRest(restFor(ex.ex, data.settings.rest))} rest</span>
               {ex.swapped && <span>Swapped</span>}
             </div>
+            <ExPhotos id={ex.ex.id} />
             {(() => {
               const m = mediaFor(ex.ex.id)
               return (
                 <details className="exercise-guide">
-                  <summary><span><Icon name="photo" />Exercise guide</span><Icon name="chevron" /></summary>
+                  <summary><span><Icon name="weight" />Instructions</span><Icon name="chevron" /></summary>
                   <div className="exercise-guide-body">
-                    <ExPhotos id={ex.ex.id} />
                     <p className="small">{ex.ex.note}</p>
                     {m && <ol className="small">{m.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>}
                     {m && m.primary.length > 0 && <p className="small mute">Works: {m.primary.join(', ')}{m.secondary.length ? ` · also ${m.secondary.join(', ')}` : ''}</p>}
@@ -518,7 +495,7 @@ export default function Workout() {
       })()}
       {sheet?.kind === 'rpe' && (
         <Sheet title="What is RPE?" onClose={() => setSheet(null)} z={50}>
-          <p>RPE is <b>how hard your last set felt</b>, from 1 to 10. It tells Will Power when to add weight.</p>
+          <p>RPE is <b>how hard your last set felt</b>, from 1 to 10. It tells Wilpow when to add weight.</p>
           <div className="people">
             {[[10, 'Max effort. You couldn’t do another rep.'], [9, 'Very hard. 1 more rep left.'], [8, 'Hard but controlled. 2 reps left.'], [7, 'Moderate. 3 reps left.'], ['≤6', 'Easy. 4+ reps left.']].map(([n, t]) => (
               <div className="person" key={String(n)}><span className="avatar">{n}</span><span className="grow small">{t}</span></div>

@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useApp } from './store'
 import { todayISO } from './engine'
 
 /** Bottom sheet used for pickers. */
 export function Sheet({ title, onClose, children, z = 40 }: { title: string; onClose: () => void; children: ReactNode; z?: number }) {
+  const titleId = useId()
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: z, display: 'grid', alignItems: 'end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card)', borderRadius: '22px 22px 0 0', border: '1px solid var(--line)', padding: '16px 16px calc(16px + env(safe-area-inset-bottom))', maxHeight: '82dvh', overflowY: 'auto', maxWidth: 560, width: '100%', margin: '0 auto', display: 'grid', gap: 12 }}>
-        <div className="row"><h2>{title}</h2><button className="ghost small-btn" onClick={onClose}>Close</button></div>
+    <div className="sheet-backdrop" onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: z, display: 'grid', alignItems: 'end' }}>
+      <div className="sheet-panel" role="dialog" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card)', borderRadius: '22px 22px 0 0', border: '1px solid var(--line)', padding: '16px 16px calc(16px + env(safe-area-inset-bottom))', maxHeight: '82dvh', overflowY: 'auto', maxWidth: 560, width: '100%', margin: '0 auto', display: 'grid', gridAutoRows: 'max-content', alignContent: 'start', gap: 12 }}>
+        <div className="sheet-header"><h2 id={titleId}>{title}</h2><button className="ghost small-btn" onClick={onClose}>Close</button></div>
         {children}
       </div>
     </div>

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
+import { withTimeout } from '../photos'
 import { followCloud, handleToUser, joinCrewCloud } from '../cloud'
 import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
@@ -17,12 +18,15 @@ const empty: Profile = {
 }
 
 export default function Onboarding() {
-  const { data, update, userId } = useApp()
+  const { data, saveAccount, userId } = useApp()
   const nav = useNavigate()
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
   const [pick, setPick] = useState<string | undefined>(undefined) // undefined = top match, 'solo' = no crew
   const [more, setMore] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const pending = useRef(false)
   // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
   const [wText, setWText] = useState(String(empty.weight))
   const [tText, setTText] = useState(String(empty.target))
@@ -34,16 +38,26 @@ export default function Onboarding() {
   const invitedCrew = invite?.crew ? allCommunities(data.custom).find((c) => c.id === invite.crew) : undefined
   const base = suggestCrews(p, COMMUNITIES as CommunityDef[])
   const sugg = invitedCrew ? [{ crew: invitedCrew, score: 99, reasons: ['A friend invited you'] }, ...base.filter((s) => s.crew.id !== invitedCrew.id)] : base
-  const finish = () => {
+  const finish = async () => {
+    if (pending.current) return
+    pending.current = true; setSaving(true); setError('')
     const chosen = p.wantsCommunity && pick !== 'solo' ? pick ?? sugg[0]?.crew.id ?? null : null
-    update((d) => ({
-      ...d, profile: p, joined: chosen ? [chosen] : [], primary: chosen,
-      weights: [...d.weights, { date: todayISO(), lbs: p.weight }].slice(-1),
-    }))
-    if (userId && chosen) void joinCrewCloud(chosen, userId, data.name || 'Member', 0)
-    if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) })
-    try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }
-    nav('/')
+    try {
+      if (userId && chosen) {
+        const membershipError = await withTimeout(joinCrewCloud(chosen, userId, data.name || 'Member', 0), 15000, 'Joining your crew')
+        if (membershipError) throw new Error(membershipError)
+      }
+      const saveError = await saveAccount((d) => ({
+        ...d, profile: p, joined: chosen ? [...new Set([...d.joined, chosen])] : d.joined, primary: chosen,
+        weights: [...d.weights.filter((entry) => entry.date !== todayISO()), { date: todayISO(), lbs: p.weight }],
+      }))
+      if (saveError) throw new Error(saveError)
+      if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
+      try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }
+      nav('/')
+    } catch (caught) {
+      setError(`Could not finish setup: ${caught instanceof Error ? caught.message : String(caught)}. Your answers are still here; try again.`)
+    } finally { pending.current = false; setSaving(false) }
   }
 
   const steps = [
@@ -113,9 +127,10 @@ export default function Onboarding() {
     <div className="auth" style={{ alignContent: 'start' }}>
       <div className="row"><div className="brand" style={{ display: 'flex', gap: 10, alignItems: 'center' }}><Logo size={34} /><b>Hey {data.name || 'there'}</b></div><span className="tag">{step + 1} / {total}</span></div>
       <div className="card">{steps[step]}</div>
+      {error && <p className="err" role="alert">{error}</p>}
       <div className="row">
-        {step > 0 ? <button className="ghost" onClick={() => setStep(step - 1)}>Back</button> : <span />}
-        {last ? <button className="primary" onClick={finish}>Start showing up</button> : <button className="primary" onClick={() => setStep(step + 1)}>Next</button>}
+        {step > 0 ? <button className="ghost" disabled={saving} onClick={() => setStep(step - 1)}>Back</button> : <span />}
+        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" onClick={() => setStep(step + 1)}>Next</button>}
       </div>
     </div>
   )

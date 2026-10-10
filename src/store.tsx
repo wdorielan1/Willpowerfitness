@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { AppData } from './types'
 import { supabase, fetchCrews, ensureMemberCloud } from './cloud'
 import { DEFAULT_SETTINGS } from './data'
+import { withRequestTimeout, withTimeout } from './photos'
 
 const SESSION = 'wpf.session'
 const ACCOUNTS = 'wpf.accounts'
@@ -27,6 +28,15 @@ const read = <T,>(k: string, fallback: T): T => {
   } catch { return fallback }
 }
 const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* storage unavailable */ } }
+const cacheKey = (id: string) => `wpf.cache.${id}`
+const accountData = ({ custom: _custom, ...saved }: AppData) => saved
+
+// An incomplete local snapshot must never replace a completed account.
+const newestAccount = (remote: Partial<AppData> | null, cached: Partial<AppData> | null) => {
+  if (remote?.profile && !cached?.profile) return remote
+  if (cached?.profile && !remote?.profile) return cached
+  return remote && cached ? ((cached.ts ?? 0) > (remote.ts ?? 0) ? cached : remote) : remote ?? cached ?? {}
+}
 
 async function sha(text: string) {
   try {
@@ -39,6 +49,10 @@ interface Ctx {
   email: string | null
   userId: string | null
   loading: boolean
+  accountError: string | null
+  syncError: string | null
+  retryAccount: () => void
+  saveAccount: (fn: (d: AppData) => AppData) => Promise<string | null>
   googleOAuth: () => Promise<string | null>
   data: AppData
   update: (fn: (d: AppData) => AppData) => void
@@ -54,6 +68,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(() => read<string | null>(SESSION, null))
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(!!supabase)
+  const [accountError, setAccountError] = useState<string | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
   const loaded = useRef(false)
   const [data, setData] = useState<AppData>(() => {
     if (supabase) return blankData('')
@@ -65,75 +82,137 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (!supabase && email) write(dataKey(email), data) }, [email, data])
 
   // ---- cloud mode: session + load profile ----
-  const hydratedFor = useRef<string | null>(null)
+  const activeUser = useRef<string | null>(null)
+  const hydration = useRef(0)
   const dataRef = useRef(data)
   dataRef.current = data
-  const cacheKey = (id: string) => `wpf.cache.${id}`
+  const emailRef = useRef(email)
+  emailRef.current = email
+  const pending = useRef<{ userId: string; data: AppData } | null>(null)
+  const saveQueue = useRef<Promise<void>>(Promise.resolve())
+
+  const persist = useCallback((uid: string, snapshot: AppData) => {
+    const run = async () => {
+      if (!supabase || activeUser.current !== uid || !loaded.current) throw new Error('Your account needs to reconnect before changes can sync.')
+      const { error } = await withRequestTimeout((signal) => supabase!.from('profiles').upsert({ id: uid, name: snapshot.name, data: accountData(snapshot), updated_at: new Date().toISOString() }).abortSignal(signal), 15000, 'Saving your account')
+      if (error) throw new Error(error.message)
+    }
+    // Preserve write order so an older save cannot overwrite onboarding or a newer edit.
+    const task = saveQueue.current.then(run, run)
+    saveQueue.current = task.catch(() => {})
+    return task
+  }, [])
+
+  const saveNow = useCallback(async (): Promise<string | null> => {
+    const snapshot = pending.current
+    if (!snapshot || !supabase) return null
+    try {
+      await persist(snapshot.userId, snapshot.data)
+      if (activeUser.current === snapshot.userId) {
+        if (pending.current === snapshot) pending.current = null
+        setSyncError(null)
+      }
+      return null
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (activeUser.current === snapshot.userId) setSyncError(`Changes are saved on this device, but could not sync: ${message}`)
+      return message
+    }
+  }, [persist])
+
+  const retryAccount = useCallback(() => setRetry((n) => n + 1), [])
 
   useEffect(() => {
     if (!supabase) return
+    let alive = true
+    let authEvents = 0
+    let scheduled: ReturnType<typeof setTimeout> | undefined
     const hydrate = async (u: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null) => {
+      if (!alive) return
       if (!u) {
-        hydratedFor.current = null; loaded.current = false
+        hydration.current++; activeUser.current = null; loaded.current = false; pending.current = null
+        write(SESSION, null)
+        dataRef.current = blankData('')
         setUserId(null); setEmail(null); setData(blankData('')); setLoading(false)
+        setAccountError(null); setSyncError(null)
         return
       }
-      if (hydratedFor.current === u.id) return // token refresh / tab focus: keep what we have
-      hydratedFor.current = u.id
+      if (activeUser.current === u.id && loaded.current) return // token refresh / tab focus: keep local edits
+      const request = ++hydration.current
+      const current = () => alive && hydration.current === request && activeUser.current === u.id
+      if (activeUser.current !== u.id) pending.current = null
+      activeUser.current = u.id
       loaded.current = false
-      const { data: row, error } = await supabase!.from('profiles').select('name,data').eq('id', u.id).maybeSingle()
+      setLoading(true); setAccountError(null)
+      setUserId(u.id); setEmail(u.email ?? u.id)
       const cached = read<Partial<AppData> | null>(cacheKey(u.id), null)
-      if (error && !cached) {
-        // Could not reach the database and nothing cached: do NOT continue with blank data (it would overwrite the real profile).
-        hydratedFor.current = null
+      const fallbackName = (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || (u.email ?? '').split('@')[0]
+      try {
+        const { data: row, error } = await withRequestTimeout((signal) => supabase!.from('profiles').select('name,data').eq('id', u.id).abortSignal(signal).maybeSingle(), 15000, 'Loading your account')
+        if (!current()) return
+        if (error) throw new Error(error.message)
+        const remote = (row?.data as Partial<AppData> | undefined) ?? null
+        const newest = newestAccount(remote, cached)
+        const name = newest.name || (row?.name as string) || fallbackName
+        const base = withDefaults(blankData(name), { ...newest, name })
+        dataRef.current = base
+        write(cacheKey(u.id), accountData(base))
+        // Retry a newer local snapshot only after confirming the remote account is readable.
+        pending.current = newest === cached && (cached?.ts ?? 0) > (remote?.ts ?? 0) ? { userId: u.id, data: base } : null
+        loaded.current = true
+        setData(base); setSyncError(null); setLoading(false)
+        // Crew availability must not delay or reset a successfully loaded profile.
+        void withTimeout(fetchCrews(), 10000, 'Loading crews').then((crews) => {
+          if (current()) setData((d) => ({ ...d, custom: crews }))
+        }).catch(() => {})
+        for (const crewId of base.joined) void ensureMemberCloud(crewId, u.id, base.name).catch(() => {})
+      } catch (error) {
+        if (!current()) return
+        const message = error instanceof Error ? error.message : String(error)
+        if (cached?.profile) {
+          const base = withDefaults(blankData(cached.name || fallbackName), cached)
+          dataRef.current = base; setData(base)
+          setSyncError(`Your saved account is available on this device. Could not connect to sync it: ${message}`)
+        } else {
+          // An unreadable account is different from a confirmed new account.
+          setAccountError(message)
+        }
         setLoading(false)
-        return
       }
-      const remote = (row?.data as Partial<AppData> | undefined) ?? null
-      const name = (row?.name as string) || (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || (u.email ?? '').split('@')[0]
-      // use whichever copy is newer
-      const newest = remote && cached ? ((cached.ts ?? 0) > (remote.ts ?? 0) ? cached : remote) : remote ?? cached ?? {}
-      const base = { ...withDefaults(blankData(name), newest as Partial<AppData>), name: (newest as Partial<AppData>).name || name }
-      const crews = await fetchCrews()
-      setData({ ...base, custom: crews })
-      setUserId(u.id)
-      setEmail(u.email ?? u.id)
-      loaded.current = true
-      setLoading(false)
-      // make sure every crew you're in is also recorded in the database (needed to post and to be counted)
-      for (const crewId of base.joined) void ensureMemberCloud(crewId, u.id, base.name)
     }
-    void supabase.auth.getSession().then(({ data: s }) => hydrate(s.session?.user ?? null))
+    const schedule = (u: Parameters<typeof hydrate>[0]) => {
+      if (scheduled) clearTimeout(scheduled)
+      // Keep database requests outside the auth notification callback.
+      scheduled = setTimeout(() => { void hydrate(u) }, 0)
+    }
+    loaded.current = false // an explicit retry must read again
     const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => {
-      if (ev === 'SIGNED_OUT') void hydrate(null)
-      else if (ev === 'SIGNED_IN' && session?.user) void hydrate(session.user)
+      if (ev === 'SIGNED_OUT') { authEvents++; if (scheduled) clearTimeout(scheduled); void hydrate(null) }
+      else if ((ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION' || ev === 'TOKEN_REFRESHED') && session?.user) { authEvents++; schedule(session.user) }
     })
-    return () => sub.subscription.unsubscribe()
-  }, [])
-
-  // ---- cloud mode: cache on device + save to the database (debounced, and flushed when the app is hidden) ----
-  const saveNow = useCallback(() => {
-    const uid = userId
-    if (!supabase || !uid || !loaded.current) return
-    const { custom: _c, ...rest } = dataRef.current
-    void _c
-    void supabase.from('profiles').upsert({ id: uid, name: dataRef.current.name, data: rest, updated_at: new Date().toISOString() })
-  }, [userId])
+    const startedAt = authEvents
+    void withTimeout(supabase.auth.getSession(), 15000, 'Restoring your session').then(({ data: s, error }) => {
+      if (!alive || authEvents !== startedAt) return
+      if (error) throw new Error(error.message)
+      schedule(s.session?.user ?? null)
+    }).catch((error) => {
+      if (alive && authEvents === startedAt) { setAccountError(error instanceof Error ? error.message : String(error)); setLoading(false) }
+    })
+    return () => { alive = false; hydration.current++; if (scheduled) clearTimeout(scheduled); sub.subscription.unsubscribe() }
+  }, [retry])
 
   useEffect(() => {
-    if (!supabase || !userId || !loaded.current) return
-    const { custom: _c, ...rest } = data
-    void _c
-    write(cacheKey(userId), rest)
-    const t = setTimeout(saveNow, 400)
+    if (!supabase || !userId || !loaded.current || !pending.current) return
+    const t = setTimeout(() => { void saveNow() }, 400)
     return () => clearTimeout(t)
   }, [data, userId, saveNow])
 
   useEffect(() => {
-    const flush = () => { if (document.visibilityState === 'hidden') saveNow() }
+    const flush = () => { if (document.visibilityState === 'hidden') void saveNow() }
+    const hide = () => { void saveNow() }
     document.addEventListener('visibilitychange', flush)
-    window.addEventListener('pagehide', saveNow)
-    return () => { document.removeEventListener('visibilitychange', flush); window.removeEventListener('pagehide', saveNow) }
+    window.addEventListener('pagehide', hide)
+    return () => { document.removeEventListener('visibilitychange', flush); window.removeEventListener('pagehide', hide) }
   }, [saveNow])
 
   const begin = useCallback((e: string, name: string) => {
@@ -141,6 +220,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(withDefaults(blankData(name), read<Partial<AppData>>(dataKey(e), {})))
     setEmail(e)
   }, [])
+
+  const saveAccount = useCallback(async (fn: (d: AppData) => AppData): Promise<string | null> => {
+    const next = { ...fn(dataRef.current), ts: Date.now() }
+    const uid = activeUser.current
+    if (supabase) {
+      if (!uid || !loaded.current) return 'Reconnect to your account before finishing setup.'
+      // Keep completed answers even if the request fails or the tab closes.
+      write(cacheKey(uid), accountData(next))
+      const snapshot = { userId: uid, data: next }
+      pending.current = snapshot
+      const error = await saveNow()
+      if (error) return error
+      if (activeUser.current !== uid) return 'Your account changed while saving. Sign in again.'
+    } else if (emailRef.current) write(dataKey(emailRef.current), next)
+    dataRef.current = next
+    setData(next)
+    return null
+  }, [saveNow])
 
   const signUp: Ctx['signUp'] = async (name, e, password) => {
     const key = e.trim().toLowerCase()
@@ -178,10 +275,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return error ? error.message : null
   }
   const logOut = () => {
-    if (supabase) { void supabase.auth.signOut(); return }
+    if (supabase) {
+      // Flush before removing authentication; local cache survives failed/offline saves.
+      void saveNow().then(async () => {
+        const { error } = await supabase!.auth.signOut()
+        if (error) setSyncError(`Could not log out: ${error.message}`)
+      })
+      return
+    }
     write(SESSION, null); setEmail(null); setData(blankData(''))
   }
-  const update = useCallback((fn: (d: AppData) => AppData) => setData((d) => ({ ...fn(d), ts: Date.now() })), [])
+  const update = useCallback((fn: (d: AppData) => AppData) => {
+    const next = { ...fn(dataRef.current), ts: Date.now() }
+    dataRef.current = next
+    if (supabase && activeUser.current) {
+      write(cacheKey(activeUser.current), accountData(next))
+      pending.current = { userId: activeUser.current, data: next }
+    } else if (emailRef.current) write(dataKey(emailRef.current), next)
+    setData(next)
+  }, [])
 
-  return <C.Provider value={{ email, userId, loading, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
+  return <C.Provider value={{ email, userId, loading, accountError, syncError, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
 }

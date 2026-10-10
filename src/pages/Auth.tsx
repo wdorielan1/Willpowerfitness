@@ -63,7 +63,7 @@ export default function Auth() {
       <Link to="/" className="small mute">← Back</Link>
       <div className="logo">
         <Logo size={84} />
-        <h1>WILL POWER FITNESS</h1>
+        <h1>WILPOW</h1>
         <div className="tagline">{TAGLINE}</div>
         <p className="mute">The accountability community for people who need help showing up. Free during beta.</p>
       </div>

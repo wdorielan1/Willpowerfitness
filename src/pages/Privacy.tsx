@@ -8,14 +8,14 @@ export default function Privacy() {
   return (
     <div className="site legal">
       <header className="site-nav">
-        <Link to="/" className="brand"><Logo size={34} /><span>WILL POWER</span></Link>
+        <Link to="/" className="brand"><Logo size={34} /><span>WILPOW</span></Link>
         <Link to="/" className="small mute">← Back</Link>
       </header>
 
       <h1>Privacy Policy</h1>
       <p className="mute small">Last updated {UPDATED}</p>
 
-      <p>Will Power Fitness (“we”, “us”) is an accountability fitness community app. This policy explains what information we collect, how we use it, and the choices you have. The app is currently in a free beta.</p>
+      <p>Wilpow (“we”, “us”) is an accountability fitness community app. This policy explains what information we collect, how we use it, and the choices you have. The app is currently in a free beta.</p>
 
       <h2>Information we collect</h2>
       <ul>
@@ -43,7 +43,7 @@ export default function Privacy() {
       <p>We use trusted providers to operate the app. They process data only to provide their services:</p>
       <ul>
         <li><b>Supabase</b>: authentication and database storage.</li>
-        <li><b>Netlify</b>: website hosting.</li>
+        <li><b>AWS Amplify</b>: website hosting. Netlify manages DNS.</li>
         <li><b>Google</b>: optional “Continue with Google” sign-in.</li>
       </ul>
 
@@ -61,7 +61,7 @@ export default function Privacy() {
       <p>We keep your information while your account is active and delete it after you request deletion, except where we must keep it for legal reasons. We use industry-standard safeguards, but no online service can be completely secure.</p>
 
       <h2>Children</h2>
-      <p>Will Power Fitness is not intended for children under 13, and we do not knowingly collect their information. If you believe a child has given us information, contact us and we will delete it.</p>
+      <p>Wilpow is not intended for children under 13, and we do not knowingly collect their information. If you believe a child has given us information, contact us and we will delete it.</p>
 
       <h2>Not medical advice</h2>
       <p>Workout and nutrition suggestions in the app are general information, not medical advice. Talk to a doctor before starting a new exercise or nutrition program.</p>
@@ -72,7 +72,7 @@ export default function Privacy() {
       <h2>Contact</h2>
       <p>Questions or requests: {CONTACT_EMAIL}</p>
 
-      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Will Power Fitness · <Link to="/terms" className="mute" style={{ textDecoration: 'underline' }}>Terms</Link></footer>
+      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Wilpow · <Link to="/terms" className="mute" style={{ textDecoration: 'underline' }}>Terms</Link></footer>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { EXERCISES, SPLIT } from './data'
-import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Profile, SetEntry, Settings, WorkoutLog } from './types'
+import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -54,10 +54,10 @@ export function dayTypeFor(date: string, p: Profile, logs: WorkoutLog[]): DayTyp
   if (!isTrainingDay(date, p)) return 'Rest/Cardio'
   const done = logs.filter((l) => l.date === date && l.dayType !== 'Rest/Cardio' && !l.baseline)
   if (done.length) return done[done.length - 1].dayType
-  const prior = [...logs].filter((l) => l.date < date && l.dayType !== 'Rest/Cardio' && !l.baseline).sort((a, b) => a.date.localeCompare(b.date))
+  const prior = [...logs].filter((l) => l.date < date && (l.rotationDay ?? l.dayType) !== 'Rest/Cardio' && !l.baseline).sort((a, b) => a.date.localeCompare(b.date))
   const last = prior[prior.length - 1]
   if (!last) return SPLIT[0]
-  return SPLIT[(SPLIT.indexOf(last.dayType) + 1) % SPLIT.length]
+  return SPLIT[(SPLIT.indexOf(last.rotationDay ?? last.dayType) + 1) % SPLIT.length]
 }
 
 /** Today's workout type, honouring a manual switch. */
@@ -66,18 +66,33 @@ export const dayFor = (date: string, d: AppData): DayType =>
 
 export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string }
 
-export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType) {
+export const workoutName = (day: DayType, focus?: WorkoutFocus) =>
+  day === 'Push' && focus === 'chest-triceps' ? 'Chest + Triceps' : day === 'Pull' && focus === 'back-biceps' ? 'Back + Biceps' : day === 'Shoulders/Abs' ? 'Shoulders + Abs' : day === 'Rest/Cardio' ? 'Cardio' : day
+
+export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType, forceFocus?: WorkoutFocus) {
   const p = d.profile!
   const day = forceDay ?? dayFor(date, d)
   if (day === 'Rest/Cardio') return { day, items: [] as PlannedExercise[] }
-  const all = pool(day, p)
+  const focus = forceDay === undefined ? d.workoutFocus?.[date] : forceFocus
+  const focusedMuscles = day === 'Push' && focus === 'chest-triceps' ? ['Chest', 'Upper chest', 'Triceps']
+    : day === 'Pull' && focus === 'back-biceps' ? ['Back', 'Lats', 'Mid back', 'Biceps'] : null
+  const all = focusedMuscles
+    ? EXERCISES.filter((x) => x.day === day && focusedMuscles.includes(x.muscle) && available(x, p.gear) && !avoided(x, p.avoid))
+    : pool(day, p)
   const keys = all.filter((x) => x.key).slice(0, 2)
   const rest = all.filter((x) => !keys.includes(x))
   // rotate accessories week to week; key lifts stay fixed so progress is trackable
   const week = Math.floor(fromISO(date).getTime() / 86400000 / 7)
   const nAcc = short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3
   const accessories: Exercise[] = []
-  for (let i = 0; i < Math.min(nAcc, rest.length); i++) accessories.push(rest[(week + i) % rest.length])
+  // A focused session always includes its second muscle group when the equipment allows it.
+  const secondMuscle = focusedMuscles ? focusedMuscles[focusedMuscles.length - 1] : day === 'Shoulders/Abs' ? 'Abs' : null
+  const secondary = secondMuscle ? rest.filter((x) => x.muscle === secondMuscle) : []
+  if (secondary.length) accessories.push(secondary[week % secondary.length])
+  for (let i = 0; i < rest.length && accessories.length < Math.min(nAcc, rest.length); i++) {
+    const candidate = rest[(week + i) % rest.length]
+    if (!accessories.includes(candidate)) accessories.push(candidate)
+  }
   const strengthBias = p.style === 'strength' || p.goal === 'strength'
   const removed = d.removed?.[date] ?? []
   const build = (ex0: Exercise) => {
@@ -254,8 +269,8 @@ export interface WeekDay { date: string; label: string; planned: DayType; status
 export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
   const p = d.profile!
   const start = addDays(today, -((fromISO(today).getDay() + 6) % 7))
-  const before = [...d.logs].filter((l) => l.date < start && !l.baseline && l.dayType !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]
-  let cursor: DayType | null = before?.dayType ?? null
+  const before = [...d.logs].filter((l) => l.date < start && !l.baseline && (l.rotationDay ?? l.dayType) !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]
+  let cursor: DayType | null = before ? before.rotationDay ?? before.dayType : null
   const next = () => SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0]
   // days before your first activity were never "missed" (new users start fresh)
   const origin = [...d.logs.map((l) => l.date), ...Object.keys(d.checkins)].sort()[0] ?? today
@@ -264,11 +279,16 @@ export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
     const date = addDays(start, i)
     const label = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]
     const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
-    if (log) { out.push({ date, label, planned: log.dayType, status: log.skipped ? 'skipped' : 'done', logged: log }); cursor = log.dayType; continue }
-    if (!isTrainingDay(date, p) || date < origin) { out.push({ date, label, planned: 'Rest/Cardio', status: 'rest' }); continue }
+    if (log) { out.push({ date, label, planned: log.dayType, status: log.skipped ? 'skipped' : 'done', logged: log }); if ((log.rotationDay ?? log.dayType) !== 'Rest/Cardio') cursor = log.rotationDay ?? log.dayType; continue }
+    const overridden = date === today && d.dayOverride[date]
+    if ((!isTrainingDay(date, p) && !overridden) || date < origin) { out.push({ date, label, planned: 'Rest/Cardio', status: 'rest' }); continue }
     const planned = date === today && d.dayOverride[date] ? d.dayOverride[date] : next()
     if (date < today) out.push({ date, label, planned, status: 'missed' }) // rotation stays put, so this comes back
-    else { out.push({ date, label, planned, status: date === today ? 'today' : 'upcoming' }); cursor = planned }
+    else {
+      out.push({ date, label, planned, status: date === today ? 'today' : 'upcoming' })
+      const rotationDay = overridden ? dayTypeFor(date, p, d.logs) : planned
+      if (rotationDay !== 'Rest/Cardio') cursor = rotationDay
+    }
   }
   return out
 }
@@ -277,15 +297,19 @@ export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
 /** The workout type planned for each of the next n days (today included), assuming you complete each one. */
 export function projectDays(d: AppData, today = todayISO(), n = 60): Record<string, DayType> {
   const p = d.profile!
-  let cursor: DayType | null = [...d.logs].filter((l) => l.date <= today && !l.baseline && l.dayType !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]?.dayType ?? null
+  const previous = [...d.logs].filter((l) => l.date <= today && !l.baseline && (l.rotationDay ?? l.dayType) !== 'Rest/Cardio').sort((a, b) => b.date.localeCompare(a.date))[0]
+  let cursor: DayType | null = previous ? previous.rotationDay ?? previous.dayType : null
   const out: Record<string, DayType> = {}
   for (let i = 0; i <= n; i++) {
     const date = addDays(today, i)
     const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
-    if (log) { out[date] = log.dayType; cursor = log.dayType; continue }
-    if (!isTrainingDay(date, p)) { out[date] = 'Rest/Cardio'; continue }
+    if (log) { out[date] = log.dayType; if ((log.rotationDay ?? log.dayType) !== 'Rest/Cardio') cursor = log.rotationDay ?? log.dayType; continue }
+    const overridden = i === 0 && d.dayOverride[date]
+    if (!isTrainingDay(date, p) && !overridden) { out[date] = 'Rest/Cardio'; continue }
     const planned: DayType = i === 0 && d.dayOverride[date] ? d.dayOverride[date] : SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0]
-    out[date] = planned; cursor = planned
+    out[date] = planned
+    const rotationDay = overridden ? dayTypeFor(date, p, d.logs) : planned
+    if (rotationDay !== 'Rest/Cardio') cursor = rotationDay
   }
   return out
 }

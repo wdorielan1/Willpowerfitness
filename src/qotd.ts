@@ -293,7 +293,7 @@ export const EVERGREEN: string[] = [
  "What is one thing your body did for you this week?",
  "Who do you want to see succeed?",
  "Who do you want to challenge this month?",
- "Which challenge would you like to see next in Will Power?",
+ "Which challenge would you like to see next in Wilpow?",
  "What would you add to the app?",
  "What is the best streak story you have heard?",
  "What is a lesson fitness taught you about patience?",

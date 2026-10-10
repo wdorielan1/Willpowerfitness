@@ -38,7 +38,7 @@ export const METRIC_LABELS: Record<Metric, string> = { workouts: 'Most workouts'
 
 /** A challenge someone created, running between two dates. */
 export function customInstance(cc: CustomChallenge, today: string): Instance {
-  const def: ChallengeDef = { id: `custom:${cc.id}`, name: cc.name, emoji: cc.emoji, blurb: `${METRIC_LABELS[cc.metric]} from ${cc.start} to ${cc.end}.`, rules: `${METRIC_LABELS[cc.metric]} between the start and end dates. Created by a Will Power member.`, period: 'custom', metric: cc.metric, unit: cc.unit }
+  const def: ChallengeDef = { id: `custom:${cc.id}`, name: cc.name, emoji: cc.emoji, blurb: `${METRIC_LABELS[cc.metric]} from ${cc.start} to ${cc.end}.`, rules: `${METRIC_LABELS[cc.metric]} between the start and end dates. Created by a Wilpow member.`, period: 'custom', metric: cc.metric, unit: cc.unit }
   return { def, cohort: `custom:${cc.id}`, start: cc.start, end: cc.end, daysLeft: Math.max(0, daysBetween(today, cc.end) + 1) }
 }
 

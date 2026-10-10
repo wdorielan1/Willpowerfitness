@@ -9,8 +9,8 @@ type PreviewScreen = 'train' | 'crew'
 
 const SCREENS: PreviewScreen[] = ['train', 'crew']
 const PREVIEW_ALT: Record<PreviewScreen, string> = {
-  train: 'Actual Will Power workout screen with exercise guidance, weight and rep inputs, and Log set button',
-  crew: 'Actual Will Power Crew screen showing daily check-in and workout sharing',
+  train: 'Actual Wilpow workout screen with exercise guidance, weight and rep inputs, and Log set button',
+  crew: 'Actual Wilpow Crew screen showing daily check-in and workout sharing',
 }
 const CHALLENGE_COPY: Record<string, { summary: string; icon: IconName | 'steps' }> = {
   gymrat: { summary: 'One completed workout per day counts.', icon: 'weight' },
@@ -110,7 +110,7 @@ export default function Landing() {
     <div className="landing-page" id="top">
       <div className="lp-container" ref={containerRef}>
         <header className="lp-site-header">
-          <a href="#top" className="lp-brand" aria-label="Will Power home" onClick={(event) => scrollToSection(event, 'top')}><Logo size={34} />WILL POWER</a>
+          <a href="#top" className="lp-brand" aria-label="Wilpow home" onClick={(event) => scrollToSection(event, 'top')}><Logo size={34} />WILPOW</a>
           <nav className="lp-header-nav" aria-label="Homepage sections">
             <a href="#challenges" onClick={(event) => scrollToSection(event, 'challenges')}>Challenges</a>
             <a href="#crews" onClick={(event) => scrollToSection(event, 'crews')}>Crews</a>
@@ -134,7 +134,7 @@ export default function Landing() {
                 {SCREENS.map((name, index) => <button key={name} type="button" id={`lp-${name}-tab`} ref={(node) => { tabRefs.current[index] = node }} role="tab" aria-selected={screen === name} aria-controls="lp-screen-panel" tabIndex={screen === name ? 0 : -1} onClick={() => setScreen(name)} onKeyDown={(event) => selectPreviewWithKeyboard(event, index)}>{name === 'train' ? 'Train' : 'Crew'}</button>)}
               </div>
               <div className="lp-phone" id="lp-screen-panel" role="tabpanel" aria-labelledby={`lp-${screen}-tab`} tabIndex={0}><img src={`${import.meta.env.BASE_URL}landing/${screen}.png`} alt={PREVIEW_ALT[screen]} width="390" height="844" decoding="async" /></div>
-              <p className="lp-preview-caption"><i aria-hidden="true" />Inside Will Power · <span>{screen === 'train' ? 'workout logging' : 'crews and check-ins'}</span></p>
+              <p className="lp-preview-caption"><i aria-hidden="true" />Inside Wilpow · <span>{screen === 'train' ? 'workout logging' : 'crews and check-ins'}</span></p>
             </div>
           </section>
 
@@ -168,7 +168,7 @@ export default function Landing() {
           <section className="lp-membership-section" aria-labelledby="membership-heading"><div><div className="lp-eyebrow"><span className="lp-dash" />Start today</div><h2 id="membership-heading">Free during beta.</h2><p className="lp-section-copy">Workouts, crews, and the challenges above are available now. No card needed to get started.</p><Link to="/join" className="lp-button lp-primary">Start training free<Icon name="arrow" /></Link></div><div className="lp-membership-future"><span className="lp-planned-label">Planned for later</span><div><h3>Optional subscriptions</h3><p>Membership features and pricing are still being developed.</p></div><div><h3>Paid challenges</h3><p>Future events with their own entry details. Paid entry is not available yet.</p></div></div></section>
         </main>
 
-        <footer className="lp-site-footer"><a className="lp-brand" href="#top" onClick={(event) => scrollToSection(event, 'top')}><Logo size={24} />WILL POWER</a><span className="lp-copyright">© {new Date().getFullYear()} Will Power Fitness</span><div className="lp-footer-links"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div></footer>
+        <footer className="lp-site-footer"><a className="lp-brand" href="#top" onClick={(event) => scrollToSection(event, 'top')}><Logo size={24} />WILPOW</a><span className="lp-copyright">© {new Date().getFullYear()} Wilpow</span><div className="lp-footer-links"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div></footer>
       </div>
 
       <dialog ref={dialogRef} className="lp-dialog" aria-labelledby="lp-dialog-title" aria-describedby="lp-dialog-rules" aria-modal="true" onClose={() => setChallenge(null)} onCancel={(event) => { event.preventDefault(); setChallenge(null) }} onKeyDown={dialogKeyboard} onClick={(event) => {

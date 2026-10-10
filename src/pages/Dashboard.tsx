@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { dayFor, fmtTime, generateWorkout, restFor, todayISO, weekSchedule } from '../engine'
+import { carbPlanFor, dayFor, fmtTime, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName } from '../engine'
 import { fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
@@ -39,6 +39,11 @@ export default function Dashboard() {
   const rest = day === 'Rest/Cardio'
   const plan = generateWorkout(today, data, !!data.short[today])
   const estimatedMinutes = Math.round(plan.items.reduce((minutes, item) => minutes + item.sets * (restFor(item.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
+  const nutrition = carbPlanFor(today, data)
+  const targets = macroPlan(p, data.settings.nutrition)[nutrition.carb]
+  const food = (data.foodLog[today] ?? []).reduce((total, entry) => ({ cal: total.cal + entry.cal, p: total.p + entry.p }), { cal: 0, p: 0 })
+  const focus = data.workoutFocus?.[today]
+  const sessionName = workoutName(day, focus)
   const week = weekSchedule(data, today)
   const completedThisWeek = week.filter((d) => d.status === 'done').length
   const live = useLiveCrew(crew?.id ?? null, userId)
@@ -50,6 +55,17 @@ export default function Dashboard() {
 
   return (
     <>
+      <section className="week-summary" aria-label="This week’s training">
+        <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
+        <div className="week-strip">
+          {week.map((d) => <div className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}`}>
+            <span aria-hidden="true">{d.label[0]}</span>
+            <span className="week-day-dot" aria-hidden="true">{d.status === 'done' && <Icon name="check" />}</span>
+            <span className="week-day-plan" aria-hidden="true">{d.planned === 'Rest/Cardio' ? 'Rest' : d.planned === 'Shoulders/Abs' ? 'Sh/Abs' : d.planned === 'Full Body' ? 'Full' : d.planned}</span>
+          </div>)}
+        </div>
+      </section>
+
       <div className="today-heading">
         <p className="overline">{ci.done ? 'TODAY’S SESSION' : rest ? 'YOUR RECOVERY' : 'YOUR NEXT SESSION'}</p>
         <h1>{ci.done ? <>{todaysLog ? 'Workout logged.' : 'Workout complete.'}</> : rest ? <>Recovery<br />day.</> : <>Your next<br />workout.</>}</h1>
@@ -60,8 +76,8 @@ export default function Dashboard() {
           <span className="section-label">{ci.done ? 'COMPLETE' : ci.started && !rest ? 'IN PROGRESS' : 'PLANNED'} · {fmtTime(p.time)}</span>
           <span className="icon-surface"><Icon name={ci.done ? 'check' : 'weight'} /></span>
         </div>
-        <h2 className="session-heading">{rest ? 'Recovery' : day}</h2>
-        <p className="session-subtitle">{sessionDescription[day]}</p>
+        <h2 className="session-heading">{rest ? 'Recovery' : sessionName}</h2>
+        <p className="session-subtitle">{focus ? (focus === 'chest-triceps' ? 'Chest & triceps · today’s choice' : 'Back & biceps · today’s choice') : sessionDescription[day]}</p>
         {!rest && <div className="session-meta">
           <span><Icon name="weight" />{plan.items.length} {plan.items.length === 1 ? 'exercise' : 'exercises'}</span>
           {ci.started && !ci.done
@@ -83,16 +99,6 @@ export default function Dashboard() {
           {ci.done && <button className="quiet-action" onClick={ci.undo}>Undo completion</button>}
         </div>
 
-      </section>
-
-      <section className="week-summary" aria-label="This week’s training">
-        <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
-        <div className="week-strip">
-          {week.map((d) => <div className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}`}>
-            <span aria-hidden="true">{d.label[0]}</span>
-            <span className="week-day-dot" aria-hidden="true">{d.status === 'done' && <Icon name="check" />}</span>
-          </div>)}
-        </div>
       </section>
 
       {crew ? <section className="crew-summary" aria-label="Your crew">
@@ -121,6 +127,16 @@ export default function Dashboard() {
         <Link to="/log" className="quiet-action"><Icon name="plus" />Quick log</Link>
         <Link to="/shortcuts" className="quiet-action"><Icon name="clock" />Siri shortcuts</Link>
       </div>
+
+      <section className="today-nutrition" aria-label="Today’s nutrition">
+        <div className="section-head"><h2>Today’s nutrition</h2><Link to="/nutrition" className="quiet-action">Open<Icon name="chevron" /></Link></div>
+        <p className="today-nutrition-plan">{nutrition.carb[0].toUpperCase() + nutrition.carb.slice(1)} carb day · {data.settings.nutrition.meals} meals</p>
+        <div className="today-nutrition-targets">
+          <div><span>Calories</span><p><b>{Math.round(food.cal).toLocaleString()}</b> / {targets.cal.toLocaleString()}</p></div>
+          <div><span>Protein</span><p><b>{Math.round(food.p)}g</b> / {targets.p}g</p></div>
+        </div>
+        <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
+      </section>
     </>
   )
 }

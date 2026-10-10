@@ -82,10 +82,14 @@ export async function leaveCrewCloud(crewId: string, userId: string) {
 }
 export async function pushCheckin(crewId: string, userId: string, name: string, c: { going: boolean; done: boolean }, streak: number) {
   if (!supabase) return null
-  const checkin = await supabase.from('crew_checkins').upsert({ crew_id: crewId, user_id: userId, day: todayISO(), name, going: c.going, done: c.done, updated_at: new Date().toISOString() })
-  if (checkin.error) return checkin.error.message
-  const member = await supabase.from('crew_members').update({ streak }).eq('crew_id', crewId).eq('user_id', userId)
-  return member.error?.message ?? null
+  try {
+    const member = await withRequestTimeout((signal) => supabase!.from('crew_members').update({ streak }).eq('crew_id', crewId).eq('user_id', userId).abortSignal(signal), 15000, 'Updating crew streak')
+    if (member.error) return member.error.message
+    const checkin = await withRequestTimeout((signal) => supabase!.from('crew_checkins').upsert({ crew_id: crewId, user_id: userId, day: todayISO(), name, going: c.going, done: c.done, updated_at: new Date().toISOString() }).abortSignal(signal), 15000, 'Saving training check-in')
+    return checkin.error?.message ?? null
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Could not save your training check-in. Please try again.'
+  }
 }
 export async function postMessageCloud(crewId: string, userId: string, name: string, text: string) {
   await supabase?.from('crew_messages').insert({ crew_id: crewId, user_id: userId, name, text })
