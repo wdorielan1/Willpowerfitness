@@ -56,7 +56,7 @@ function Card({ inst, cc, onJoined }: { inst: Instance; cc?: CustomChallenge; on
     if (!cc) return
     setInviteStatus('')
     if (navigator.share) {
-      try { await navigator.share({ title: cc.name, text: `Join my challenge on Wilpow: ${cc.name}`, url: link }); return }
+      try { await navigator.share({ title: cc.name, text: `Join my challenge on Will Power: ${cc.name}`, url: link }); return }
       catch (error) { if (error instanceof DOMException && error.name === 'AbortError') return }
     }
     try { await navigator.clipboard.writeText(link); setInviteStatus('Invite link copied.') }

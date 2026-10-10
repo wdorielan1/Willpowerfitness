@@ -158,7 +158,7 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .photo-previews img { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; }
 .photo-previews button { position: absolute; top: 0; right: 0; padding: 0; min-height: 32px; width: 32px; background: #000b; }
 
-/* Wilpow: the daily session, set logging, and the people who train with you. */
+/* Will Power: the daily session, set logging, and the people who train with you. */
 .shell { max-width: 520px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
 .shell main { padding: 14px 24px 24px; gap: 22px; min-width: 0; }
 .shell .top { padding: calc(20px + env(safe-area-inset-top)) 24px 4px; }
@@ -678,7 +678,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .nutrition-builder-actions button, .nutrition-day-actions button { min-height: 48px; font-size: 14px; padding: 12px; }
 @media (max-width: 359px) { .nutrition-section-heading { flex-wrap: wrap; } .nutrition-date-range { grid-template-columns: 1fr; } .nutrition-macro-grid { gap: 10px; } .nutrition-stepper output { min-width: 40px; } }
 
-/* Wilpow: focused training and consistent social pages. */
+/* Will Power: focused training and consistent social pages. */
 .account-reconnect { align-content: center; gap: 20px; }
 .account-reconnect p { line-height: 1.65; }
 .account-sync-note { padding: 14px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 8px; font-size: 12px; line-height: 1.6; color: var(--mute); }

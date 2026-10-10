@@ -24,7 +24,7 @@ export default function Profile() {
       </section>
       <section className="card">
         <h3>Plans</h3>
-        <p className="small mute">Wilpow is free during beta. Pro, premium 5 AM Club, paid challenges and coaching are coming later.</p>
+        <p className="small mute">Will Power is free during beta. Pro, premium 5 AM Club, paid challenges and coaching are coming later.</p>
         <span className="tag ok">Free beta</span>
       </section>
       <Link to="/privacy" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Privacy Policy</Link>

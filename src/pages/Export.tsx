@@ -25,7 +25,7 @@ export default function Export() {
         <div className="chips">{SECTIONS.map(([k, label]) => <button key={k} className={`chip ${o[k] ? 'on' : ''}`} onClick={() => setO({ ...o, [k]: !o[k] })}>{label}</button>)}</div>
         <div className="chips">{[4, 8, 12, 26].map((w) => <button key={w} className={`chip ${o.weeks === w ? 'on' : ''}`} onClick={() => setO({ ...o, weeks: w })}>Last {w} weeks</button>)}</div>
         <button className="primary" onClick={() => void copy()}>📋 Copy for AI</button>
-        <button className="ghost" onClick={() => download(`wilpow-summary-${day}.txt`, forAI)}>Download as a text file</button>
+        <button className="ghost" onClick={() => download(`willpower-summary-${day}.txt`, forAI)}>Download as a text file</button>
         {msg && <p className="small ok-text">{msg}</p>}
         <details><summary className="small mute" style={{ cursor: 'pointer' }}>Preview what will be copied</summary>
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: 'var(--card2)', borderRadius: 12, padding: 12, maxHeight: 320, overflow: 'auto' }}>{forAI}</pre></details>
@@ -33,8 +33,8 @@ export default function Export() {
 
       <section className="card">
         <h2>Your raw data</h2>
-        <button className="ghost" onClick={() => download(`wilpow-workouts-${day}.csv`, buildCSV(data), 'text/csv')}>⬇ Workouts as a spreadsheet (.csv)</button>
-        <button className="ghost" onClick={() => download(`wilpow-all-data-${day}.json`, buildJSON(data), 'application/json')}>⬇ Everything as a data file (.json)</button>
+        <button className="ghost" onClick={() => download(`willpower-workouts-${day}.csv`, buildCSV(data), 'text/csv')}>⬇ Workouts as a spreadsheet (.csv)</button>
+        <button className="ghost" onClick={() => download(`willpower-all-data-${day}.json`, buildJSON(data), 'application/json')}>⬇ Everything as a data file (.json)</button>
       </section>
 
       <section className="card">

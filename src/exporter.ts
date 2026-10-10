@@ -5,7 +5,7 @@ import type { AppData } from './types'
 export interface ExportOpts { profile: boolean; workouts: boolean; strength: boolean; body: boolean; cardio: boolean; nutrition: boolean; weeks: number }
 export const DEFAULT_EXPORT: ExportOpts = { profile: true, workouts: true, strength: true, body: true, cardio: true, nutrition: true, weeks: 8 }
 
-export const AI_PROMPT = `You are an experienced strength and conditioning coach. Below is my training data from the Wilpow app. Please:
+export const AI_PROMPT = `You are an experienced strength and conditioning coach. Below is my training data from the Will Power app. Please:
 1. Tell me what is going well and what is not.
 2. Spot trends in my strength, consistency, body weight, cardio and nutrition.
 3. Tell me what to change over the next 2 weeks (exercises, sets, reps, load, rest, nutrition).

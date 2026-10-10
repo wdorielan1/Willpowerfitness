@@ -528,7 +528,7 @@ export default function Workout() {
       })()}
       {sheet?.kind === 'rpe' && (
         <Sheet title="What is RPE?" onClose={() => setSheet(null)} z={50}>
-          <p>RPE is <b>how hard your last set felt</b>, from 1 to 10. It tells Wilpow when to add weight.</p>
+          <p>RPE is <b>how hard your last set felt</b>, from 1 to 10. It tells Will Power when to add weight.</p>
           <div className="people">
             {[[10, 'Max effort. You couldn’t do another rep.'], [9, 'Very hard. 1 more rep left.'], [8, 'Hard but controlled. 2 reps left.'], [7, 'Moderate. 3 reps left.'], ['≤6', 'Easy. 4+ reps left.']].map(([n, t]) => (
               <div className="person" key={String(n)}><span className="avatar">{n}</span><span className="grow small">{t}</span></div>

@@ -8,17 +8,17 @@ export default function Terms() {
   return (
     <div className="site legal">
       <header className="site-nav">
-        <Link to="/" className="brand"><Logo size={34} /><span>WILPOW</span></Link>
+        <Link to="/" className="brand"><Logo size={34} /><span>WILL POWER</span></Link>
         <Link to="/" className="small mute">← Back</Link>
       </header>
 
       <h1>Terms of Service</h1>
       <p className="mute small">Last updated {UPDATED}</p>
 
-      <p>Welcome to Wilpow (“we”, “us”). By creating an account or using the app and website, you agree to these Terms and our <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>. If you do not agree, please do not use the service.</p>
+      <p>Welcome to Will Power (“we”, “us”). By creating an account or using the app and website, you agree to these Terms and our <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>. If you do not agree, please do not use the service.</p>
 
       <h2>The service</h2>
-      <p>Wilpow is an accountability fitness community. It offers workout communities (“crews”), daily check-ins, workout and nutrition suggestions, progress tracking, and related features. The service is currently in a free beta. Features may change, be added, or be removed at any time, and we may introduce paid plans in the future.</p>
+      <p>Will Power is an accountability fitness community. It offers workout communities (“crews”), daily check-ins, workout and nutrition suggestions, progress tracking, and related features. The service is currently in a free beta. Features may change, be added, or be removed at any time, and we may introduce paid plans in the future.</p>
 
       <h2>Eligibility and your account</h2>
       <ul>
@@ -62,7 +62,7 @@ export default function Terms() {
       <h2>Contact</h2>
       <p>Questions about these Terms: {CONTACT_EMAIL}</p>
 
-      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Wilpow · <Link to="/privacy" className="mute" style={{ textDecoration: 'underline' }}>Privacy</Link></footer>
+      <footer className="site-foot small mute"><Logo size={22} /> © {new Date().getFullYear()} Will Power · <Link to="/privacy" className="mute" style={{ textDecoration: 'underline' }}>Privacy</Link></footer>
     </div>
   )
 }

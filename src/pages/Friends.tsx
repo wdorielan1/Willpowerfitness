@@ -26,8 +26,8 @@ export default function Friends() {
 
   const link = `${location.origin}${location.pathname}#/join?${[data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
   const share = async () => {
-    const text = 'Train with me on Wilpow. Your workout. Your crew.'
-    try { if (navigator.share) { await navigator.share({ title: 'Wilpow', text, url: link }); return } } catch { /* cancelled */ }
+    const text = 'Train with me on Will Power. Your workout. Your crew.'
+    try { if (navigator.share) { await navigator.share({ title: 'Will Power', text, url: link }); return } } catch { /* cancelled */ }
     try { await navigator.clipboard.writeText(link); setCopied(true) } catch { setShowLink(true); setMsg('Copy your invite link below.') }
   }
 
@@ -96,7 +96,7 @@ export default function Friends() {
         {canPickContacts
           ? <button className="ghost" onClick={() => void pick()} disabled={!cloudEnabled}>Find friends from contacts</button>
           : <p className="small mute">Contact matching isn’t available in this browser. Send an invite link instead.</p>}
-        {results && results.length === 0 && <p className="small mute">No one found. They may not be on Wilpow yet or have turned discovery off. Send them your invite link.</p>}
+        {results && results.length === 0 && <p className="small mute">No one found. They may not be on Will Power yet or have turned discovery off. Send them your invite link.</p>}
         {results?.filter((r) => r.userId !== userId).map((r) => (
           <div className="person" key={r.userId}><span className="avatar">{r.name[0]}</span><span className="grow"><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></span><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
         ))}

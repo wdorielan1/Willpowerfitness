@@ -28,7 +28,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
-  <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Wilpow" />
+  <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power" />
 )
 
 const tabs: [string, string, IconName][] = [
@@ -80,7 +80,7 @@ export default function App() {
       <WorkoutGuard />
       <ChallengeSync />
       <header className="top">
-        <Link to="/" className="brand"><Logo size={30} /><span>WILPOW</span></Link>
+        <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
         <button className="icon-button account-button" aria-label="Open account menu" onClick={() => setAccountMenu(true)}><Icon name="person" /></button>
       </header>
       <main>

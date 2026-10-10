@@ -74,6 +74,7 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 | Amplify build fails | Code or type error | Read the build log, run `npm run build` locally |
 
 ## 10. App notes
+- Brand: the app is called **Will Power**. The domain `wilpow.com` is the web address. The link-preview tags in `index.html` (`og:url`, `og:image`, `twitter:image`) still point at `willpowerfitclub.com`; update them to the live domain once it is attached in Amplify.
 - Two modes: cloud (Supabase keys present) and local (no keys, data stays on the device).
 - Sign in with Apple is intentionally not included (needs a paid Apple Developer account).
 - Crews with no activity for 35 days are archived (data kept). Users can join at most 3 crews.
