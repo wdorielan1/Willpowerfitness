@@ -81,3 +81,15 @@ still need to be applied to the live project as described above.
 Crew leads with real check-ins and the photo feed; questions, leaderboard, and
 crew details are secondary expandable sections. Account settings and Siri remain
 available through the profile icon. Local mode shows only this device's activity.
+
+## Public homepage
+
+The homepage introduces the workout app with Train/Crew screenshot tabs, then
+the existing Gym Rat, 5 AM, and Step challenges and their rules. Crews and workout
+tools follow; subscriptions and paid challenges are clearly marked as planned.
+Signup, login, and legal links use the existing routes. Section links scroll
+without changing the HashRouter route. Homepage styles use the `lp-` prefix.
+
+`public/landing/train.png` and `crew.png` are captures of the actual app with blank
+set inputs and an empty crew feed, without invented workouts or member activity.
+Refresh these images when the corresponding app screens change.
