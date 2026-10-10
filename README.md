@@ -50,8 +50,13 @@ clean up completed uploads. Deleting posts, including when leaving a crew with
 "delete my posts" selected, removes all attached photos before removing rows.
 
 The previous upload code awaited `createImageBitmap` without a timeout and used
-Storage upserts without an UPDATE policy. These are code-level failure paths;
-confirm the specific device symptom against the live project on a real iPhone.
+Storage upserts without an UPDATE policy. The crew Storage policies also used
+an unqualified `name` in membership subqueries, which resolved to the member
+display name instead of `storage.objects.name`; this rejected valid uploads
+and photo reads. The policies now qualify the object path. The decode behavior
+and real device verification remain separate from this SQL defect. For projects
+that already have the full schema, run `supabase/fix-crew-photo-rls.sql` in the
+Supabase SQL Editor to repair only the two affected crew-photo policies.
 
 Development checks: `npx tsc --noEmit` and `npm run build`. Mobile Chromium
 validation covered multi-file selection, removal, local posting, carousel

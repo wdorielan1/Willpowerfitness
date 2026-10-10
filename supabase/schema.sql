@@ -155,18 +155,20 @@ drop policy if exists "unlike" on public.crew_post_likes;
 create policy "unlike" on public.crew_post_likes for delete to authenticated using (auth.uid() = user_id);
 
 -- ---------- crew photos (private bucket; path = crewId/userId/photoId.jpg) ----------
+-- Qualify the object path: crew_members also has a name column, which would
+-- shadow an unqualified name inside the membership subqueries.
 insert into storage.buckets (id, name, public) values ('crew-photos', 'crew-photos', false) on conflict (id) do nothing;
 
 drop policy if exists "crew photos read" on storage.objects;
 create policy "crew photos read" on storage.objects for select to authenticated
-  using (bucket_id = 'crew-photos' and exists (select 1 from public.crew_members m where m.user_id = auth.uid() and m.crew_id = (storage.foldername(name))[1]));
+  using (bucket_id = 'crew-photos' and exists (select 1 from public.crew_members m where m.user_id = auth.uid() and m.crew_id = (storage.foldername(storage.objects.name))[1]));
 drop policy if exists "crew photos upload" on storage.objects;
 create policy "crew photos upload" on storage.objects for insert to authenticated
-  with check (bucket_id = 'crew-photos' and (storage.foldername(name))[2] = auth.uid()::text
-    and exists (select 1 from public.crew_members m where m.user_id = auth.uid() and m.crew_id = (storage.foldername(name))[1]));
+  with check (bucket_id = 'crew-photos' and (storage.foldername(storage.objects.name))[2] = auth.uid()::text
+    and exists (select 1 from public.crew_members m where m.user_id = auth.uid() and m.crew_id = (storage.foldername(storage.objects.name))[1]));
 drop policy if exists "crew photos delete own" on storage.objects;
 create policy "crew photos delete own" on storage.objects for delete to authenticated
-  using (bucket_id = 'crew-photos' and (storage.foldername(name))[2] = auth.uid()::text);
+  using (bucket_id = 'crew-photos' and (storage.foldername(storage.objects.name))[2] = auth.uid()::text);
 
 -- ---------- challenges: one row per person per challenge cohort ----------
 create table if not exists public.challenge_scores (
