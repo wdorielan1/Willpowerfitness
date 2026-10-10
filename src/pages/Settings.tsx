@@ -84,6 +84,9 @@ export default function Settings() {
         <div className="chips">{([['gym', 'Full gym'], ['db', 'Dumbbells only'], ['bw', 'Bodyweight']] as [Gear, string][]).map(([k, l]) => <button key={k} className={`chip ${p.gear === k ? 'on' : ''}`} onClick={() => setP('gear', k)}>{l}</button>)}</div>
         <label>Injuries or exercises to avoid<input value={p.avoid} onChange={(e) => setP('avoid', e.target.value)} placeholder="e.g. shoulder, lunge" /></label>
         <Toggle label="Include cardio" on={p.cardio} onClick={() => setP('cardio', !p.cardio)} />
+        <h3>Switch up my exercises</h3>
+        <div className="chips">{([['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Monthly'], ['never', 'Never']] as const).map(([k, l]) => <button key={k} className={`chip ${s.rotation === k ? 'on' : ''}`} aria-pressed={s.rotation === k} onClick={() => setS({ rotation: k })}>{l}</button>)}</div>
+        <p className="small mute">Your main lifts stay the same for 4 weeks so you can add weight. Accessory exercises change on this schedule, picked for your goal, level and equipment.</p>
       </section>
 
       <section className="card">

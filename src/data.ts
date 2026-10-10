@@ -1,4 +1,5 @@
 import type { DayType, Exercise, Goal, Level, Settings } from './types'
+import { LIB_ROWS } from './libraryIndex'
 
 export const TAGLINE = 'Wake Up. Show Up. Lift.'
 
@@ -19,7 +20,7 @@ const e = (
   reps: [number, number], sets: number, inc: number, rest: number, note: string, key = false,
 ): Exercise => ({ id, name, day, muscle, gear, reps, sets, inc, rest, note, key })
 
-export const EXERCISES: Exercise[] = [
+export const CORE_EXERCISES: Exercise[] = [
   // Push
   e('bench', 'Barbell Bench Press', 'Push', 'Chest', 'gym', [6, 8], 4, 5, 150, 'Shoulder blades pinned, control the way down.', true),
   e('incdb', 'Incline Dumbbell Press', 'Push', 'Upper chest', 'db', [8, 10], 3, 5, 120, '30° bench, full stretch at the bottom.', true),
@@ -67,6 +68,23 @@ export const EXERCISES: Exercise[] = [
   e('fbpush', 'Push-Up', 'Full Body', 'Chest', 'bw', [10, 20], 3, 0, 60, 'Stop 1–2 reps shy of failure.'),
   e('fbcurl', 'Dumbbell Curl', 'Full Body', 'Arms', 'db', [10, 12], 2, 2.5, 60, 'Superset with triceps work.'),
 ]
+
+/** The bigger library (free-exercise-db): sensible defaults here, then tuned to level and goal when a workout is built. */
+const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hips']
+const libExercise = ([id, name, muscle, day, gear, equip, lvl, compound, mobility]: (typeof LIB_ROWS)[number]): Exercise => {
+  const lower = LOWER.includes(muscle)
+  const bw = gear === 'bw'
+  const reps: [number, number] = mobility ? [1, 1] : muscle === 'Abs' ? [12, 20] : bw ? [10, 20] : compound ? [6, 10] : [10, 15]
+  return {
+    id, name, day: day as DayType, muscle, gear: gear as Exercise['gear'], reps,
+    sets: mobility ? 1 : compound ? 3 : 3, inc: bw || mobility ? 0 : lower && compound ? 10 : compound ? 5 : 2.5,
+    rest: mobility ? 0 : compound ? (lower ? 120 : 90) : 60,
+    note: mobility ? 'Move slowly. Stop at a comfortable stretch, never pain.' : `${equip === 'body only' ? 'Bodyweight' : equip.replace(/^./, (c) => c.toUpperCase())}. Control the lowering, full range of motion.`,
+    lib: true, lvl: lvl as 0 | 1 | 2, compound: !!compound, mobility: !!mobility, equip,
+  }
+}
+export const LIB_EXERCISES: Exercise[] = LIB_ROWS.map(libExercise)
+export const EXERCISES: Exercise[] = [...CORE_EXERCISES, ...LIB_EXERCISES]
 
 export const WARMUP: Record<DayType, string[]> = {
   Push: ['5 min easy bike or incline walk', 'Arm circles + band pull-aparts × 15', '2 ramp-up sets of your first press (50% × 8, 70% × 4)'],
@@ -174,6 +192,7 @@ export const ENCOURAGEMENTS = [
 export const DEFAULT_SETTINGS: Settings = {
   nutrition: { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 },
   rest: { small: 45, medium: 75, large: 120, keyBonus: 30 },
+  rotation: 'biweekly',
   autoShare: false,
   rpeEnabled: true,
   maxWorkoutHours: 5,

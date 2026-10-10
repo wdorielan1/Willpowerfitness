@@ -37,6 +37,8 @@ export interface Exercise {
   inc: number // lb jump when progressing
   rest: number // seconds
   note: string
+  // set for the bigger exercise library (see libraryIndex.ts)
+  lib?: boolean; lvl?: 0 | 1 | 2; compound?: boolean; mobility?: boolean; equip?: string
 }
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
@@ -66,6 +68,7 @@ export interface CustomChallenge { id: string; name: string; emoji: string; metr
 export interface Settings {
   nutrition: { meals: number; proteinPerLb: number; fatPerLb: number; calorieAdjust: number }
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
+  rotation: 'weekly' | 'biweekly' | 'monthly' | 'never' // how often accessory exercises change (main lifts change every 4 weeks)
   autoShare: boolean // post finished workouts to my crew
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later

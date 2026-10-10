@@ -6,7 +6,7 @@ import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
 import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
-import { imgUrl, mediaFor } from '../exerciseMedia'
+import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
 import { Icon } from '../icons'
@@ -84,6 +84,7 @@ const FOCUS: Record<DayType, string> = {
 const RPE_HINT: Record<number, string> = { 6: 'Easy: 4+ reps left', 7: '3 reps left', 8: '2 reps left', 9: '1 rep left', 10: 'Max: nothing left' }
 
 function ExPhotos({ id }: { id: string }) {
+  useMediaVersion()
   const m = mediaFor(id)
   const [at, setAt] = useState<number | null>(null)
   if (!m) return null
@@ -117,21 +118,28 @@ const sessionChoices = (suggested: DayType, saved: { id: string; name: string; i
 
 function BuildOwn({ data, ids, setIds, onStart, onSave }: { data: AppData; ids: string[]; setIds: (ids: string[]) => void; onStart: () => void; onSave: (name: string, ids: string[]) => void }) {
   const [muscle, setMuscle] = useState('All')
+  const [gear, setGear] = useState('All')
+  const [shown, setShown] = useState(40)
   const [q, setQ] = useState('')
   const [name, setName] = useState('')
   const [savedMsg, setSavedMsg] = useState(false)
   const all = addableExercises([], data.profile!)
-  const muscles = ['All', ...Array.from(new Set(all.map((x) => x.muscle.split('/')[0]))).sort()]
-  const list = all.filter((x) => (muscle === 'All' || x.muscle.split('/')[0] === muscle) && (!q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase())))
+  const muscles = ['All', ...Array.from(new Set(all.filter((x) => !x.mobility).map((x) => x.muscle.split('/')[0]))).sort(), ...(all.some((x) => x.mobility) ? ['Stretching'] : [])]
+  const gears = ['All', ...Array.from(new Set(all.filter((x) => !x.mobility).map((x) => x.equip ?? (x.gear === 'db' ? 'dumbbell' : x.gear === 'bw' ? 'body only' : '')).filter(Boolean))).sort()]
+  const label = (g: string) => (g === 'body only' ? 'Bodyweight' : g === 'e-z curl bar' ? 'EZ bar' : g.replace(/^./, (c) => c.toUpperCase()))
+  const matching = all.filter((x) => (muscle === 'Stretching' ? !!x.mobility : !x.mobility && (muscle === 'All' || x.muscle.split('/')[0] === muscle)) && (gear === 'All' || (x.equip ?? (x.gear === 'db' ? 'dumbbell' : x.gear === 'bw' ? 'body only' : '')) === gear) && (!q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase())))
+  const list = matching.slice(0, shown)
   const toggle = (id: string) => { setSavedMsg(false); setIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]) }
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= ids.length) return; const n = [...ids];[n[i], n[j]] = [n[j], n[i]]; setIds(n) }
   const byId = (id: string) => all.find((x) => x.id === id)
   return <div className="train-build">
     <p className="small mute">Pick the exercises you want, in the order you want them. You can save the workout to reuse it.</p>
     {ids.length > 0 && <div className="train-build-picked">{ids.map((id, i) => { const ex = byId(id); return ex ? <div className="train-preview-lift" key={id}><span className="thumbs"><Thumb id={id} /></span><div><b>{i + 1}. {ex.name}</b><span>{ex.muscle}</span></div><div className="train-build-controls"><button className="quiet-action" aria-label={`Move ${ex.name} up`} onClick={() => move(i, -1)} disabled={i === 0}>↑</button><button className="quiet-action" aria-label={`Move ${ex.name} down`} onClick={() => move(i, 1)} disabled={i === ids.length - 1}>↓</button><button className="quiet-action" aria-label={`Remove ${ex.name}`} onClick={() => toggle(id)}>✕</button></div></div> : null })}</div>}
-    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search exercises" aria-label="Search exercises" />
-    <div className="train-build-muscles">{muscles.map((m) => <button key={m} className={`chip ${muscle === m ? 'on' : ''}`} aria-pressed={muscle === m} onClick={() => setMuscle(m)}>{m}</button>)}</div>
-    <div className="train-build-list">{list.map((x) => <button key={x.id} className="minirow" aria-pressed={ids.includes(x.id)} onClick={() => toggle(x.id)}><span className="thumbs"><Thumb id={x.id} /></span><span style={{ flex: 1, textAlign: 'left' }}><b>{x.name}</b><br /><span className="small mute">{x.muscle} · {x.sets} sets · {x.reps[0]}–{x.reps[1]} reps</span></span><span className={`tag ${ids.includes(x.id) ? 'accent' : ''}`}>{ids.includes(x.id) ? 'Added' : 'Add'}</span></button>)}{list.length === 0 && <p className="small mute">No exercises match. Try another muscle group.</p>}</div>
+    <input value={q} onChange={(e) => { setQ(e.target.value); setShown(40) }} placeholder="Search exercises" aria-label="Search exercises" />
+    <div className="train-build-muscles">{muscles.map((m) => <button key={m} className={`chip ${muscle === m ? 'on' : ''}`} aria-pressed={muscle === m} onClick={() => { setMuscle(m); setShown(40) }}>{m}</button>)}</div>
+    {muscle !== 'Stretching' && gears.length > 2 && <div className="train-build-muscles" aria-label="Equipment">{gears.map((g) => <button key={g} className={`chip ${gear === g ? 'on' : ''}`} aria-pressed={gear === g} onClick={() => { setGear(g); setShown(40) }}>{g === 'All' ? 'Any equipment' : label(g)}</button>)}</div>}
+    <p className="small mute">{matching.length} exercise{matching.length === 1 ? '' : 's'}</p>
+    <div className="train-build-list">{list.map((x) => <button key={x.id} className="minirow" aria-pressed={ids.includes(x.id)} onClick={() => toggle(x.id)}><span className="thumbs"><Thumb id={x.id} /></span><span style={{ flex: 1, textAlign: 'left' }}><b>{x.name}</b><br /><span className="small mute">{x.muscle} · {x.sets} sets · {x.reps[0]}–{x.reps[1]} reps</span></span><span className={`tag ${ids.includes(x.id) ? 'accent' : ''}`}>{ids.includes(x.id) ? 'Added' : 'Add'}</span></button>)}{list.length === 0 && <p className="small mute">No exercises match. Try another muscle group.</p>}{matching.length > shown && <button className="ghost" onClick={() => setShown(shown + 40)}>Show more ({matching.length - shown} left)</button>}</div>
     <button className="primary" disabled={!ids.length} onClick={onStart}>Start lifting · {ids.length} exercise{ids.length === 1 ? '' : 's'}<Icon name="arrow" /></button>
     {ids.length > 0 && <div className="train-build-save"><input value={name} onChange={(e) => { setName(e.target.value); setSavedMsg(false) }} placeholder="Name it to save (e.g. Arm day)" maxLength={30} aria-label="Workout name" /><button className="ghost" disabled={!name.trim()} onClick={() => { onSave(name.trim(), ids); setName(''); setSavedMsg(true) }}>Save</button></div>}
     {savedMsg && <p className="small ok-text" role="status">Saved. It now shows up in your session list.</p>}
@@ -168,6 +176,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
 }
 
 export default function Workout() {
+  useMediaVersion()
   const { data, update } = useApp()
   const ci = useCheckin()
   const timer = useRestTimer()

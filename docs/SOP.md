@@ -73,7 +73,13 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 | Domain shows old site | DNS still points at Netlify | Update records (section 5) |
 | Amplify build fails | Code or type error | Read the build log, run `npm run build` locally |
 
-## 10. App notes
+## 10. Exercise library
+- 41 hand-tuned exercises live in `src/data.ts`. About 520 more come from the free-exercise-db project (public domain) via `src/libraryIndex.ts` (small index in the app), `public/lib/steps.json` (how-to steps, loaded on demand) and `public/ex/*.jpg` (photos, shrunk for phones).
+- To rebuild: download `exercises.json` from the free-exercise-db repo, run `python3 -I scripts/build-library.py exercises.json`, then `scripts/fetch-library-images.sh`.
+- Workouts are built from your goal, level and equipment. Main lifts change every 4 weeks, accessories on the Settings rotation (weekly, every 2 weeks, monthly, never). Logic is in `src/engine.ts` (`candidates`, `pickKeys`, `pickAccessories`, `tune`).
+- Stretching exercises were left out because the set logger counts reps, not hold times.
+
+## 11. App notes
 - Brand: the app is called **Will Power**. The domain `wilpow.com` is the web address. The link-preview tags in `index.html` (`og:url`, `og:image`, `twitter:image`) still point at `willpowerfitclub.com`; update them to the live domain once it is attached in Amplify.
 - Two modes: cloud (Supabase keys present) and local (no keys, data stays on the device).
 - Sign in with Apple is intentionally not included (needs a paid Apple Developer account).

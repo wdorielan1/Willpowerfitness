@@ -644,8 +644,33 @@ const MEDIA: Record<string, Omit<Media, "slug">> = {
  }
 }
 
+// ---- the bigger library: photos are bundled, how-to steps load on demand the first time they are needed ----
+import { useSyncExternalStore } from 'react'
+import { LIB_ROWS } from './libraryIndex'
+
+const LIB_N: Record<string, { name: string; n: number }> = Object.fromEntries(LIB_ROWS.map((r) => [r[0], { name: r[1], n: r[9] }]))
+type StepRow = { name: string; steps: string[]; primary: string[]; secondary: string[]; n: number }
+let steps: Record<string, StepRow> | null = null
+let loading = false
+let version = 0
+const listeners = new Set<() => void>()
+function loadSteps() {
+  if (steps || loading) return
+  loading = true
+  fetch(`${import.meta.env.BASE_URL}lib/steps.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+    .then((j: Record<string, StepRow>) => { steps = j; version++; listeners.forEach((l) => l()) })
+    .catch(() => { loading = false }) // try again next time it is needed
+}
+/** Re-renders a component once the how-to steps for library exercises have loaded. */
+export const useMediaVersion = () => useSyncExternalStore((cb) => { listeners.add(cb); return () => { listeners.delete(cb) } }, () => version)
+
 export const mediaFor = (exerciseId: string): Media | null => {
   const slug = MAP[exerciseId]
-  return slug && MEDIA[slug] ? { slug, ...MEDIA[slug] } : null
+  if (slug && MEDIA[slug]) return { slug, ...MEDIA[slug] }
+  const lib = LIB_N[exerciseId]
+  if (!lib) return null
+  loadSteps()
+  const row = steps?.[exerciseId]
+  return { slug: exerciseId, name: lib.name, steps: row?.steps ?? [], primary: row?.primary ?? [], secondary: row?.secondary ?? [], n: lib.n }
 }
 export const imgUrl = (slug: string, i: number) => `${import.meta.env.BASE_URL}ex/${slug}-${i}.jpg`

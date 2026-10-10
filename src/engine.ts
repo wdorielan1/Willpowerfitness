@@ -1,5 +1,5 @@
 import { EXERCISES, SPLIT } from './data'
-import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
+import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -40,9 +40,108 @@ const avoided = (ex: Exercise, avoid: string) => {
   const hay = `${ex.name} ${ex.muscle}`.toLowerCase()
   return words.some((w) => hay.includes(w))
 }
-const pool = (day: DayType, p: Profile) => {
-  const base = EXERCISES.filter((x) => x.day === day && available(x, p.gear) && !avoided(x, p.avoid))
-  return base.length >= 3 ? base : EXERCISES.filter((x) => x.day === day && available(x, p.gear))
+const LEVEL_NUM: Record<Level, number> = { beginner: 0, intermediate: 1, advanced: 2 }
+const levelOk = (x: Exercise, p: Profile) => !x.lib || (x.lvl ?? 0) <= LEVEL_NUM[p.level]
+/** Muscles a day is mainly about: its key lifts come from these first. */
+const DAY_MUSCLES: Partial<Record<DayType, string[]>> = {
+  Push: ['Chest', 'Upper chest'], Pull: ['Lats', 'Mid back', 'Back'], Legs: ['Quads', 'Hamstrings', 'Glutes', 'Legs'], 'Shoulders/Abs': ['Shoulders', 'Side delts'],
+}
+const MUST_HAVE: Partial<Record<DayType, string[]>> = { Push: ['Triceps'], Pull: ['Biceps'], Legs: ['Hamstrings'], 'Shoulders/Abs': ['Abs'] }
+
+/** How well a library exercise suits your goal and level (higher goes earlier). */
+function affinity(x: Exercise, p: Profile): number {
+  const eq = x.equip ?? ''
+  let s = 0
+  if (p.goal === 'strength') { if (x.compound) s += 3; if (eq === 'barbell') s += 2 }
+  else if (p.goal === 'muscle_gain') { if (eq === 'cable' || eq === 'machine' || eq === 'dumbbell') s += 1; if (x.compound) s += 1 }
+  else if (p.goal === 'fat_loss') { if (x.compound) s += 3; if (eq === 'kettlebells' || eq === 'body only') s += 1 }
+  else if (p.goal === 'conditioning') { if (eq === 'kettlebells' || eq === 'body only' || eq === 'bands') s += 3; if (x.compound) s += 2 }
+  else if (x.compound) s += 1
+  if (p.level === 'beginner') { if (eq === 'machine' || eq === 'body only') s += 1; if (eq === 'barbell') s -= 1 }
+  if (p.level === 'advanced' && x.lvl === 2) s += 1
+  return s
+}
+
+/** Exercises that fit this day, your equipment, your level and your exclusions. Hand-tuned ones come first, then the library. */
+function candidates(day: DayType, p: Profile): Exercise[] {
+  const fits = (x: Exercise) => !x.mobility && available(x, p.gear) && !avoided(x, p.avoid)
+  const core = EXERCISES.filter((x) => !x.lib && x.day === day && fits(x))
+  const lib = EXERCISES.filter((x) => x.lib && fits(x) && levelOk(x, p) && (day === 'Full Body' ? x.compound && x.day !== 'Shoulders/Abs' && x.day !== 'Full Body' : x.day === day))
+    .sort((a, b) => affinity(b, p) - affinity(a, p) || hash(a.id) - hash(b.id))
+  const out = [...core, ...lib]
+  if (out.length >= 3) return out
+  return EXERCISES.filter((x) => !x.mobility && x.day === day && available(x, p.gear))
+}
+
+/** Week number since you started training, turned into rotation steps. Key lifts change every 4 weeks; accessories on your setting. */
+function rotationFor(date: string, d: AppData) {
+  const mode = d.settings?.rotation ?? 'biweekly'
+  const first = d.logs.filter((l) => !l.baseline && !l.imported && l.dayType !== 'Rest/Cardio').map((l) => l.date).sort()[0] ?? date
+  const weeks = Math.max(0, Math.floor((fromISO(date).getTime() - fromISO(first).getTime()) / 86400000 / 7))
+  if (mode === 'never') return { block: 0, period: 0 }
+  const every = mode === 'weekly' ? 1 : mode === 'monthly' ? 4 : 2
+  return { block: Math.floor(weeks / 4), period: Math.floor(weeks / every) }
+}
+
+/** Interleave exercises by muscle so neighbours work different muscles. */
+function interleave(list: Exercise[]): Exercise[] {
+  const groups = new Map<string, Exercise[]>()
+  for (const x of list) groups.set(x.muscle, [...(groups.get(x.muscle) ?? []), x])
+  const out: Exercise[] = []
+  for (let i = 0; out.length < list.length; i++) for (const g of groups.values()) if (g[i]) out.push(g[i])
+  return out
+}
+
+function pickKeys(all: Exercise[], day: DayType, block: number, focused: string[] | null): Exercise[] {
+  const main = focused ?? DAY_MUSCLES[day]
+  const isKey = (x: Exercise) => x.key || (x.lib && x.compound)
+  const first = all.filter((x) => isKey(x) && (!main || main.includes(x.muscle) || day === 'Full Body'))
+  const others = all.filter((x) => isKey(x) && !first.includes(x))
+  // hand-tuned key lifts first; library lifts follow, alternating muscles
+  const core = first.filter((x) => !x.lib), lib = first.filter((x) => x.lib)
+  const pool = [...core, ...(day === 'Full Body' ? interleaveByDay(lib) : lib), ...others]
+  if (!pool.length) return all.filter((x) => x.key).slice(0, 2)
+  const out: Exercise[] = []
+  for (let i = 0; i < 2 && out.length < Math.min(2, pool.length); i++) {
+    const c = pool[(block * 2 + i) % pool.length]
+    if (!out.includes(c)) out.push(c)
+  }
+  return out
+}
+function interleaveByDay(list: Exercise[]): Exercise[] {
+  const by: Record<string, Exercise[]> = {}
+  for (const x of list) (by[x.day] ??= []).push(x)
+  const out: Exercise[] = []
+  const lists = Object.values(by)
+  for (let i = 0; out.length < list.length; i++) for (const g of lists) if (g[i]) out.push(g[i])
+  return out
+}
+
+function pickAccessories(rest: Exercise[], mustHave: string[], period: number, n: number): Exercise[] {
+  const groups = new Map<string, Exercise[]>()
+  for (const x of rest) groups.set(x.muscle, [...(groups.get(x.muscle) ?? []), x])
+  const out: Exercise[] = []
+  const take = (list: Exercise[], k: number) => { const x = list[(period + k) % list.length]; if (x && !out.includes(x)) out.push(x) }
+  mustHave.forEach((m, i) => { const g = groups.get(m); if (g && out.length < n) take(g, i) })
+  const order = [...groups.keys()].filter((m) => !mustHave.includes(m))
+  for (let k = 0; out.length < Math.min(n, rest.length) && k < order.length + n; k++) {
+    const m = order[(period + k) % Math.max(1, order.length)]
+    const g = groups.get(m)
+    if (g) take(g, k)
+  }
+  return out
+}
+
+/** Library exercises get sets, reps and rest that suit your goal. Hand-tuned ones keep their own numbers. */
+function tune(ex: Exercise, p: Profile): Exercise {
+  if (!ex.lib || ex.mobility) return ex
+  const comp = !!ex.compound, bw = ex.gear === 'bw' || ex.muscle === 'Abs'
+  let reps = ex.reps, sets = ex.sets, rest = ex.rest
+  if (p.goal === 'strength') { reps = comp && !bw ? [3, 6] : bw ? [8, 15] : [8, 12]; if (comp && !bw) { sets = 4; rest = 180 } }
+  else if (p.goal === 'fat_loss') { reps = comp ? [8, 12] : [12, 20]; rest = comp ? 75 : 45 }
+  else if (p.goal === 'conditioning') { reps = [12, 20]; rest = 45 }
+  else if (p.goal === 'maintenance') { reps = comp ? [8, 12] : [10, 15] }
+  return reps === ex.reps && sets === ex.sets && rest === ex.rest ? ex : { ...ex, reps, sets, rest }
 }
 
 export function isTrainingDay(date: string, p: Profile) {
@@ -77,27 +176,21 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
   const focusedMuscles = day === 'Push' && focus === 'chest-triceps' ? ['Chest', 'Upper chest', 'Triceps']
     : day === 'Pull' && focus === 'back-biceps' ? ['Back', 'Lats', 'Mid back', 'Biceps'] : null
   const all = focusedMuscles
-    ? EXERCISES.filter((x) => x.day === day && focusedMuscles.includes(x.muscle) && available(x, p.gear) && !avoided(x, p.avoid))
-    : pool(day, p)
-  const keys = all.filter((x) => x.key).slice(0, 2)
-  const rest = all.filter((x) => !keys.includes(x))
-  // rotate accessories week to week; key lifts stay fixed so progress is trackable
-  const week = Math.floor(fromISO(date).getTime() / 86400000 / 7)
+    ? candidates(day, p).filter((x) => focusedMuscles.includes(x.muscle))
+    : candidates(day, p)
+  const { block, period } = rotationFor(date, d)
+  const mustHave = focusedMuscles ? [focusedMuscles[focusedMuscles.length - 1]] : MUST_HAVE[day] ?? []
   const nAcc = short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3
-  const accessories: Exercise[] = []
-  // A focused session always includes its second muscle group when the equipment allows it.
-  const secondMuscle = focusedMuscles ? focusedMuscles[focusedMuscles.length - 1] : day === 'Shoulders/Abs' ? 'Abs' : null
-  const secondary = secondMuscle ? rest.filter((x) => x.muscle === secondMuscle) : []
-  if (secondary.length) accessories.push(secondary[week % secondary.length])
-  for (let i = 0; i < rest.length && accessories.length < Math.min(nAcc, rest.length); i++) {
-    const candidate = rest[(week + i) % rest.length]
-    if (!accessories.includes(candidate)) accessories.push(candidate)
-  }
+  const keys = pickKeys(all, day, block, focusedMuscles)
+  // accessories prefer single-joint and bodyweight work, so they add to the main lifts instead of repeating them
+  const leftover = all.filter((x) => !keys.includes(x) && !x.key)
+  const lighter = leftover.filter((x) => !x.lib || !x.compound)
+  const accessories = pickAccessories(lighter.length > nAcc ? lighter : leftover, mustHave, period, nAcc)
   const strengthBias = p.style === 'strength' || p.goal === 'strength'
   const removed = d.removed?.[date] ?? []
   const build = (ex0: Exercise) => {
     const swap = d.swaps[`${date}|${ex0.id}`]
-    const ex = swap ? EXERCISES.find((x) => x.id === swap) ?? ex0 : ex0
+    const ex = tune(swap ? EXERCISES.find((x) => x.id === swap) ?? ex0 : ex0, p)
     let sets = ex.sets + (strengthBias && ex.key ? 1 : 0) - (p.level === 'beginner' ? 1 : 0)
     if (short) sets -= 1
     return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
@@ -114,7 +207,7 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
 
 /** Alternatives for an exercise: same muscle group first, then anything else that fits your equipment. */
 export function swapOptions(ex: Exercise, current: string[], p: Profile) {
-  const ok = (x: Exercise) => x.id !== ex.id && !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid)
+  const ok = (x: Exercise) => x.id !== ex.id && !x.mobility && !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid)
   const same = EXERCISES.filter((x) => ok(x) && x.muscle.split('/')[0] === ex.muscle.split('/')[0])
   const day = EXERCISES.filter((x) => ok(x) && x.day === ex.day && !same.includes(x))
   return [...same, ...day]
@@ -253,7 +346,7 @@ const SIZE: Record<string, MuscleSize> = {
   Chest: 'large', 'Upper chest': 'large', Back: 'large', Lats: 'large', Quads: 'large', Hamstrings: 'large',
   'Quads/Glutes': 'large', 'Posterior chain': 'large', 'Full body': 'large', Legs: 'large',
   Shoulders: 'medium', 'Mid back': 'medium', Traps: 'medium',
-  Triceps: 'small', Biceps: 'small', 'Side delts': 'small', 'Rear delts': 'small', Calves: 'small', Abs: 'small', Arms: 'small',
+  Triceps: 'small', Biceps: 'small', 'Side delts': 'small', 'Rear delts': 'small', Calves: 'small', Abs: 'small', Arms: 'small', Forearms: 'small', Neck: 'small', Hips: 'medium', 'Lower back': 'medium', Glutes: 'large',
 }
 export const muscleSize = (muscle: string): MuscleSize => SIZE[muscle] ?? 'medium'
 export function restFor(ex: Exercise, s: Settings['rest']): number {
