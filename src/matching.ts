@@ -1,5 +1,6 @@
 import { IDENTITIES, type CommunityDef } from './data'
 import { fmtTime } from './engine'
+import { distanceMi } from './geo'
 import type { Profile } from './types'
 
 export interface Suggestion { crew: CommunityDef; score: number; reasons: string[] }
@@ -22,6 +23,10 @@ export function suggestCrews(p: Profile, all: CommunityDef[]): Suggestion[] {
     if (c.goals?.includes(p.goal)) { score += 3; reasons.push('Matches your goal') }
     if (c.level && c.level === p.level) { score += 3; reasons.push('Made for your experience level') }
     if (p.vibe && c.vibes?.includes(p.vibe)) { score += 2; reasons.push('Your kind of vibe') }
+    if (p.area && typeof c.lat === 'number' && typeof c.lng === 'number') {
+      const mi = distanceMi(p.area, { lat: c.lat, lng: c.lng })
+      if (mi <= 25) { score += 10 - mi / 5; reasons.unshift(mi < 3 ? 'In your area' : `Near you (${Math.round(mi)} mi)`) }
+    }
     if (score > 0) out.push({ crew: c, score: score + c.members / 10000, reasons: [...new Set(reasons)].slice(0, 3) })
   }
   return out.sort((a, b) => b.score - a.score)

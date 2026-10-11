@@ -44,3 +44,14 @@ export const whereAmI = () => new Promise<{ lat: number; lng: number }>((resolve
   if (!navigator.geolocation) { reject(new Error('Your browser can’t share location.')); return }
   navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => reject(new Error('Location is off. You can still search the map or zoom in yourself.')), { timeout: 10000, maximumAge: 600000 })
 })
+
+/** A town name for a spot, from OpenStreetMap. Falls back to a plain label if the service is unreachable. */
+export async function areaName(lat: number, lng: number): Promise<string> {
+  try {
+    const base = GEOCODE_URL.replace(/\/search\/?$/, '/reverse')
+    const res = await withTimeout(fetch(`${base}?lat=${lat}&lon=${lng}&format=jsonv2&zoom=10&addressdetails=1`, { headers: { Accept: 'application/json' } }), 8000, 'Place lookup')
+    if (!res.ok) return 'Your area'
+    const r = (await res.json()) as NominatimRow
+    return shortName(r) || 'Your area'
+  } catch { return 'Your area' }
+}

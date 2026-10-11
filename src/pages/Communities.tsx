@@ -13,6 +13,7 @@ import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinC
 import Qotd from './Qotd'
 import CrewMapPanel from '../CrewMapPanel'
 import PlacePicker from '../PlacePicker'
+import AreaPicker from '../AreaPicker'
 import { roundCoord, type Place } from '../geo'
 import Feed from './Feed'
 import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
@@ -145,6 +146,7 @@ export default function Communities() {
       <div className="tabs" role="group" aria-label="How to browse crews"><button className={findView === 'list' ? 'on' : ''} aria-pressed={findView === 'list'} onClick={() => setFindView('list')}>List</button><button className={findView === 'map' ? 'on' : ''} aria-pressed={findView === 'map'} onClick={() => setFindView('map')}>Map</button></div>
       {findView === 'map' && <CrewMapPanel crews={visible} label={memberLabel} onJoin={join} />}
       {findView === 'list' && <>
+        {!data.profile?.area && <section className="card"><h2>📍 Crews near you</h2><AreaPicker area={undefined} onChange={(a) => update((d) => ({ ...d, profile: d.profile ? { ...d.profile, area: a } : d.profile }))} /></section>}
       {suggested.length > 0 && (
         <>
           <div className="row"><h2>Suggested for you</h2><button className="ghost small-btn" onClick={() => setTune(true)}>Tune matches</button></div>

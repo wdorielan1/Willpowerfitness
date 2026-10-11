@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useApp } from './store'
+import AreaPicker from './AreaPicker'
 import { cloudEnabled, interestNear, reportCrew, saveInterest } from './cloud'
-import { distanceMi, roundCoord, whereAmI } from './geo'
+import { distanceMi, roundCoord } from './geo'
 import { CAT_LABEL, type CommunityDef } from './data'
 import { fmtTime } from './engine'
 
@@ -10,12 +11,13 @@ const NEAR_MI = 25
 
 /** The Map view in Find crews: pins for local crews, a Near me button, and an honest "I'd join one here" wait list. */
 export default function CrewMapPanel({ crews, label, onJoin }: { crews: CommunityDef[]; label: (c: CommunityDef) => string; onJoin: (c: CommunityDef) => void }) {
-  const { userId } = useApp()
+  const { userId, data, update } = useApp()
+  const area = data.profile?.area
+  const saveArea = (a: { name: string; lat: number; lng: number } | undefined) => update((d) => ({ ...d, profile: d.profile ? { ...d.profile, area: a } : d.profile }))
   const located = crews.filter((c) => typeof c.lat === 'number' && typeof c.lng === 'number') as (CommunityDef & { lat: number; lng: number })[]
   const [sel, setSel] = useState<string | null>(null)
-  const [me, setMe] = useState<{ lat: number; lng: number } | null>(null)
+  const [me, setMe] = useState<{ lat: number; lng: number } | null>(area ?? null)
   const [err, setErr] = useState('')
-  const [locating, setLocating] = useState(false)
   const [waiting, setWaiting] = useState<number | null>(null)
   const [joined, setJoined] = useState(false)
   const [note, setNote] = useState('')
@@ -29,10 +31,6 @@ export default function CrewMapPanel({ crews, label, onJoin }: { crews: Communit
     return () => { alive = false }
   }, [me, joined])
 
-  const nearMe = async () => {
-    setErr(''); setLocating(true)
-    try { setMe(await whereAmI()) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setLocating(false) }
-  }
   const wantOne = async () => {
     if (!me || !userId) return
     const e = await saveInterest(userId, roundCoord(me.lat), roundCoord(me.lng), 'Near me')
@@ -48,7 +46,8 @@ export default function CrewMapPanel({ crews, label, onJoin }: { crews: Communit
 
   return (
     <section className="card crew-map-card">
-      <div className="row"><h2>Crews near you</h2><button className="ghost small-btn" onClick={() => void nearMe()} disabled={locating}>{locating ? 'Finding you…' : 'Near me'}</button></div>
+      <div className="row"><h2>Crews near you</h2>{area ? <button className="ghost small-btn" onClick={() => setMe(area)}>Back to {area.name.split(',')[0]}</button> : null}</div>
+      {!area && <div className="crew-map-pick"><AreaPicker area={area} onChange={(a) => { saveArea(a); if (a) setMe(a) }} /></div>}
       <p className="small mute">Pins show a crew’s general area, never anyone’s home. {located.length === 0 ? 'No local crews are on the map yet.' : `${located.length} crew${located.length === 1 ? '' : 's'} on the map.`}</p>
       <Suspense fallback={<div className="crew-map crew-map-loading">Loading map…</div>}>
         <CrewMap crews={located} selectedId={sel} onSelect={setSel} focus={me} />

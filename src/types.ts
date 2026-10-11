@@ -23,6 +23,8 @@ export interface Profile {
   age?: string
   identities?: string[]
   vibe?: string
+  /** general area (town level, rounded to about a mile). Private to you; used to suggest crews near you. */
+  area?: { name: string; lat: number; lng: number }
 }
 
 export interface Exercise {

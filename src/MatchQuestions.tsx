@@ -1,4 +1,5 @@
 import { AGES, IDENTITIES, VIBES } from './data'
+import AreaPicker from './AreaPicker'
 import type { Profile } from './types'
 
 /** The few questions we use to suggest crews. All optional. */
@@ -6,6 +7,8 @@ export default function MatchQuestions({ p, onChange }: { p: Profile; onChange: 
   const ids = p.identities ?? []
   return (
     <>
+      <h3>Where do you train?</h3>
+      <AreaPicker area={p.area} onChange={(area) => onChange({ area })} />
       <h3>Your age</h3>
       <div className="chips">
         {AGES.map((a) => <button key={a} className={`chip ${p.age === a ? 'on' : ''}`} onClick={() => onChange({ age: p.age === a ? undefined : a })}>{a}</button>)}

@@ -828,3 +828,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .crew-map .leaflet-control-attribution { font-size: 10px; }
 .place-picker, .place-picked { display: grid; gap: 8px; }
 .place-picked { grid-template-columns: 1fr auto; align-items: center; background: var(--card2); border-radius: 12px; padding: 10px 12px; }
+.area-picker { display: grid; gap: 10px; }
+.area-picker p { margin: 0; }
