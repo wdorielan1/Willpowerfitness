@@ -6,10 +6,13 @@ import { TILE_ATTRIBUTION, TILE_URL } from './geo'
 export interface MapCrew { id: string; name: string; lat: number; lng: number }
 
 /** The map itself (loaded only when someone opens the Map view). Pins are plain markers, so no image files are needed. */
-export default function CrewMap({ crews, selectedId, onSelect, focus }: { crews: MapCrew[]; selectedId: string | null; onSelect: (id: string | null) => void; focus: { lat: number; lng: number } | null }) {
+export interface YouDot { lat: number; lng: number; radiusM: number; exact: boolean }
+
+export default function CrewMap({ crews, selectedId, onSelect, focus, you }: { crews: MapCrew[]; selectedId: string | null; onSelect: (id: string | null) => void; focus: { lat: number; lng: number } | null; you: YouDot | null }) {
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const layer = useRef<L.LayerGroup | null>(null)
+  const youLayer = useRef<L.LayerGroup | null>(null)
   const fitted = useRef(false)
 
   useEffect(() => {
@@ -18,10 +21,11 @@ export default function CrewMap({ crews, selectedId, onSelect, focus }: { crews:
     L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 18 }).addTo(m)
     m.on('click', () => onSelect(null))
     layer.current = L.layerGroup().addTo(m)
+    youLayer.current = L.layerGroup().addTo(m)
     map.current = m
     // the container may still be sizing when the map is created
     setTimeout(() => m.invalidateSize(), 50)
-    return () => { m.remove(); map.current = null; layer.current = null }
+    return () => { m.remove(); map.current = null; layer.current = null; youLayer.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -40,6 +44,15 @@ export default function CrewMap({ crews, selectedId, onSelect, focus }: { crews:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crews, selectedId])
 
+  // the blue "you are here" dot: exact only when you tapped Locate me (never saved), otherwise your saved town-level area
+  useEffect(() => {
+    const g = youLayer.current
+    if (!g) return
+    g.clearLayers()
+    if (!you) return
+    L.circle([you.lat, you.lng], { radius: you.radiusM, color: '#1a73e8', weight: 1, fillColor: '#1a73e8', fillOpacity: 0.14, interactive: false }).addTo(g)
+    L.circleMarker([you.lat, you.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1, className: 'you-dot' }).bindTooltip(you.exact ? 'You are here' : 'You (your general area)').addTo(g)
+  }, [you])
   useEffect(() => { if (focus && map.current) map.current.setView([focus.lat, focus.lng], 10) }, [focus])
   useEffect(() => {
     const c = crews.find((x) => x.id === selectedId)

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useApp } from './store'
 import AreaPicker from './AreaPicker'
 import { cloudEnabled, interestNear, reportCrew, saveInterest } from './cloud'
-import { distanceMi, roundCoord } from './geo'
+import { distanceMi, roundCoord, whereAmI } from './geo'
 import { CAT_LABEL, type CommunityDef } from './data'
 import { fmtTime } from './engine'
 
@@ -18,6 +18,8 @@ export default function CrewMapPanel({ crews, label, onJoin }: { crews: Communit
   const [sel, setSel] = useState<string | null>(null)
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(area ?? null)
   const [err, setErr] = useState('')
+  const [here, setHere] = useState<{ lat: number; lng: number } | null>(null) // exact position for the blue dot; lives on this screen only and is never saved
+  const [locating, setLocating] = useState(false)
   const [waiting, setWaiting] = useState<number | null>(null)
   const [joined, setJoined] = useState(false)
   const [note, setNote] = useState('')
@@ -31,6 +33,11 @@ export default function CrewMapPanel({ crews, label, onJoin }: { crews: Communit
     return () => { alive = false }
   }, [me, joined])
 
+  const locate = async () => {
+    setErr(''); setLocating(true)
+    try { const p = await whereAmI(); setHere(p); setMe(p) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setLocating(false) }
+  }
+  const you = here ? { ...here, radiusM: 60, exact: true } : area ? { lat: area.lat, lng: area.lng, radiusM: 1100, exact: false } : null
   const wantOne = async () => {
     if (!me || !userId) return
     const e = await saveInterest(userId, roundCoord(me.lat), roundCoord(me.lng), 'Near me')
@@ -46,11 +53,12 @@ export default function CrewMapPanel({ crews, label, onJoin }: { crews: Communit
 
   return (
     <section className="card crew-map-card">
-      <div className="row"><h2>Crews near you</h2>{area ? <button className="ghost small-btn" onClick={() => setMe(area)}>Back to {area.name.split(',')[0]}</button> : null}</div>
+      <h2>Crews near you</h2>
+      <div className="crew-map-actions">{area ? <button className="ghost small-btn" onClick={() => { setHere(null); setMe(area) }}>📍 {area.name.split(',')[0]}</button> : null}<button className="ghost small-btn" onClick={() => void locate()} disabled={locating} aria-label="Show where I am on the map">{locating ? 'Finding…' : '◉ Locate me'}</button></div>
       {!area && <div className="crew-map-pick"><AreaPicker area={area} onChange={(a) => { saveArea(a); if (a) setMe(a) }} /></div>}
-      <p className="small mute">Pins show a crew’s general area, never anyone’s home. {located.length === 0 ? 'No local crews are on the map yet.' : `${located.length} crew${located.length === 1 ? '' : 's'} on the map.`}</p>
+      <p className="small mute">Pins show a crew’s general area, never anyone’s home. The blue dot is you; only you see it. {located.length === 0 ? 'No local crews are on the map yet.' : `${located.length} crew${located.length === 1 ? '' : 's'} on the map.`}</p>
       <Suspense fallback={<div className="crew-map crew-map-loading">Loading map…</div>}>
-        <CrewMap crews={located} selectedId={sel} onSelect={setSel} focus={me} />
+        <CrewMap crews={located} selectedId={sel} onSelect={setSel} focus={me} you={you} />
       </Suspense>
       {err && <p className="small err" role="alert">{err}</p>}
       {note && <p className="small ok-text" role="status">{note}</p>}

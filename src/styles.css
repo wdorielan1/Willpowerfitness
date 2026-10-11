@@ -830,3 +830,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .place-picked { grid-template-columns: 1fr auto; align-items: center; background: var(--card2); border-radius: 12px; padding: 10px 12px; }
 .area-picker { display: grid; gap: 10px; }
 .area-picker p { margin: 0; }
+.crew-map-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.crew-map-actions .small-btn { white-space: nowrap; }
+.you-dot { filter: drop-shadow(0 0 4px rgba(26,115,232,.7)); }
