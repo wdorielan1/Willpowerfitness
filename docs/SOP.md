@@ -79,7 +79,13 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 - Workouts are built from your goal, level and equipment. Main lifts change every 4 weeks, accessories on the Settings rotation (weekly, every 2 weeks, monthly, never). Logic is in `src/engine.ts` (`candidates`, `pickKeys`, `pickAccessories`, `tune`).
 - Stretching exercises were left out because the set logger counts reps, not hold times.
 
-## 11. App notes
+## 11. Crew map
+- Map: Leaflet + OpenStreetMap tiles (`src/CrewMap.tsx`, loaded only when the Map view opens). Place search: OpenStreetMap Nominatim (`src/geo.ts`).
+- The free OpenStreetMap services are for light use. When traffic grows, set `VITE_MAP_TILES` (tile URL template) and `VITE_GEOCODE_URL` (search URL) in Amplify to a paid or hosted provider, then redeploy.
+- Crews store `place`, `lat`, `lng` (rounded to 2 decimals, about 1 mile). Never store a home address.
+- Supabase tables: `crew_interest` (the "I'd join a crew here" list, readable only as a count through `interest_near`) and `crew_reports` (read these in the Supabase Table Editor).
+
+## 12. App notes
 - Brand: the app is called **Will Power**. The domain `wilpow.com` is the web address. The link-preview tags in `index.html` (`og:url`, `og:image`, `twitter:image`) still point at `willpowerfitclub.com`; update them to the live domain once it is attached in Amplify.
 - Two modes: cloud (Supabase keys present) and local (no keys, data stays on the device).
 - Sign in with Apple is intentionally not included (needs a paid Apple Developer account).

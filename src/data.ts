@@ -112,6 +112,7 @@ export interface CommunityDef {
   goals?: Goal[]
   level?: Level
   vibes?: string[] // see VIBES
+  place?: string; lat?: number; lng?: number // general area of a local crew (rounded, never a home address)
 }
 
 export const AGES = ['18–24', '25–34', '35–44', '45–54', '55+']

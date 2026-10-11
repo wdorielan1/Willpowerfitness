@@ -30,6 +30,9 @@ export default function Privacy() {
       <h2>What other members can see</h2>
       <p>Your private data (profile, workout logs, body weight, cardio, nutrition) is visible only to you. When you join a crew, other signed-in members can see your <b>first name</b>, whether you are going or have completed today’s workout, your streak, and any messages you post in that crew. Do not post information in crew messages that you want to keep private.</p>
 
+      <h2>Location and the crew map</h2>
+      <p>Location is optional. When someone starts a crew they can pick a town or neighbourhood for it. We save only that general area, rounded to about one mile, and show it as a pin on the crew map. We never show where a member lives or where anyone is right now. If you tap “Near me”, your browser asks for permission and we use your position only to centre the map. We do not store it. If you tap “I’d join a crew here”, we save your general area (rounded to about one mile) so we can count how many people want a crew nearby. Other members only ever see that count. You can report a crew from its map card.</p>
+
       <h2>How we use information</h2>
       <ul>
         <li>To run the app: sign you in, save your data, generate workouts, and show your progress.</li>
@@ -45,6 +48,7 @@ export default function Privacy() {
         <li><b>Supabase</b>: authentication and database storage.</li>
         <li><b>AWS Amplify</b>: website hosting. Netlify manages DNS.</li>
         <li><b>Google</b>: optional “Continue with Google” sign-in.</li>
+        <li><b>OpenStreetMap</b>: map tiles and place search for the crew map. Your search words are sent to their service when you search for a place.</li>
       </ul>
 
       <h2>Data stored on your device</h2>

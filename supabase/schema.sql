@@ -17,7 +17,11 @@ create table if not exists public.crews (            -- user-created crews (buil
   created_at timestamptz not null default now()
 );
 
-alter table public.crews add column if not exists cat text not null default 'time';   -- time | goal | life | work | age | fan | interest
+alter table public.crews add column if not exists cat text not null default 'time';
+-- local crews: the general area only (rounded to about a mile), never a home address
+alter table public.crews add column if not exists place text;
+alter table public.crews add column if not exists lat double precision;
+alter table public.crews add column if not exists lng double precision;   -- time | goal | life | work | age | fan | interest
 
 create table if not exists public.crew_members (
   crew_id text not null,
@@ -240,3 +244,35 @@ alter table public.follows enable row level security;
 drop policy if exists "manage own follows" on public.follows;
 create policy "manage own follows" on public.follows for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------- map: "I'd join a crew here" wait list and crew reports ----------
+create table if not exists public.crew_interest (
+  user_id uuid primary key references auth.users on delete cascade,
+  lat double precision not null,
+  lng double precision not null,
+  place text,
+  created_at timestamptz not null default now()
+);
+alter table public.crew_interest enable row level security;
+drop policy if exists "own interest" on public.crew_interest;
+create policy "own interest" on public.crew_interest for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- only a count leaves the database, never who or where exactly
+create or replace function public.interest_near(p_lat double precision, p_lng double precision, p_km double precision default 40)
+returns integer language sql security definer set search_path = public stable as $$
+  select count(*)::int from public.crew_interest
+  where lat between p_lat - p_km / 111.0 and p_lat + p_km / 111.0
+    and lng between p_lng - p_km / (111.0 * greatest(cos(radians(p_lat)), 0.2)) and p_lng + p_km / (111.0 * greatest(cos(radians(p_lat)), 0.2));
+$$;
+grant execute on function public.interest_near(double precision, double precision, double precision) to authenticated;
+
+create table if not exists public.crew_reports (
+  id bigint generated always as identity primary key,
+  crew_id text not null,
+  user_id uuid not null references auth.users on delete cascade,
+  reason text not null default '' check (char_length(reason) <= 500),
+  created_at timestamptz not null default now()
+);
+alter table public.crew_reports enable row level security;
+drop policy if exists "report a crew" on public.crew_reports;
+create policy "report a crew" on public.crew_reports for insert to authenticated with check (auth.uid() = user_id);

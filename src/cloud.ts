@@ -94,15 +94,32 @@ export async function pushCheckin(crewId: string, userId: string, name: string, 
 export async function postMessageCloud(crewId: string, userId: string, name: string, text: string) {
   await supabase?.from('crew_messages').insert({ crew_id: crewId, user_id: userId, name, text })
 }
-export async function createCrewCloud(id: string, userId: string, name: string, time: string, vibe = 'Time-based crew', cat = 'time') {
-  const first = await supabase?.from('crews').insert({ id, name, time, vibe, cat, created_by: userId })
-  // Older databases do not have the cat column yet: save the crew without it rather than losing it.
-  if (first?.error) await supabase?.from('crews').insert({ id, name, time, vibe, created_by: userId })
+export interface CrewPlace { place: string; lat: number; lng: number }
+export async function createCrewCloud(id: string, userId: string, name: string, time: string, vibe = 'Time-based crew', cat = 'time', loc?: CrewPlace) {
+  const base = { id, name, time, vibe, created_by: userId }
+  const first = await supabase?.from('crews').insert({ ...base, cat, ...(loc ? { place: loc.place, lat: loc.lat, lng: loc.lng } : {}) })
+  // Older databases do not have the newer columns yet: save the crew without them rather than losing it.
+  if (first?.error) await supabase?.from('crews').insert(base)
 }
 export async function fetchCrews() {
-  let r = await supabase?.from('crews').select('id,name,time,vibe,cat,created_at')
+  let r = await supabase?.from('crews').select('id,name,time,vibe,cat,place,lat,lng,created_at')
   if (r?.error) r = await supabase?.from('crews').select('id,name,time,vibe,created_at')
-  return (r?.data ?? []).map((x) => ({ id: x.id as string, name: x.name as string, time: x.time as string, vibe: x.vibe as string, cat: ((x as { cat?: string }).cat ?? 'time') as string, created: Date.parse(x.created_at as string) }))
+  type Row = { id: string; name: string; time: string; vibe: string; cat?: string; place?: string | null; lat?: number | null; lng?: number | null; created_at: string }
+  return ((r?.data ?? []) as Row[]).map((x) => ({ id: x.id, name: x.name, time: x.time, vibe: x.vibe, cat: x.cat ?? 'time', place: x.place ?? undefined, lat: x.lat ?? undefined, lng: x.lng ?? undefined, created: Date.parse(x.created_at) }))
+}
+
+// ---------------- "I'd join a crew here" wait list and crew reports ----------------
+export async function saveInterest(userId: string, lat: number, lng: number, place: string): Promise<string | null> {
+  const { error } = (await supabase?.from('crew_interest').upsert({ user_id: userId, lat, lng, place })) ?? {}
+  return error ? error.message : null
+}
+export async function interestNear(lat: number, lng: number, km = 40): Promise<number | null> {
+  const { data, error } = (await supabase?.rpc('interest_near', { p_lat: lat, p_lng: lng, p_km: km })) ?? {}
+  return error || typeof data !== 'number' ? null : data
+}
+export async function reportCrew(crewId: string, userId: string, reason: string): Promise<string | null> {
+  const { error } = (await supabase?.from('crew_reports').insert({ crew_id: crewId, user_id: userId, reason: reason.slice(0, 500) })) ?? {}
+  return error ? error.message : null
 }
 
 export const INACTIVE_DAYS = 35

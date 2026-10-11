@@ -11,6 +11,9 @@ import { fmtTime, streak, todayISO } from '../engine'
 import { allCommunities } from './Crew'
 import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinCrewCloud, leaveCrewCloud, pushCheckin, useCrewCounts, useLiveCrew } from '../cloud'
 import Qotd from './Qotd'
+import CrewMapPanel from '../CrewMapPanel'
+import PlacePicker from '../PlacePicker'
+import { roundCoord, type Place } from '../geo'
 import Feed from './Feed'
 import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
 import { Icon } from '../icons'
@@ -37,6 +40,8 @@ export default function Communities() {
   const [alsoDelete, setAlsoDelete] = useState(false)
   const [name, setName] = useState('')
   const [newCat, setNewCat] = useState<CrewCat>('time')
+  const [placePick, setPlacePick] = useState<Place | null>(null)
+  const [findView, setFindView] = useState<'list' | 'map'>('list')
   const [time, setTime] = useState('06:00')
   const [vibe, setVibe] = useState('')
   const [checkingIn, setCheckingIn] = useState(false)
@@ -108,9 +113,9 @@ export default function Communities() {
   const createNow = () => {
     const id = `c${Date.now()}`
     const v = vibe.trim() || 'Time-based crew'
-    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: v, cat: newCat, created: Date.now() }], joined: [...d.joined, id], primary: d.primary ?? id }))
-    if (userId) void createCrewCloud(id, userId, name.trim(), time, v, newCat).then(() => joinCrewCloud(id, userId, myName, streak(data)))
-    setName(''); setVibe(''); setSel(id); setFinder(false)
+    update((d) => ({ ...d, custom: [...d.custom, { id, name: name.trim(), time, vibe: v, cat: newCat, ...(placePick ? { place: placePick.name, lat: roundCoord(placePick.lat), lng: roundCoord(placePick.lng) } : {}), created: Date.now() }], joined: [...d.joined, id], primary: d.primary ?? id }))
+    if (userId) void createCrewCloud(id, userId, name.trim(), time, v, newCat, placePick ? { place: placePick.name, lat: roundCoord(placePick.lat), lng: roundCoord(placePick.lng) } : undefined).then(() => joinCrewCloud(id, userId, myName, streak(data)))
+    setName(''); setVibe(''); setPlacePick(null); setSel(id); setFinder(false)
   }
   const checkIn = async () => {
     if (!crew || checkinPending.current || completedToday) return
@@ -137,6 +142,9 @@ export default function Communities() {
 
   const Finder = (
     <>
+      <div className="tabs" role="group" aria-label="How to browse crews"><button className={findView === 'list' ? 'on' : ''} aria-pressed={findView === 'list'} onClick={() => setFindView('list')}>List</button><button className={findView === 'map' ? 'on' : ''} aria-pressed={findView === 'map'} onClick={() => setFindView('map')}>Map</button></div>
+      {findView === 'map' && <CrewMapPanel crews={visible} label={memberLabel} onJoin={join} />}
+      {findView === 'list' && <>
       {suggested.length > 0 && (
         <>
           <div className="row"><h2>Suggested for you</h2><button className="ghost small-btn" onClick={() => setTune(true)}>Tune matches</button></div>
@@ -162,11 +170,13 @@ export default function Communities() {
           {browse.length === 0 && <p className="small mute">Nothing here. Try another filter.</p>}
         </>
       )}
+      </>}
       <section className="card">
         <h2>Start a new crew</h2>
         <p className="small mute">Build a crew around anything: a team, a job, a goal, a lifestyle, or a time.</p>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 5:45 AM Legs Crew" /></label>
         <label>What brings you together?<select value={newCat} onChange={(e) => setNewCat(e.target.value as CrewCat)}>{(['life', 'fan', 'interest', 'goal', 'work', 'time', 'age'] as CrewCat[]).map((k) => <option key={k} value={k}>{CAT_LABEL[k]}</option>)}</select></label>
+        <div><div className="small" style={{ marginBottom: 6 }}>Where does it meet?</div><PlacePicker value={placePick} onChange={setPlacePick} /></div>
         <label>Usual workout time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
         <label>Vibe (optional)<input value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder="e.g. Heavy lifts, no excuses" /></label>
         <button className="primary" onClick={create}>Create crew</button>
@@ -210,7 +220,7 @@ export default function Communities() {
           <header className="crew-heading">
             <div className="overline">{!crew.cat || crew.cat === 'time' ? 'TIME-BASED CREW' : `${CAT_LABEL[crew.cat].toUpperCase()} CREW`}</div>
             <h1 className="crew-title">{crew.name}</h1>
-            <div className="crew-meta"><span><Icon name="clock" size={16} /> {fmtTime(crew.time)} training time</span>{cloudEnabled && cc && <><span>{cc.members} member{cc.members === 1 ? '' : 's'}</span><span>{cc.done} done today</span></>}</div>
+            <div className="crew-meta"><span><Icon name="clock" size={16} /> {fmtTime(crew.time)} training time</span>{crew.place && <span>{crew.place}</span>}{cloudEnabled && cc && <><span>{cc.members} member{cc.members === 1 ? '' : 's'}</span><span>{cc.done} done today</span></>}</div>
             {archived(crew) && <div className="banner">This crew has been quiet for {INACTIVE_DAYS}+ days. Post something to wake it up.</div>}
           </header>
           <SocialTabs />

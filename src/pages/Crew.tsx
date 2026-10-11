@@ -2,10 +2,10 @@ import { useApp } from '../store'
 import { COMMUNITIES, NAMES, type CommunityDef } from '../data'
 import { fmtTime, groupStats, hash, todayISO } from '../engine'
 
-export function allCommunities(custom: { id: string; name: string; time: string; vibe: string; cat?: string }[]): CommunityDef[] {
+export function allCommunities(custom: { id: string; name: string; time: string; vibe: string; cat?: string; place?: string; lat?: number; lng?: number }[]): CommunityDef[] {
   return [
     ...COMMUNITIES,
-    ...custom.map((c) => ({ id: c.id, name: c.name, time: c.time, members: 1, rate: 0.7, vibe: c.vibe, blurb: 'A crew you started. Invite your people.', cat: (c.cat as CommunityDef['cat']) ?? 'time' })),
+    ...custom.map((c) => ({ id: c.id, name: c.name, time: c.time, members: 1, rate: 0.7, vibe: c.vibe, blurb: 'A crew you started. Invite your people.', cat: (c.cat as CommunityDef['cat']) ?? 'time', place: c.place, lat: c.lat, lng: c.lng })),
   ]
 }
 
