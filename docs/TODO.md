@@ -1,0 +1,39 @@
+# Will Power: To-do list
+
+Parked ideas and open items. Move things up as priorities change. Keep secrets out of this file.
+
+## Setup items (owner)
+- [ ] Add `wilpow.com` in Amplify (Route 53 is easiest), wait for "Available", test on a phone.
+- [ ] Update link-preview tags in `index.html` (`og:url`, `og:image`, `twitter:image`) to the live domain.
+- [ ] Supabase: re-run the latest `supabase/schema.sql`, then `notify pgrst, 'reload schema';` (adds crew type, map location columns, wait list, reports, leave-a-challenge permission).
+- [ ] Google Cloud consent screen: app name "Will Power", logo, privacy and terms links on the new domain.
+- [ ] Set an AWS Budget alert and a Supabase usage alert.
+- [ ] Netlify: builds are stopped. Delete the old site only after the domain has moved. Keep DNS until then.
+- [ ] Redirect `willpowerfitclub.com` to the new domain once it is live.
+- [ ] Move Supabase to the Pro plan once there are a few hundred real users.
+
+## On hold (decided to wait)
+- [ ] **Starter / baseline crews**: real crews run by a Will Power team account (never fake members). Waiting on: which local areas to start with (e.g. Woodbridge), and creating the team account. Starter crews would be exempt from the 35-day auto-archive.
+- [ ] **Member-count fix** (onboarding showed placeholder numbers like "184 members"). Saved on local branch `backup/member-count-fix`, commit `8fa1172`. Re-apply when ready. Note: placeholder counts are still visible in the live sign-up suggestions until then.
+
+## Next features (suggested order)
+1. [ ] **Real-phone testing pass** on the live app. Collect bugs before adding more.
+2. [ ] **Distance and sport challenges**: sport picker (run, ride, walk, swim), distance and time, manual logging first.
+3. [ ] **Founding-crew look**: small crews say "Founding crew, be one of the first" instead of low numbers. Real counts only.
+4. [ ] **Food search for Fuel**: USDA FoodData Central, then barcode scanning with Open Food Facts. Keep carb days and the meal builder.
+5. [ ] **Stretching and warm-up / cool-down** with hold timers (123 stretches were left out of the library on purpose).
+6. [ ] **Thumbs up / down on exercises** (down = never again, up = keep in the mix).
+7. [ ] **Progress insights**: charts per exercise, personal records, weekly streaks.
+8. [ ] **Crew map follow-ups**: marker clustering when there are many pins, "Follow me" mode with a direction cone (optional), report review screen.
+9. [ ] **Challenge creators can delete their own challenge.**
+
+## Bigger projects
+- [ ] **AI coach (OpenAI)**: Supabase Edge Function holds the key. Per-user daily limits and a usage table. Spending cap in OpenAI.
+- [ ] **Strava import**: needs a Strava developer app and approval. First read Strava's current API agreement, especially the rules on showing one member's data to others (leaderboards) and the ban on AI training. Email their API team before building leaderboards on it.
+- [ ] **iPhone app** (Capacitor wrapper): Apple Developer account ($99/yr), Mac with Xcode, App Store review. Then Apple Health (also brings in MyFitnessPal data), push notifications, and later a Record button with background GPS if members ask.
+- [ ] **Brand positioning**: lifting stays the core; run, bike and walk live in challenges and crews. Consider softening the tagline later.
+
+## Notes
+- MyFitnessPal has no self-serve API (partner program only). Route: Apple Health / Health Connect, or CSV import.
+- Never show fake users, fake posts or inflated counts as real. A labelled demo mode (screenshots and testing only) is fine.
+- Location: only a town-level pin, rounded to about a mile. Never a home address. Route start and end points stay hidden if routes are ever shown.
