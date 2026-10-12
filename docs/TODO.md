@@ -32,6 +32,8 @@ Parked ideas and open items. Move things up as priorities change. Keep secrets o
 - [ ] **Strava import**: needs a Strava developer app and approval. First read Strava's current API agreement, especially the rules on showing one member's data to others (leaderboards) and the ban on AI training. Email their API team before building leaderboards on it.
 - [ ] **iPhone app** (Capacitor wrapper): Apple Developer account ($99/yr), Mac with Xcode, App Store review. Then Apple Health (also brings in MyFitnessPal data), push notifications, and later a Record button with background GPS if members ask.
 - [ ] **Brand positioning**: lifting stays the core; run, bike and walk live in challenges and crews. Consider softening the tagline later.
+- [ ] **Free challenge credits (later)**: earn a free challenge credit by completing a set number of workouts, or at milestones (e.g. after N challenges). Not a refund; separate from prizes.
+- [ ] **Paid challenges (after legal review)**: see the pot design in the Will Power Challenges & Monetization doc. Decided: no refunds, prize pool grows with sign-ups in round numbers, Will Power keeps about 15 to 25%. Needs lawyer and payment-processor sign-off first.
 
 ## Notes
 - MyFitnessPal has no self-serve API (partner program only). Route: Apple Health / Health Connect, or CSV import.
