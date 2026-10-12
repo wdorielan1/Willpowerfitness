@@ -315,10 +315,10 @@ export function useLeaderboard(cohort: string | null, userId: string | null) {
 
 // ---------------- friends ----------------
 export interface PublicProfile { userId: string; handle: string; name: string; avatar?: string | null }
-type Card = { user_id: string; handle: string; name: string; avatar_url?: string | null; bio?: string | null; is_public?: boolean | null; stats?: ProfileStats | null }
+type Card = { user_id: string; handle: string; name: string; avatar_url?: string | null; bio?: string | null; is_public?: boolean | null; stats?: ProfileStats | null; followers_count?: number | null; following_count?: number | null }
 /** Profile cards, with the photo, bio and stats when those columns exist (older databases fall back without them). */
 async function cardQuery(apply: (q: any) => PromiseLike<{ data: unknown; error: unknown }>): Promise<Card[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
-  for (const cols of ['user_id,handle,name,avatar_url,bio,is_public,stats', 'user_id,handle,name,avatar_url', 'user_id,handle,name']) {
+  for (const cols of ['user_id,handle,name,avatar_url,bio,is_public,stats,followers_count,following_count', 'user_id,handle,name,avatar_url,bio,is_public,stats', 'user_id,handle,name,avatar_url', 'user_id,handle,name']) {
     const { data, error } = await apply(supabase!.from('public_profiles').select(cols))
     if (!error) return (data ?? []) as Card[]
   }
@@ -394,7 +394,7 @@ export async function fetchProfileByHandle(handle: string): Promise<Person | nul
   const rows = await cardQuery((c) => c.eq('handle', handle.toLowerCase()).limit(1))
   const r = rows[0]
   if (!r) return null
-  return { userId: r.user_id, name: r.name, handle: r.handle, avatar: r.avatar_url ?? null, bio: r.bio ?? null, isPublic: !!r.is_public, stats: r.stats ?? null, crews: r.stats?.crews ?? [], streak: r.stats?.streak ?? 0, iFollow: false, followsMe: false }
+  return { userId: r.user_id, name: r.name, handle: r.handle, avatar: r.avatar_url ?? null, bio: r.bio ?? null, isPublic: !!r.is_public, stats: r.stats ?? null, followers: r.followers_count ?? null, following: r.following_count ?? null, crews: r.stats?.crews ?? [], streak: r.stats?.streak ?? 0, iFollow: false, followsMe: false }
 }
 
 export async function findByHandle(q: string): Promise<PublicProfile[]> {
@@ -411,13 +411,13 @@ export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
 export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
 export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
 /** A person you can follow: from a crew you share, a search, or the people who already follow you. */
-export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; bio: string | null; isPublic: boolean; stats: ProfileStats | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
+export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; bio: string | null; isPublic: boolean; stats: ProfileStats | null; followers: number | null; following: number | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
 
 const asPerson = (id: string, profs: Card[], mem: { user_id: string; crew_id: string; name: string; streak: number }[], iFollow: Set<string>, followsMe: Set<string>): Person => {
   const prof = profs.find((r) => r.user_id === id)
   const mine = mem.filter((m) => m.user_id === id)
   return {
-    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null, avatar: prof?.avatar_url ?? null, bio: prof?.bio ?? null, isPublic: !!prof?.is_public, stats: prof?.stats ?? null,
+    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null, avatar: prof?.avatar_url ?? null, bio: prof?.bio ?? null, isPublic: !!prof?.is_public, stats: prof?.stats ?? null, followers: prof?.followers_count ?? null, following: prof?.following_count ?? null,
     crews: mine.map((m) => m.crew_id), streak: mine.reduce((a, m) => Math.max(a, m.streak ?? 0), 0), iFollow: iFollow.has(id), followsMe: followsMe.has(id),
   }
 }

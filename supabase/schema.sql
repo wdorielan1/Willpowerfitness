@@ -238,6 +238,8 @@ alter table public.public_profiles add column if not exists bio text check (bio 
 -- existing members stay private until they choose; new members get a public profile (they can switch it off in Settings)
 alter table public.public_profiles add column if not exists is_public boolean not null default false;
 alter table public.public_profiles add column if not exists stats jsonb not null default '{}'::jsonb;   -- streak, workouts, calendar days, badges, crews
+alter table public.public_profiles add column if not exists followers_count int not null default 0;
+alter table public.public_profiles add column if not exists following_count int not null default 0;
 alter table public.public_profiles enable row level security;
 drop policy if exists "read discoverable" on public.public_profiles;
 create policy "read discoverable" on public.public_profiles for select to authenticated
@@ -265,6 +267,24 @@ create policy "manage own follows" on public.follows for all to authenticated
 -- people can see who follows them (so they can follow back)
 drop policy if exists "see my followers" on public.follows;
 create policy "see my followers" on public.follows for select to authenticated using (auth.uid() = friend_id);
+
+-- keep follower / following counts on the profile card up to date
+create or replace function public.refresh_follow_counts() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare a uuid; b uuid;
+begin
+  a := coalesce(new.user_id, old.user_id);    -- the person who follows
+  b := coalesce(new.friend_id, old.friend_id); -- the person being followed
+  update public.public_profiles set following_count = (select count(*) from public.follows where user_id = a) where user_id = a;
+  update public.public_profiles set followers_count = (select count(*) from public.follows where friend_id = b) where user_id = b;
+  return null;
+end $$;
+drop trigger if exists follows_counts on public.follows;
+create trigger follows_counts after insert or delete on public.follows for each row execute function public.refresh_follow_counts();
+-- one-time catch-up for follows that already exist
+update public.public_profiles pp set
+  following_count = (select count(*) from public.follows f where f.user_id = pp.user_id),
+  followers_count = (select count(*) from public.follows f where f.friend_id = pp.user_id);
 
 -- ---------- map: "I'd join a crew here" wait list and crew reports ----------
 create table if not exists public.crew_interest (

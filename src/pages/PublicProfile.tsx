@@ -49,7 +49,7 @@ export default function PublicProfile({ handle }: { handle: string }) {
       {person === null && <section className="card"><h2>Profile not found</h2><p className="small mute">This profile is private or doesn’t exist.</p><a className="primary" href="/" style={{ textDecoration: 'none', textAlign: 'center' }}>Go to Will Power</a></section>}
       {person && (
         <>
-          <ProfileView name={person.name} handle={person.handle} avatar={person.avatar} bio={person.bio} stats={person.stats} posts={posts} crewName={crewName} emptyPosts="No public posts yet."
+          <ProfileView name={person.name} handle={person.handle} avatar={person.avatar} bio={person.bio} followers={person.followers} following={person.following} stats={person.stats} posts={posts} crewName={crewName} emptyPosts="No public posts yet."
             actions={<a className="primary" href={join} style={{ textDecoration: 'none' }}>Join {person.name.split(' ')[0]} on Will Power</a>} />
           <p className="small mute" style={{ textAlign: 'center' }}>Wake Up. Show Up. Lift.</p>
         </>

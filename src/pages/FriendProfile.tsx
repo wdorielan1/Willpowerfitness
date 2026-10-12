@@ -38,7 +38,7 @@ export default function FriendProfile() {
       {p && (
         <>
           <ProfileView
-            name={p.name} handle={p.handle} avatar={p.avatar} bio={p.bio} stats={{ ...stats, crews: p.crews.length ? p.crews : stats?.crews }} posts={posts}
+            name={p.name} handle={p.handle} avatar={p.avatar} bio={p.bio} followers={p.followers} following={p.following} stats={{ ...stats, crews: p.crews.length ? p.crews : stats?.crews }} posts={posts}
             crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
             onCrew={joinTheirCrew} crewJoined={(c) => data.joined.includes(c)}
             emptyPosts="No posts to show."

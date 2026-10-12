@@ -5,7 +5,7 @@ import ProfileView from '../ProfileView'
 import { profileLink } from '../ProfileSettings'
 import { computeStats } from '../profileStats'
 import { avatarFromFile } from '../photos'
-import { cloudEnabled, fetchUserPosts, type PublicPost } from '../cloud'
+import { cloudEnabled, fetchConnections, fetchUserPosts, type PublicPost } from '../cloud'
 import { DAY_NAMES, GOALS, LEVELS } from '../data'
 import { fmtTime } from '../engine'
 import { allCommunities, useCrew } from './Crew'
@@ -19,6 +19,10 @@ export default function Profile() {
   const [msg, setMsg] = useState('')
   const [posts, setPosts] = useState<PublicPost[] | null>(null)
   const postCount = data.posts.length
+  const [counts, setCounts] = useState<{ followers: number; following: number } | null>(null)
+  useEffect(() => {
+    if (cloudEnabled && userId) void fetchConnections(userId, []).then((c) => setCounts({ followers: c.friends.length + c.followers.length, following: c.friends.length + c.following.length })).catch(() => {})
+  }, [userId])
   useEffect(() => {
     if (cloudEnabled && userId) void fetchUserPosts(userId).then(setPosts)
     else setPosts(data.posts.filter((x) => x.mine).map((x) => ({ id: x.id, crewId: x.crewId, kind: x.kind, text: x.text, ts: x.ts, hasPhoto: !!(x.imagePaths?.length || x.imageIds?.length), isPublic: false })))
@@ -42,6 +46,7 @@ export default function Profile() {
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} />
       <ProfileView
         name={data.name} handle={data.handle} avatar={avatarUrl} bio={data.bio} stats={computeStats(data)} posts={posts} showLocked
+        followers={counts?.followers ?? (cloudEnabled ? null : 0)} following={counts?.following ?? (cloudEnabled ? null : 0)} countsLink={cloudEnabled}
         crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
         emptyPosts="No posts yet. Post in a crew and it shows here."
         actions={<>

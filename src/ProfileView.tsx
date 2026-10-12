@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { Avatar } from './components'
 import { addDays, fromISO, todayISO } from './engine'
 import { BADGES, type ProfileStats } from './profileStats'
@@ -39,6 +40,10 @@ export interface ProfileViewProps {
   actions?: ReactNode
   /** what to say when there are no posts */
   emptyPosts?: string
+  followers?: number | null
+  following?: number | null
+  /** link the counts to the Followers / Following lists (your own profile) */
+  countsLink?: boolean
   /** link crew chips (in-app only) */
   onCrew?: (id: string) => void
   crewJoined?: (id: string) => boolean
@@ -56,6 +61,13 @@ export default function ProfileView(p: ProfileViewProps) {
         <h1 className="pv-name">{p.name}</h1>
         {p.handle && <p className="mute small">@{p.handle}</p>}
         {p.bio && <p className="pv-bio">{p.bio}</p>}
+        {(p.followers != null || p.following != null) && (
+          <p className="pv-counts">
+            {p.countsLink
+              ? <><Link to="/friends?tab=followers"><b>{p.followers ?? 0}</b> followers</Link><Link to="/friends?tab=following"><b>{p.following ?? 0}</b> following</Link></>
+              : <><span><b>{p.followers ?? 0}</b> followers</span><span><b>{p.following ?? 0}</b> following</span></>}
+          </p>
+        )}
         {st.since && <p className="small mute">Training since {new Date(st.since + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</p>}
         {p.actions && <div className="pv-actions">{p.actions}</div>}
       </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { Icon } from '../icons'
 import { Avatar } from '../components'
@@ -17,7 +17,9 @@ export default function Friends() {
   const suggestHandle = () => `${(data.name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'}${Math.floor(100 + Math.random() * 900)}`
   const [handle, setHandle] = useState(data.handle ?? suggestHandle())
   const [msg, setMsg] = useState('')
-  const [tab, setTab] = useState<'followers' | 'following' | 'find'>('followers')
+  const [params] = useSearchParams()
+  const startTab = params.get('tab')
+  const [tab, setTab] = useState<'followers' | 'following' | 'find'>(startTab === 'following' || startTab === 'find' ? startTab : 'followers')
   const [q, setQ] = useState('')
   const [results, setResults] = useState<PublicProfile[] | null>(null)
   const [conn, setConn] = useState<{ friends: Person[]; following: Person[]; followers: Person[]; suggestions: Person[] }>({ friends: [], following: [], followers: [], suggestions: [] })
