@@ -491,13 +491,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .lp-membership-section { gap: 35px; padding: 32px; }
   .lp-membership-future { padding-left: 30px; }
   .lp-header-nav { margin-left: auto; }
-  .lp-header-actions .lp-button { display: none; }
 }
 @media (max-width: 760px) {
   .lp-container { width: calc(100% - 40px); }
   .lp-site-header { height: calc(74px + env(safe-area-inset-top)); }
   .lp-header-nav { display: none; }
-  .lp-header-actions { margin-left: auto; }
+  .lp-header-actions { margin-left: auto; gap: 14px; }
+  .lp-header-actions .lp-button { min-height: 38px; padding: 8px 16px; }
   .lp-hero { grid-template-columns: 1fr; gap: 35px; padding: 36px 0 48px; }
   .lp-hero-copy h1 { font-size: clamp(47px,12vw,76px); letter-spacing: -2.6px; margin: 19px 0; }
   .lp-hero-copy>p { font-size: 15px; line-height: 1.75; max-width: 460px; }

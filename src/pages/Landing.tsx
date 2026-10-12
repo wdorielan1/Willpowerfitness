@@ -116,7 +116,7 @@ export default function Landing() {
             <a href="#crews" onClick={(event) => scrollToSection(event, 'crews')}>Crews</a>
             <a href="#the-app" onClick={(event) => scrollToSection(event, 'the-app')}>The app</a>
           </nav>
-          <div className="lp-header-actions"><Link to="/join?m=login" className="lp-login">Log in</Link><Link to="/join" className="lp-button lp-primary">Start free<Icon name="arrow" /></Link></div>
+          <div className="lp-header-actions"><Link to="/join?m=login" className="lp-login">Log in</Link><Link to="/join" className="lp-button lp-primary">Sign up<Icon name="arrow" /></Link></div>
         </header>
 
         <main>

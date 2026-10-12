@@ -93,7 +93,7 @@ export default function Auth() {
         <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
         <label>Password<input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} required /></label>
         {err && <div className="err">{err}</div>}
-        <button className="primary" disabled={busy}>{mode === 'signup' ? 'Join the free beta' : 'Log in'}</button>
+        <button className="primary" disabled={busy}>{mode === 'signup' ? 'Join free' : 'Log in'}</button>
         <p className="small mute" style={{ textAlign: 'center' }}>By continuing you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>.</p>
       </form>
     </div>
