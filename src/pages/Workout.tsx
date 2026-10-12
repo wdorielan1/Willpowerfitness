@@ -87,10 +87,17 @@ function ExPhotos({ id }: { id: string }) {
   useMediaVersion()
   const m = mediaFor(id)
   const [at, setAt] = useState<number | null>(null)
+  const [paused, setPaused] = useState(false)
   if (!m) return null
   const srcs = Array.from({ length: m.n }, (_, i) => imgUrl(m.slug, i))
   return (
     <>
+      {srcs.length > 1 && (
+        <button type="button" className={`exloop ${paused ? 'is-paused' : ''}`} aria-label={`${m.name} motion preview. ${paused ? 'Tap to play' : 'Tap to pause'}`} onClick={() => setPaused(!paused)}>
+          <img src={srcs[0]} alt="" /><img className="exloop-b" src={srcs[1]} alt="" />
+          <span className="exloop-tag">{paused ? 'Paused' : 'Motion'}</span>
+        </button>
+      )}
       <div className="exphotos">
         {srcs.map((s, i) => (
           <button key={i} className="exercise-photo" aria-label={`View ${m.name}, position ${i + 1}`} onClick={() => setAt(i)}><img src={s} alt={`${m.name}, position ${i + 1}`} loading="lazy" /><span>{i === 0 ? 'Start' : 'Finish'}</span></button>
