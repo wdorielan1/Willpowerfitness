@@ -149,9 +149,6 @@ alter table public.crew_post_likes enable row level security;
 drop policy if exists "members read posts" on public.crew_posts;
 create policy "members read posts" on public.crew_posts for select to authenticated
   using (exists (select 1 from public.crew_members m where m.crew_id = crew_posts.crew_id and m.user_id = auth.uid()));
-drop policy if exists "read public posts" on public.crew_posts;
-create policy "read public posts" on public.crew_posts for select to anon, authenticated
-  using (is_public and exists (select 1 from public.public_profiles pp where pp.user_id = crew_posts.user_id and pp.is_public));
 drop policy if exists "members post" on public.crew_posts;
 create policy "members post" on public.crew_posts for insert to authenticated
   with check (auth.uid() = user_id and exists (select 1 from public.crew_members m where m.crew_id = crew_posts.crew_id and m.user_id = auth.uid()));
@@ -223,6 +220,14 @@ create policy "create own challenge" on public.custom_challenges for insert to a
 drop policy if exists "delete own challenge" on public.custom_challenges;
 create policy "delete own challenge" on public.custom_challenges for delete to authenticated using (auth.uid() = creator);
 
+-- ---------- follows (defined before the profile policies that read it) ----------
+create table if not exists public.follows (
+  user_id uuid not null references auth.users on delete cascade,
+  friend_id uuid not null references auth.users on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, friend_id)
+);
+
 -- ---------- find friends (opt-in only) ----------
 create table if not exists public.public_profiles (
   user_id uuid primary key references auth.users on delete cascade,
@@ -254,12 +259,6 @@ drop policy if exists "manage own profile card" on public.public_profiles;
 create policy "manage own profile card" on public.public_profiles for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create table if not exists public.follows (
-  user_id uuid not null references auth.users on delete cascade,
-  friend_id uuid not null references auth.users on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (user_id, friend_id)
-);
 alter table public.follows enable row level security;
 drop policy if exists "manage own follows" on public.follows;
 create policy "manage own follows" on public.follows for all to authenticated
@@ -317,3 +316,8 @@ create table if not exists public.crew_reports (
 alter table public.crew_reports enable row level security;
 drop policy if exists "report a crew" on public.crew_reports;
 create policy "report a crew" on public.crew_reports for insert to authenticated with check (auth.uid() = user_id);
+
+-- ---------- public posts (needs public_profiles.is_public, so it comes last) ----------
+drop policy if exists "read public posts" on public.crew_posts;
+create policy "read public posts" on public.crew_posts for select to anon, authenticated
+  using (is_public and exists (select 1 from public.public_profiles pp where pp.user_id = crew_posts.user_id and pp.is_public));
