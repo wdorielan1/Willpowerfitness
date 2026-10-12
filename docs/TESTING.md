@@ -32,6 +32,11 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Build your own workout; save it; reuse it
 - [ ] Rest timer works; screen stays readable at phone size
 - [ ] Week schedule: days before sign-up are not marked missed
+- [ ] Sign-up asks for sex (Male, Female, Prefer not to say) on the "Your numbers" step; Next is disabled until one is picked
+- [ ] Sign-up lets you pick up to 3 body parts to focus on (a 4th is disabled); picking none still works
+- [ ] With focus areas set, today's lifts include extra work for them (e.g. abs or glutes on a push day) and the preview says "Built for your goal ... extra work for ..."
+- [ ] Changing sex or focus areas in Settings changes the next workouts and (for sex) the Fuel calorie targets
+- [ ] Existing accounts see a "Tune your plan" card on Today until they answer; their calories don't change until they do
 
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
