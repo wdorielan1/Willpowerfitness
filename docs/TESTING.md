@@ -44,6 +44,11 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Packaged food (e.g. a brand yogurt) shows a sensible serving size
 - [ ] Offline or blocked network: a clear message, nothing breaks
 - [ ] Whole-food results appear only after VITE_USDA_API_KEY is set in Amplify
+- [ ] Scan a barcode (Android Chrome): camera opens, a packaged food is recognised, the card shows calories and macros
+- [ ] Scan a barcode (iPhone Safari and the home-screen app): same result; note how long it takes and in what light
+- [ ] Camera permission denied: a clear message, and typing the barcode number still works
+- [ ] A barcode not in the database: "No product found" message
+- [ ] Closing the scanner turns the camera light off
 
 ## 5. Progress and photos
 - [ ] Weight, steps and cardio can be logged
