@@ -79,6 +79,7 @@ export interface Settings {
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
   rotation: 'weekly' | 'biweekly' | 'monthly' | 'never' // how often accessory exercises change (main lifts change every 4 weeks)
   autoShare: boolean // post finished workouts to my crew
+  gymName?: string // optional place shown on share pictures (never live location)
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set

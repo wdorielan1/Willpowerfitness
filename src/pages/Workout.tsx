@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { buildShareCard, prLine, shareCard, summarize, type WorkoutSummary } from '../shareCard'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
@@ -201,6 +202,41 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   </>
 }
 
+function DoneSheet({ summary, onPlace, onClose }: { summary: WorkoutSummary; onPlace: (v: string) => void; onClose: () => void }) {
+  const [showPlace, setShowPlace] = useState(!!summary.place)
+  const [place, setPlace] = useState(summary.place ?? '')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const share = async () => {
+    setBusy(true); setMsg('')
+    try {
+      const withPlace = { ...summary, place: showPlace ? place.trim() || undefined : undefined }
+      if (showPlace) onPlace(place.trim())
+      const r = await shareCard(await buildShareCard(withPlace), `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`)
+      setMsg(r === 'saved' ? 'Image saved. Add it to your story or post.' : r === 'shared' ? 'Shared.' : '')
+    } catch { setMsg('Could not make the image. Try again.') }
+    setBusy(false)
+  }
+  return (
+    <Sheet title="Workout complete" onClose={onClose}>
+      <div className="grid2">
+        <div className="card2"><b style={{ fontSize: 22 }}>{summary.minutes ?? '–'}</b><div className="small mute">minutes</div></div>
+        <div className="card2"><b style={{ fontSize: 22 }}>{summary.volume.toLocaleString()}</b><div className="small mute">lb lifted · {summary.sets} sets</div></div>
+      </div>
+      {summary.volumeChangePct !== null && summary.volumeChangePct !== 0 && <p className="small" style={{ margin: 0 }}>{summary.volumeChangePct > 0 ? '▲' : '▼'} {Math.abs(summary.volumeChangePct)}% volume vs your last {summary.title.toLowerCase()}</p>}
+      {summary.prs.length > 0
+        ? <div><div className="overline">NEW PERSONAL RECORDS</div>{summary.prs.map((pr) => <p key={pr.name} style={{ margin: '6px 0 0' }}><b>{pr.name}</b> · {pr.weight} lb × {pr.reps} <span style={{ color: '#34c759' }}>+{pr.pct}%</span></p>)}</div>
+        : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up still counts.</p>}
+      {summary.streak > 1 && <p style={{ margin: 0 }}>🔥 {summary.streak}-day streak</p>}
+      <div className="chips"><button type="button" className={`chip ${showPlace ? 'on' : ''}`} aria-pressed={showPlace} onClick={() => setShowPlace(!showPlace)}>{showPlace ? '✓ Showing where I trained' : '+ Add where I trained (optional)'}</button></div>
+      {showPlace && <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Gym or town, e.g. Woodbridge" maxLength={40} aria-label="Where you trained" />}
+      <button className="primary" onClick={share} disabled={busy}>{busy ? 'Making your picture…' : 'Share a picture'}</button>
+      {msg && <p className="small mute" role="status" style={{ margin: 0 }}>{msg}</p>}
+      <button className="ghost" onClick={onClose}>Done</button>
+    </Sheet>
+  )
+}
+
 export default function Workout() {
   useMediaVersion()
   const { data, update } = useApp()
@@ -227,6 +263,7 @@ export default function Workout() {
   const dir = useRef(1)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const [saved, setSaved] = useState(false)
+  const [summary, setSummary] = useState<WorkoutSummary | null>(null)
   const [validation, setValidation] = useState('')
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
@@ -349,24 +386,30 @@ export default function Workout() {
     }).filter((x) => x.sets.length)
     // share the finished workout to the crew once per day; later "Save changes" taps just update the log
     const willPost = !!(data.settings.autoShare && data.primary && entries.length && !data.workoutPosted?.[today])
+    const finishedAt = todaysLog?.finishedAt ?? Date.now()
+    const minutes = todaysLog?.minutes ?? (started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : undefined)
+    const rotationDay = todaysLog?.rotationDay ?? dayTypeFor(today, data.profile!, data.logs)
+    const sum = summarize({
+      title: sessionName, date: today, finishedAt, minutes, entries, history: data.logs, dayType: plan.day,
+      streak: streak({ ...data, checkins: { ...data.checkins, [today]: { going: true, done: true } } }, today), place: data.settings.gymName,
+    })
     update((d) => {
       const { [today]: _gone, ...drafts } = d.drafts
       void _gone
       return {
         ...d, drafts, workoutPosted: willPost ? { ...d.workoutPosted, [today]: true } : d.workoutPosted,
-        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, finishedAt: todaysLog?.finishedAt ?? Date.now(), minutes: todaysLog?.minutes ?? (started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined) }],
+        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay, short, entries, finishedAt, minutes }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
     if (willPost) {
-      const sets = entries.reduce((a, e) => a + e.sets.length, 0)
-      const volume = Math.round(entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0))
-      const mins = started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : 0
-      void postToCrew({ kind: 'workout', text: `Finished ${sessionName}${mins ? ` in ${mins} min` : ''}`, meta: { sets, volume, exercises: entries.length } })
+      const prText = sum.prs.length ? ` · New PR: ${prLine(sum.prs[0])}` : ''
+      void postToCrew({ kind: 'workout', text: `Finished ${sessionName}${minutes ? ` in ${minutes} min` : ''}${prText}`, meta: { sets: sum.sets, volume: sum.volume, exercises: sum.exercises, prs: sum.prs.slice(0, 3) } })
     }
     timer.stop()
     setSaved(true)
-    setTimeout(() => nav('/'), 900)
+    if (todaysLog) setTimeout(() => nav('/'), 900)
+    else setSummary(sum)
   }
 
   // ---------- before the workout starts ----------
@@ -403,6 +446,7 @@ export default function Workout() {
 
   return (
     <div className="workout-session">
+      {summary && <DoneSheet summary={summary} onPlace={(v) => update((d) => ({ ...d, settings: { ...d.settings, gymName: v } }))} onClose={() => nav('/')} />}
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
         <div className="workout-header-title"><b>{sessionName} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
