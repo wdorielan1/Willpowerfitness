@@ -19,26 +19,36 @@ async function getJson(url: string, ms = 9000): Promise<unknown> {
 
 interface OffProduct { code?: string; product_name?: string; brands?: string; serving_size?: string; serving_quantity?: number | string; nutriments?: Record<string, unknown> }
 
-async function searchOff(q: string): Promise<FoodItem[]> {
-  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,brands,serving_size,serving_quantity,nutriments`
-  const j = (await getJson(url)) as { products?: OffProduct[] }
-  const out: FoodItem[] = []
-  for (const p of j.products ?? []) {
-    const name = (p.product_name ?? '').trim()
-    const n = p.nutriments ?? {}
-    if (!name || !p.code) continue
-    const perServing = num(n['energy-kcal_serving']) !== null && num(p.serving_quantity) !== null
-    const sfx = perServing ? '_serving' : '_100g'
-    const cal = num(n[`energy-kcal${sfx}`])
-    if (cal === null) continue
-    const brand = (p.brands ?? '').split(',')[0].trim()
-    out.push({
-      id: `off-${p.code}`, name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${name} (${brand})` : name,
-      serving: perServing ? (p.serving_size?.trim() || `${p.serving_quantity} g`) : '100 g',
-      cal: Math.round(cal), p: r1(num(n[`proteins${sfx}`]) ?? 0), c: r1(num(n[`carbohydrates${sfx}`]) ?? 0), f: r1(num(n[`fat${sfx}`]) ?? 0), cat: 'Online',
-    })
+const OFF_FIELDS = 'code,product_name,brands,serving_size,serving_quantity,nutriments'
+
+function offToFood(p: OffProduct): FoodItem | null {
+  const name = (p.product_name ?? '').trim()
+  const n = p.nutriments ?? {}
+  if (!name || !p.code) return null
+  const perServing = num(n['energy-kcal_serving']) !== null && num(p.serving_quantity) !== null
+  const sfx = perServing ? '_serving' : '_100g'
+  const cal = num(n[`energy-kcal${sfx}`])
+  if (cal === null) return null
+  const brand = (p.brands ?? '').split(',')[0].trim()
+  return {
+    id: `off-${p.code}`, name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${name} (${brand})` : name,
+    serving: perServing ? (p.serving_size?.trim() || `${p.serving_quantity} g`) : '100 g',
+    cal: Math.round(cal), p: r1(num(n[`proteins${sfx}`]) ?? 0), c: r1(num(n[`carbohydrates${sfx}`]) ?? 0), f: r1(num(n[`fat${sfx}`]) ?? 0), cat: 'Online',
   }
-  return out
+}
+
+async function searchOff(q: string): Promise<FoodItem[]> {
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&fields=${OFF_FIELDS}`
+  const j = (await getJson(url)) as { products?: OffProduct[] }
+  return (j.products ?? []).map(offToFood).filter((x): x is FoodItem => x !== null)
+}
+
+/** Look up one packaged product by its barcode. null = not in the database (or no calorie data). */
+export async function lookupBarcode(code: string): Promise<FoodItem | null> {
+  const digits = code.replace(/\D/g, '')
+  if (digits.length < 8 || digits.length > 14) return null
+  const j = (await getJson(`https://world.openfoodfacts.org/api/v2/product/${digits}.json?fields=${OFF_FIELDS}`)) as { status?: number; product?: OffProduct }
+  return j.status === 1 && j.product ? offToFood({ ...j.product, code: j.product.code ?? digits }) : null
 }
 
 interface UsdaFood { fdcId: number; description?: string; foodNutrients?: { nutrientNumber?: string; value?: number }[] }

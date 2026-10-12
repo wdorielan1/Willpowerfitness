@@ -834,3 +834,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .crew-map-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .crew-map-actions .small-btn { white-space: nowrap; }
 .you-dot { filter: drop-shadow(0 0 4px rgba(26,115,232,.7)); }
+.scan-box { display: grid; gap: 10px; }
+.scan-view { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.scan-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-line { position: absolute; left: 12%; right: 12%; top: 50%; height: 2px; background: var(--accent, #ff6b3d); box-shadow: 0 0 8px var(--accent, #ff6b3d); }
+.scan-manual { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
