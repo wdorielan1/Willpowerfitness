@@ -98,11 +98,11 @@ function ExPhotos({ id }: { id: string }) {
           <span className="exloop-tag">{paused ? 'Paused' : 'Motion'}</span>
         </button>
       )}
-      <div className="exphotos">
+      {srcs.length === 1 && <div className="exphotos">
         {srcs.map((s, i) => (
           <button key={i} className="exercise-photo" aria-label={`View ${m.name}, position ${i + 1}`} onClick={() => setAt(i)}><img src={s} alt={`${m.name}, position ${i + 1}`} loading="lazy" /><span>{i === 0 ? 'Start' : 'Finish'}</span></button>
         ))}
-      </div>
+      </div>}
       {at !== null && <Lightbox srcs={srcs} start={at} caption={srcs.map((_, i) => `${m.name} · ${i === 0 ? 'start' : 'finish'}`)} onClose={() => setAt(null)} />}
     </>
   )
