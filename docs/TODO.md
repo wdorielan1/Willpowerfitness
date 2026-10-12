@@ -34,6 +34,7 @@ Parked ideas and open items. Move things up as priorities change. Keep secrets o
 - [ ] **Brand positioning**: lifting stays the core; run, bike and walk live in challenges and crews. Consider softening the tagline later.
 - [ ] **Free challenge credits (later)**: earn a free challenge credit by completing a set number of workouts, or at milestones (e.g. after N challenges). Not a refund; separate from prizes.
 - [ ] **Paid challenges (after legal review)**: see the pot design in the Will Power Challenges & Monetization doc. Decided: no refunds, prize pool grows with sign-ups in round numbers, Will Power keeps about 15 to 25%. Needs lawyer and payment-processor sign-off first.
+- [ ] **Free challenge rules** (`docs/FREE-CHALLENGES.md`): draft v1 is only a starting point. Each challenge will get its own rules, so decide what a "rule set" looks like per challenge before building: day goal (16 of 30?), points and daily cap, rest day, divisions, round start dates. Then build as free challenges only.
 
 ## Notes
 - MyFitnessPal has no self-serve API (partner program only). Route: Apple Health / Health Connect, or CSV import.
