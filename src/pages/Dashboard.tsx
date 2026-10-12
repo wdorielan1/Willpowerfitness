@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { carbPlanFor, dayFor, fmtTime, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName } from '../engine'
-import { Avatar, fmtClock } from '../components'
+import { carbPlanFor, dayFor, fmtTime, fromISO, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { Avatar, Sheet, fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
 import { Icon } from '../icons'
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const completedThisWeek = week.filter((d) => d.status === 'done').length
   const live = useLiveCrew(crew?.id ?? null, userId)
   const people = live?.people ?? (ci.going ? [{ name: data.name || 'You', status: ci.done ? 'done' as const : 'going' as const, mine: true }] : [])
+  const [peek, setPeek] = useState<WeekDay | null>(null)
   const start = () => {
     ci.start()
     nav('/workout')
@@ -60,11 +61,11 @@ export default function Dashboard() {
       <section className="week-summary" aria-label="This week’s training">
         <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
         <div className="week-strip">
-          {week.map((d) => <div className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}`}>
+          {week.map((d) => <button type="button" className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} onClick={() => setPeek(d)} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}. Tap to see the workout.`}>
             <span aria-hidden="true">{d.label[0]}</span>
             <span className="week-day-dot" aria-hidden="true">{d.status === 'done' && <Icon name="check" />}</span>
             <span className="week-day-plan" aria-hidden="true">{d.planned === 'Rest/Cardio' ? 'Rest' : d.planned === 'Shoulders/Abs' ? 'Sh/Abs' : d.planned === 'Full Body' ? 'Full' : d.planned}</span>
-          </div>)}
+          </button>)}
         </div>
       </section>
 
@@ -147,6 +148,23 @@ export default function Dashboard() {
         </div>
         <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
       </section>
+      {peek && (() => {
+        const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
+        const rest = peek.planned === 'Rest/Cardio'
+        const preview = rest ? [] : generateWorkout(peek.date, data, false, peek.planned).items
+        const logged = peek.logged && !peek.logged.skipped && !peek.logged.baseline ? peek.logged : null
+        return (
+          <Sheet title={`${dayName} · ${rest ? 'Recovery' : workoutName(peek.planned)}`} onClose={() => setPeek(null)}>
+            <p className="small mute">{peek.status === 'done' ? 'Done. Here is what you logged.' : peek.status === 'missed' ? 'Missed. It comes back as your next workout.' : peek.date === today ? 'Today’s plan.' : 'Planned. This can change as you train.'}</p>
+            {rest ? <p>Recovery day. Easy walk or bike, stretch, and rest up.</p> : logged ? (
+              <div className="people">{logged.entries.map((e) => <div className="person" key={e.exId}><span className="grow"><b>{e.name}</b></span><span className="small mute">{e.sets.length} sets · best {Math.max(...e.sets.map((x) => x.weight))} lb</span></div>)}</div>
+            ) : (
+              <div className="people">{preview.map((it) => <div className="person" key={it.ex.id}><span className="grow"><b>{it.ex.name}</b><br /><span className="small mute">{it.ex.muscle}</span></span><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></div>)}</div>
+            )}
+            {peek.date === today && !rest && peek.status !== 'done' && <button className="primary" onClick={() => { setPeek(null); nav('/workout') }}>Go to today’s workout</button>}
+          </Sheet>
+        )
+      })()}
     </>
   )
 }

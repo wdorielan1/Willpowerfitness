@@ -874,3 +874,5 @@ body.rest-timer-on .shell .workout-session .ex { padding-bottom: 190px; }
 .workout-rpe .chip { min-height: 44px; min-width: 48px; }
 .workout-ask { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--mute); }
 .workout-ask b { color: var(--text); font-weight: 600; }
+button.week-day { background: transparent; font: inherit; font-size: 10px; cursor: pointer; width: 100%; }
+button.week-day:active { background: var(--card2); }
