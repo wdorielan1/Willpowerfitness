@@ -20,7 +20,7 @@ function Toggle({ label, hint, on, onClick }: { label: string; hint?: string; on
 }
 
 export default function Settings() {
-  const { data, update, email, logOut } = useApp()
+  const { data, update, email, logOut, saveState } = useApp()
   const p = data.profile!
   const s = data.settings
   const setP = <K extends keyof Profile>(k: K, v: Profile[K]) => update((d) => ({ ...d, profile: { ...d.profile!, [k]: v } }))
@@ -41,7 +41,10 @@ export default function Settings() {
 
   return (
     <>
-      <div><h1>Settings</h1><p className="mute">Everything here is adjustable. Changes save instantly.</p></div>
+      <div><h1>Settings</h1><p className="mute">Everything here is adjustable. Changes save automatically.</p>
+        <p className="small" role="status" aria-live="polite" style={{ minHeight: 18, margin: '4px 0 0', color: saveState === 'error' ? 'var(--bad, #ff6b6b)' : 'var(--mute)' }}>
+          {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? 'Saved on this phone, but couldn’t sync yet. It will retry.' : ''}
+        </p></div>
 
       <ProfileSettings />
 

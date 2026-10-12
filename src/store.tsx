@@ -58,6 +58,7 @@ interface Ctx {
   loading: boolean
   accountError: string | null
   syncError: string | null
+  saveState: 'idle' | 'saving' | 'saved' | 'error'
   retryAccount: () => void
   saveAccount: (fn: (d: AppData) => AppData) => Promise<string | null>
   googleOAuth: () => Promise<string | null>
@@ -78,6 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!!supabase)
   const [accountError, setAccountError] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [retry, setRetry] = useState(0)
   const loaded = useRef(false)
   const [data, setData] = useState<AppData>(() => {
@@ -117,13 +119,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await persist(snapshot.userId, snapshot.data)
       if (activeUser.current === snapshot.userId) {
-        if (pending.current === snapshot) pending.current = null
+        if (pending.current === snapshot) { pending.current = null; setSaveState('saved') }
         setSyncError(null)
       }
       return null
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (activeUser.current === snapshot.userId) setSyncError(`Changes are saved on this device, but could not sync: ${message}`)
+      if (activeUser.current === snapshot.userId) { setSyncError(`Changes are saved on this device, but could not sync: ${message}`); setSaveState('error') }
       return message
     }
   }, [persist])
@@ -325,7 +327,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (supabase && activeUser.current) {
       write(cacheKey(activeUser.current), accountData(next))
       pending.current = { userId: activeUser.current, data: next }
-    } else if (emailRef.current) write(dataKey(emailRef.current), next)
+      setSaveState('saving')
+    } else if (emailRef.current) { write(dataKey(emailRef.current), next); setSaveState('saved') }
     setData(next)
   }, [])
 
@@ -336,5 +339,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMyAvatar(userId, next)
     if (userId) void syncMyAvatar(userId, next)
   }
-  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
+  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, saveState, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
 }
