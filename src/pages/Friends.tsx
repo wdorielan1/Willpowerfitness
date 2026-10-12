@@ -17,6 +17,7 @@ export default function Friends() {
   const suggestHandle = () => `${(data.name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'}${Math.floor(100 + Math.random() * 900)}`
   const [handle, setHandle] = useState(data.handle ?? suggestHandle())
   const [msg, setMsg] = useState('')
+  const [tab, setTab] = useState<'followers' | 'following' | 'find'>('followers')
   const [q, setQ] = useState('')
   const [results, setResults] = useState<PublicProfile[] | null>(null)
   const [conn, setConn] = useState<{ friends: Person[]; following: Person[]; followers: Person[]; suggestions: Person[] }>({ friends: [], following: [], followers: [], suggestions: [] })
@@ -76,11 +77,14 @@ export default function Friends() {
   }
   const crewName = (id: string) => all.find((c) => c.id === id)?.name ?? id
 
-  const Row = ({ p, action }: { p: Person; action: 'follow' | 'followBack' | 'unfollow' }) => (
+  const followers = [...conn.friends, ...conn.followers]
+  const following = [...conn.friends, ...conn.following]
+  const Row = ({ p, action }: { p: Person; action: 'follow' | 'followBack' | 'unfollow' | 'none' }) => (
     <div className="person">
       <Avatar name={p.name} url={p.avatar} />
       <Link className="grow" to={`/friend/${p.userId}`}><b>{p.name.split(' ')[0]}</b> {p.handle && <span className="small mute">@{p.handle}</span>}{p.crews.some((c) => data.joined.includes(c)) && <span className="small mute"> · same crew</span>}</Link>
-      {action === 'unfollow' ? <button className="ghost small-btn" onClick={() => void unfollow(p)}>Unfollow</button> : <button className="primary small-btn" onClick={() => void follow(p)}>{action === 'followBack' ? 'Follow back' : 'Follow'}</button>}
+      {p.iFollow && p.followsMe && <span className="tag ok">Friends</span>}
+      {action === 'none' ? null : action === 'unfollow' ? <button className="ghost small-btn" onClick={() => void unfollow(p)}>Unfollow</button> : <button className="primary small-btn" onClick={() => void follow(p)}>{action === 'followBack' ? 'Follow back' : 'Follow'}</button>}
     </div>
   )
 
@@ -97,34 +101,35 @@ export default function Friends() {
         {copied && <p className="social-feedback" role="status">Invite link copied.</p>}
       </section>
 
-      {conn.followers.length > 0 && (
+      <div className="tabs" role="tablist" aria-label="Friends">
+        <button role="tab" aria-selected={tab === 'followers'} className={tab === 'followers' ? 'on' : ''} onClick={() => setTab('followers')}>Followers {followers.length}</button>
+        <button role="tab" aria-selected={tab === 'following'} className={tab === 'following' ? 'on' : ''} onClick={() => setTab('following')}>Following {following.length}</button>
+        <button role="tab" aria-selected={tab === 'find'} className={tab === 'find' ? 'on' : ''} onClick={() => setTab('find')}>Find people</button>
+      </div>
+
+      {tab === 'followers' && (
         <section className="card">
-          <h2>Follow you</h2>
-          <p className="small mute">They follow you. Follow back to become friends.</p>
-          {conn.followers.map((p) => <Row key={p.userId} p={p} action="followBack" />)}
+          <h2>Followers</h2>
+          <p className="small mute">People who follow you. {conn.friends.length > 0 ? `${conn.friends.length} of them are friends: you follow each other.` : 'Follow someone back to become friends.'}</p>
+          {followers.length === 0 ? <p className="small mute">No followers yet. Share your invite link, or find people to follow.</p> : followers.map((p) => <Row key={p.userId} p={p} action={p.iFollow ? 'none' : 'followBack'} />)}
         </section>
       )}
 
+      {tab === 'following' && (
+        <section className="card">
+          <h2>Following</h2>
+          <p className="small mute">People you follow. “Friends” means they follow you back.</p>
+          {following.length === 0 ? <p className="small mute">You aren’t following anyone yet. Try Find people.</p> : following.map((p) => <Row key={p.userId} p={p} action="unfollow" />)}
+        </section>
+      )}
+
+      {tab === 'find' && (
+        <>
       {conn.suggestions.length > 0 && (
         <section className="card">
           <h2>People in your crews</h2>
           <p className="small mute">Members of the crews you’re in.</p>
           {conn.suggestions.map((p) => <Row key={p.userId} p={p} action="follow" />)}
-        </section>
-      )}
-
-      {conn.friends.length > 0 && (
-        <section className="card">
-          <h2>Friends</h2>
-          {conn.friends.map((p) => <Row key={p.userId} p={p} action="unfollow" />)}
-        </section>
-      )}
-
-      {conn.following.length > 0 && (
-        <section className="card">
-          <h2>Following</h2>
-          <p className="small mute">They haven’t followed you back yet.</p>
-          {conn.following.map((p) => <Row key={p.userId} p={p} action="unfollow" />)}
         </section>
       )}
 
@@ -140,6 +145,8 @@ export default function Friends() {
           <div className="person" key={r.userId}><Avatar name={r.name} url={r.avatar} /><Link className="grow" to={`/friend/${r.userId}`}><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></Link><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
         ))}
       </section>
+        </>
+      )}
 
       <section className="card">
         <h2>Your handle</h2>
