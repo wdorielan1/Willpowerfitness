@@ -60,6 +60,12 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(id)
   }, [over, data.settings.sound, data.settings.vibrate])
 
+  // lets the page leave room above the timer so nothing (like the RPE buttons) sits underneath it
+  useEffect(() => {
+    document.body.classList.toggle('rest-timer-on', !!t)
+    return () => document.body.classList.remove('rest-timer-on')
+  }, [t])
+
   const adjust = (s: number) => t && setT({ ...t, end: t.end + s * 1000, total: Math.max(5, t.total + s) })
   const pct = t ? Math.min(100, Math.max(0, ((t.total - left) / t.total) * 100)) : 0
 

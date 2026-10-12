@@ -487,7 +487,7 @@ export default function Workout() {
             {validation && <p className="workout-validation" role="alert">{validation}</p>}
 
             {data.settings.rpeEnabled && st.rows.length > 0 && st.rows[st.rows.length - 1].reps && (
-              <details className="workout-rpe">
+              <details className="workout-rpe" onToggle={(e) => { const el = e.currentTarget; if (el.open) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }}>
                 <summary>How hard was your last set?<Icon name="chevron" /></summary>
                 <button className="quiet-button" onClick={() => setSheet({ kind: 'rpe' })}>What’s RPE?</button>
                 {(() => {
