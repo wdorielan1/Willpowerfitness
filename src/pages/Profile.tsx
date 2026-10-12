@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
+import { Avatar } from '../components'
 import { DAY_NAMES, GOALS, LEVELS } from '../data'
 import { fmtTime } from '../engine'
 import { useCrew } from './Crew'
 
 export default function Profile() {
-  const { data, email, logOut } = useApp()
+  const { data, email, logOut, avatarUrl } = useApp()
   const p = data.profile!
   const crew = useCrew()
   const rows: [string, string][] = [
@@ -18,6 +19,7 @@ export default function Profile() {
     <>
       <h1>Profile</h1>
       <section className="card">
+        <Avatar name={data.name} url={avatarUrl} size={56} />
         <b>{data.name}</b><span className="small mute">{email}</span>
         {rows.map(([k, v]) => <div key={k} className="row small"><span className="mute">{k}</span><b>{v}</b></div>)}
         <Link to="/settings" className="btn ghost">Change these in Settings</Link>

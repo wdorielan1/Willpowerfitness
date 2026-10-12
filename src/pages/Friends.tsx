@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Icon } from '../icons'
+import { Avatar } from '../components'
 import SocialTabs from '../SocialTabs'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
@@ -77,7 +78,7 @@ export default function Friends() {
 
   const Row = ({ p, action }: { p: Person; action: 'follow' | 'followBack' | 'unfollow' }) => (
     <div className="person">
-      <span className="avatar">{p.name[0]}</span>
+      <Avatar name={p.name} url={p.avatar} />
       <Link className="grow" to={`/friend/${p.userId}`}><b>{p.name.split(' ')[0]}</b> {p.handle && <span className="small mute">@{p.handle}</span>}{p.crews.some((c) => data.joined.includes(c)) && <span className="small mute"> · same crew</span>}</Link>
       {action === 'unfollow' ? <button className="ghost small-btn" onClick={() => void unfollow(p)}>Unfollow</button> : <button className="primary small-btn" onClick={() => void follow(p)}>{action === 'followBack' ? 'Follow back' : 'Follow'}</button>}
     </div>
@@ -136,7 +137,7 @@ export default function Friends() {
           : <p className="small mute">Contact matching isn’t available in this browser. Send an invite link instead.</p>}
         {results && results.length === 0 && <p className="small mute">No one found. They may not be on Will Power yet or have turned discovery off. Send them your invite link.</p>}
         {results?.filter((r) => r.userId !== userId).map((r) => (
-          <div className="person" key={r.userId}><span className="avatar">{r.name[0]}</span><Link className="grow" to={`/friend/${r.userId}`}><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></Link><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
+          <div className="person" key={r.userId}><Avatar name={r.name} url={r.avatar} /><Link className="grow" to={`/friend/${r.userId}`}><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></Link><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
         ))}
       </section>
 

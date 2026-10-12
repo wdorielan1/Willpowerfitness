@@ -58,7 +58,7 @@ label { display: grid; gap: 6px; font-size: 13px; color: var(--mute); font-weigh
 
 .bar { height: 10px; border-radius: 99px; background: var(--card2); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; }
-.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; font-weight: 800; font-size: 12px; flex: none; }
+.avatar { object-fit: cover; width: 34px; height: 34px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; font-weight: 800; font-size: 12px; flex: none; }
 .avatar.done { background: var(--card2); color: var(--ok); }
 .avatar.going { background: var(--card2); color: var(--accent); }
 .people { display: grid; gap: 10px; }

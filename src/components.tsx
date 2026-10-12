@@ -2,6 +2,15 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useApp } from './store'
 import { todayISO } from './engine'
 
+/** Round profile picture, falling back to the first letter of the name. */
+export function Avatar({ name, url, size }: { name: string; url?: string | null; size?: number }) {
+  const [bad, setBad] = useState(false)
+  const st = size ? { width: size, height: size, fontSize: Math.round(size * 0.36) } : undefined
+  return url && !bad
+    ? <img className="avatar" style={st} src={url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBad(true)} />
+    : <span className="avatar" style={st}>{(name || '?')[0]}</span>
+}
+
 /** Bottom sheet used for pickers. */
 export function Sheet({ title, onClose, children, z = 40 }: { title: string; onClose: () => void; children: ReactNode; z?: number }) {
   const titleId = useId()

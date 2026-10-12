@@ -226,6 +226,7 @@ create table if not exists public.public_profiles (
   email_hash text,                                      -- sha-256 of my email, only stored when I opt in
   updated_at timestamptz not null default now()
 );
+alter table public.public_profiles add column if not exists avatar_url text;   -- Google profile photo, when they signed in with Google
 alter table public.public_profiles enable row level security;
 drop policy if exists "read discoverable" on public.public_profiles;
 create policy "read discoverable" on public.public_profiles for select to authenticated

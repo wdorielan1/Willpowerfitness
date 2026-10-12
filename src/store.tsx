@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AppData } from './types'
-import { supabase, fetchCrews, ensureMemberCloud } from './cloud'
+import { supabase, fetchCrews, ensureMemberCloud, ensureProfileCard } from './cloud'
 import { DEFAULT_SETTINGS } from './data'
 import { withRequestTimeout, withTimeout } from './photos'
 
@@ -48,6 +48,8 @@ async function sha(text: string) {
 interface Ctx {
   email: string | null
   userId: string | null
+  /** Google profile photo, when they signed in with Google. */
+  avatarUrl: string | null
   loading: boolean
   accountError: string | null
   syncError: string | null
@@ -67,6 +69,7 @@ export const useApp = () => useContext(C)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(() => read<string | null>(SESSION, null))
   const [userId, setUserId] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(!!supabase)
   const [accountError, setAccountError] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -133,7 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         hydration.current++; activeUser.current = null; loaded.current = false; pending.current = null
         write(SESSION, null)
         dataRef.current = blankData('')
-        setUserId(null); setEmail(null); setData(blankData('')); setLoading(false)
+        setUserId(null); setAvatarUrl(null); setEmail(null); setData(blankData('')); setLoading(false)
         setAccountError(null); setSyncError(null)
         return
       }
@@ -145,6 +148,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loaded.current = false
       setLoading(true); setAccountError(null)
       setUserId(u.id); setEmail(u.email ?? u.id)
+      const photo = ((u.user_metadata?.avatar_url as string) || (u.user_metadata?.picture as string) || '').trim()
+      setAvatarUrl(/^https:\/\//.test(photo) ? photo : null)
       const cached = read<Partial<AppData> | null>(cacheKey(u.id), null)
       const fallbackName = (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || (u.email ?? '').split('@')[0]
       try {
@@ -166,6 +171,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (current()) setData((d) => ({ ...d, custom: crews }))
         }).catch(() => {})
         for (const crewId of base.joined) void ensureMemberCloud(crewId, u.id, base.name).catch(() => {})
+        // every account gets a profile card (handle + Google photo) so friends can follow and see them
+        void ensureProfileCard(u.id, base.name, /^https:\/\//.test(photo) ? photo : null).catch(() => {})
       } catch (error) {
         if (!current()) return
         const message = error instanceof Error ? error.message : String(error)
@@ -295,5 +302,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(next)
   }, [])
 
-  return <C.Provider value={{ email, userId, loading, accountError, syncError, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
+  return <C.Provider value={{ email, userId, avatarUrl, loading, accountError, syncError, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
 }

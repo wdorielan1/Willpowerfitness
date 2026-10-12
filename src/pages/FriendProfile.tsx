@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../store'
+import { Avatar } from '../components'
 import { cloudEnabled, fetchPerson, followCloud, joinCrewCloud, unfollowCloud, type Person } from '../cloud'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
@@ -32,7 +33,7 @@ export default function FriendProfile() {
       {p && (
         <>
           <section className="card">
-            <div className="person"><span className="avatar">{p.name[0]}</span><span className="grow"><b>{p.name.split(' ')[0]}</b> {p.handle && <span className="small mute">@{p.handle}</span>}<br /><span className="small mute">{p.iFollow && p.followsMe ? 'Friends' : p.iFollow ? 'You follow them' : p.followsMe ? 'Follows you' : 'Not connected yet'}</span></span></div>
+            <div className="person"><Avatar name={p.name} url={p.avatar} size={52} /><span className="grow"><b>{p.name.split(' ')[0]}</b> {p.handle && <span className="small mute">@{p.handle}</span>}<br /><span className="small mute">{p.iFollow && p.followsMe ? 'Friends' : p.iFollow ? 'You follow them' : p.followsMe ? 'Follows you' : 'Not connected yet'}</span></span></div>
             {p.userId !== userId && <button className={p.iFollow ? 'ghost' : 'primary'} onClick={() => void toggle()}>{p.iFollow ? 'Unfollow' : p.followsMe ? 'Follow back' : 'Follow'}</button>}
           </section>
           <section className="card">

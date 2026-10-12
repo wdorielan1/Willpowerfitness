@@ -267,7 +267,17 @@ export function useLeaderboard(cohort: string | null, userId: string | null) {
 }
 
 // ---------------- friends ----------------
-export interface PublicProfile { userId: string; handle: string; name: string }
+export interface PublicProfile { userId: string; handle: string; name: string; avatar?: string | null }
+type Card = { user_id: string; handle: string; name: string; avatar_url?: string | null }
+/** Profile cards, with the photo when the avatar column exists (older databases fall back without it). */
+async function cardQuery(apply: (q: any) => PromiseLike<{ data: unknown; error: unknown }>): Promise<Card[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  for (const cols of ['user_id,handle,name,avatar_url', 'user_id,handle,name']) {
+    const { data, error } = await apply(supabase!.from('public_profiles').select(cols))
+    if (!error) return (data ?? []) as Card[]
+  }
+  return []
+}
+const toPublic = (r: Card): PublicProfile => ({ userId: r.user_id, handle: r.handle, name: r.name, avatar: r.avatar_url ?? null })
 export const sha256 = async (text: string) => {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text.trim().toLowerCase()))
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -278,42 +288,48 @@ export async function saveMyDiscovery(userId: string, p: { handle: string; name:
   return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
 }
 /** Everyone gets a profile card with a handle so friends can follow them and open their profile. Never makes them searchable: that stays an opt-in. */
-export async function ensureProfileCard(userId: string, name: string): Promise<string | null> {
+export async function ensureProfileCard(userId: string, name: string, avatar?: string | null): Promise<string | null> {
   if (!supabase) return null
-  const { data: have } = await supabase.from('public_profiles').select('handle').eq('user_id', userId).maybeSingle()
-  if (have?.handle) return have.handle as string
+  const have = (await cardQuery((c) => c.eq('user_id', userId)))[0]
+  if (have?.handle) {
+    // keep the Google photo current; ignore failures (older databases have no avatar column)
+    if (avatar && have.avatar_url !== avatar) void Promise.resolve(supabase.from('public_profiles').update({ avatar_url: avatar }).eq('user_id', userId)).catch(() => {})
+    return have.handle
+  }
   const base = (name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'
   for (let i = 0; i < 4; i++) {
     const handle = `${base}${Math.floor(100 + Math.random() * 9000)}`
-    const { error } = await supabase.from('public_profiles').insert({ user_id: userId, handle, name: name || 'Member', discoverable_handle: false, discoverable_email: false })
+    const row = { user_id: userId, handle, name: name || 'Member', discoverable_handle: false, discoverable_email: false }
+    let { error } = await supabase.from('public_profiles').insert((avatar ? { ...row, avatar_url: avatar } : row) as never)
+    if (error && avatar && error.code !== '23505') ({ error } = await supabase.from('public_profiles').insert(row))
     if (!error) return handle
     if (error.code !== '23505') return null
-    const { data: again } = await supabase.from('public_profiles').select('handle').eq('user_id', userId).maybeSingle()
-    if (again?.handle) return again.handle as string
+    const again = (await cardQuery((c) => c.eq('user_id', userId)))[0]
+    if (again?.handle) return again.handle
   }
   return null
 }
 export async function findByHandle(q: string): Promise<PublicProfile[]> {
   const term = q.toLowerCase().replace(/[^a-z0-9_ ]/g, '').trim()
   if (term.length < 2) return []
-  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_handle', true).or(`handle.ilike.${term.replace(/ /g, '_')}%,name.ilike.${term}%`).limit(10)
-  return (data ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string }))
+  const rows = await cardQuery((c) => c.eq('discoverable_handle', true).or(`handle.ilike.${term.replace(/ /g, '_')}%,name.ilike.${term}%`).limit(10))
+  return rows.map(toPublic)
 }
 export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
   const hashes = await Promise.all(emails.map(sha256))
-  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_email', true).in('email_hash', hashes).limit(50)
-  return (data ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string }))
+  const rows = await cardQuery((c) => c.eq('discoverable_email', true).in('email_hash', hashes).limit(50))
+  return rows.map(toPublic)
 }
 export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
 export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
 /** A person you can follow: from a crew you share, a search, or the people who already follow you. */
-export interface Person { userId: string; name: string; handle: string | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
+export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
 
-const asPerson = (id: string, profs: { user_id: string; handle: string; name: string }[], mem: { user_id: string; crew_id: string; name: string; streak: number }[], iFollow: Set<string>, followsMe: Set<string>): Person => {
+const asPerson = (id: string, profs: Card[], mem: { user_id: string; crew_id: string; name: string; streak: number }[], iFollow: Set<string>, followsMe: Set<string>): Person => {
   const prof = profs.find((r) => r.user_id === id)
   const mine = mem.filter((m) => m.user_id === id)
   return {
-    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null,
+    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null, avatar: prof?.avatar_url ?? null,
     crews: mine.map((m) => m.crew_id), streak: mine.reduce((a, m) => Math.max(a, m.streak ?? 0), 0), iFollow: iFollow.has(id), followsMe: followsMe.has(id),
   }
 }
@@ -330,11 +346,11 @@ export async function fetchConnections(userId: string, joined: string[]): Promis
   const mates = new Set((crewRows ?? []).map((r) => r.user_id as string).filter((id) => id !== userId))
   const ids = [...new Set([...iFollow, ...followsMe, ...mates])]
   if (!ids.length) return { friends: [], following: [], followers: [], suggestions: [] }
-  const [{ data: profs }, { data: mem }] = await Promise.all([
-    supabase!.from('public_profiles').select('user_id,handle,name').in('user_id', ids),
+  const [profs, { data: mem }] = await Promise.all([
+    cardQuery((c) => c.in('user_id', ids)),
     supabase!.from('crew_members').select('user_id,crew_id,name,streak').in('user_id', ids),
   ])
-  const all = ids.map((id) => asPerson(id, (profs ?? []) as never, (mem ?? []) as never, iFollow, followsMe))
+  const all = ids.map((id) => asPerson(id, profs, (mem ?? []) as never, iFollow, followsMe))
   return {
     friends: all.filter((p) => p.iFollow && p.followsMe),
     following: all.filter((p) => p.iFollow && !p.followsMe),
@@ -344,14 +360,14 @@ export async function fetchConnections(userId: string, joined: string[]): Promis
 }
 
 export async function fetchPerson(userId: string, id: string): Promise<Person | null> {
-  const [{ data: out }, { data: inn }, { data: profs }, { data: mem }] = await Promise.all([
+  const [{ data: out }, { data: inn }, profs, { data: mem }] = await Promise.all([
     supabase!.from('follows').select('friend_id').eq('user_id', userId).eq('friend_id', id),
     supabase!.from('follows').select('user_id').eq('user_id', id).eq('friend_id', userId),
-    supabase!.from('public_profiles').select('user_id,handle,name').eq('user_id', id),
+    cardQuery((c) => c.eq('user_id', id)),
     supabase!.from('crew_members').select('user_id,crew_id,name,streak').eq('user_id', id),
   ])
-  if (!(profs ?? []).length && !(mem ?? []).length) return null
-  return asPerson(id, (profs ?? []) as never, (mem ?? []) as never, new Set((out ?? []).map((r) => r.friend_id as string)), new Set((inn ?? []).map((r) => r.user_id as string)))
+  if (!profs.length && !(mem ?? []).length) return null
+  return asPerson(id, profs, (mem ?? []) as never, new Set((out ?? []).map((r) => r.friend_id as string)), new Set((inn ?? []).map((r) => r.user_id as string)))
 }
 export async function handleToUser(handle: string): Promise<string | null> {
   const { data } = await supabase!.from('public_profiles').select('user_id').eq('handle', handle.toLowerCase()).maybeSingle()
