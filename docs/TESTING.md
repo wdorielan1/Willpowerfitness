@@ -93,6 +93,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Delete account / export data works
 - [ ] (Re-run supabase/schema.sql first.) Friends tab: members of your crews appear under "People in your crews" with Follow
 - [ ] Follow someone: they see you under "Follow you" with Follow back; after they follow back you both appear under Friends
+- [ ] Friends tabs show counts: Followers (everyone who follows you), Following (everyone you follow), Find people
+- [ ] A person who follows you and you follow back shows a "Friends" tag in both Followers and Following
+- [ ] Followers: someone you don't follow back has a Follow back button; Following: Unfollow works and the count drops
 - [ ] Tap a person: friend profile shows name, handle, streak, crews; joining one of their crews works
 - [ ] Invite link: a new account that joins through it follows the inviter automatically (inviter sees them under "Follow you")
 - [ ] Search finds people by name and by handle (only those with "find me" on)
