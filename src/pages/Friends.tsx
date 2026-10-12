@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Icon } from '../icons'
 import SocialTabs from '../SocialTabs'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
-import { cloudEnabled, fetchFriends, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type PublicProfile } from '../cloud'
+import { cloudEnabled, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
 import { streak } from '../engine'
 
 type ContactPicker = { select: (props: string[], opts: { multiple: boolean }) => Promise<{ email?: string[] }[]> }
@@ -12,19 +13,20 @@ type ContactPicker = { select: (props: string[], opts: { multiple: boolean }) =>
 export default function Friends() {
   const { data, update, userId, email } = useApp()
   const all = allCommunities(data.custom)
-  const [handle, setHandle] = useState(data.handle ?? '')
+  const suggestHandle = () => `${(data.name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'}${Math.floor(100 + Math.random() * 900)}`
+  const [handle, setHandle] = useState(data.handle ?? suggestHandle())
   const [msg, setMsg] = useState('')
   const [q, setQ] = useState('')
   const [results, setResults] = useState<PublicProfile[] | null>(null)
-  const [friends, setFriends] = useState<(PublicProfile & { crews: string[] })[]>([])
+  const [conn, setConn] = useState<{ friends: Person[]; following: Person[]; followers: Person[]; suggestions: Person[] }>({ friends: [], following: [], followers: [], suggestions: [] })
   const [copied, setCopied] = useState(false)
   const [showLink, setShowLink] = useState(false)
   const canPickContacts = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window
 
-  const load = () => { if (userId) void fetchFriends(userId).then(setFriends) }
-  useEffect(load, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const load = () => { if (userId && cloudEnabled) void fetchConnections(userId, data.joined).then(setConn).catch(() => {}) }
+  useEffect(load, [userId, data.joined.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const link = `${location.origin}${location.pathname}#/join?${[data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
+  const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
   const share = async () => {
     const text = 'Train with me on Will Power. Your workout. Your crew.'
     try { if (navigator.share) { await navigator.share({ title: 'Will Power', text, url: link }); return } } catch { /* cancelled */ }
@@ -57,7 +59,8 @@ export default function Friends() {
       setResults(emails.length ? await findByEmails(emails) : [])
     } catch { setMsg('Could not read contacts.') }
   }
-  const follow = async (p: PublicProfile) => { if (userId) { await followCloud(userId, p.userId); load(); setMsg(`You’re following @${p.handle}.`) } }
+  const follow = async (p: { userId: string; name: string }) => { if (userId) { await followCloud(userId, p.userId); load(); setMsg(`You’re following ${p.name.split(' ')[0]}.`) } }
+  const unfollow = async (p: Person) => { if (userId) { await unfollowCloud(userId, p.userId); load() } }
   const joinTheirCrew = (id: string) => {
     if (data.joined.includes(id)) return
     if (data.joined.length >= MAX_CREWS) { setMsg(`You’re in ${MAX_CREWS} crews already. Leave one on the Feed tab first.`); return }
@@ -67,6 +70,14 @@ export default function Friends() {
   }
   const crewName = (id: string) => all.find((c) => c.id === id)?.name ?? id
 
+  const Row = ({ p, action }: { p: Person; action: 'follow' | 'followBack' | 'unfollow' }) => (
+    <div className="person">
+      <span className="avatar">{p.name[0]}</span>
+      <Link className="grow" to={`/friend/${p.userId}`}><b>{p.name.split(' ')[0]}</b> {p.handle && <span className="small mute">@{p.handle}</span>}{p.crews.some((c) => data.joined.includes(c)) && <span className="small mute"> · same crew</span>}</Link>
+      {action === 'unfollow' ? <button className="ghost small-btn" onClick={() => void unfollow(p)}>Unfollow</button> : <button className="primary small-btn" onClick={() => void follow(p)}>{action === 'followBack' ? 'Follow back' : 'Follow'}</button>}
+    </div>
+  )
+
   return (
     <div className="friends-page">
       <SocialTabs />
@@ -74,45 +85,64 @@ export default function Friends() {
 
       <section className="card friends-invite">
         <h2>Invite a friend</h2>
-        <p className="small mute">Send your link. {data.primary ? 'They’ll see your crew as their first suggestion.' : 'They’ll join the free beta.'}</p>
+        <p className="small mute">Send your link. {data.primary ? 'They’ll see your crew as their first suggestion, and they’ll follow you when they join.' : 'They’ll follow you when they join the free beta.'}</p>
         <div className="friends-invite-actions"><button className="primary" onClick={() => void share()}>Share invite<Icon name="arrow" size={18} /></button><button className="ghost" onClick={() => void copyLink()}>Copy link</button></div>
         {showLink && <input className="social-invite-url" readOnly value={link} aria-label="Your invite link" onFocus={(event) => event.currentTarget.select()} />}
         {copied && <p className="social-feedback" role="status">Invite link copied.</p>}
       </section>
 
-      <section className="card">
-        <h2>Your handle</h2>
-        <p className="small mute">A short name friends can search for. Nobody can find you unless you turn it on.</p>
-        <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void saveCard({ handle }) }}><label>Your handle<input value={handle} onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="e.g. alex_lifts" maxLength={20} autoComplete="off" /></label><button className="primary" type="submit">Save</button></form>
-        <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByHandle} onClick={() => void saveCard({ findByHandle: !data.findByHandle })}><span>Let people find me by handle</span><span className={`tag ${data.findByHandle ? 'ok' : ''}`}>{data.findByHandle ? 'On' : 'Off'}</span></button>
-        <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByEmail} onClick={() => void saveCard({ findByEmail: !data.findByEmail })}><span>Let friends find me by email<br /><span className="small mute">Uses a hash of your email for matching.</span></span><span className={`tag ${data.findByEmail ? 'ok' : ''}`}>{data.findByEmail ? 'On' : 'Off'}</span></button>
-        {msg && <p className="social-feedback" role="status">{msg}</p>}
-      </section>
+      {conn.followers.length > 0 && (
+        <section className="card">
+          <h2>Follow you</h2>
+          <p className="small mute">They follow you. Follow back to become friends.</p>
+          {conn.followers.map((p) => <Row key={p.userId} p={p} action="followBack" />)}
+        </section>
+      )}
+
+      {conn.suggestions.length > 0 && (
+        <section className="card">
+          <h2>People in your crews</h2>
+          <p className="small mute">Members of the crews you’re in.</p>
+          {conn.suggestions.map((p) => <Row key={p.userId} p={p} action="follow" />)}
+        </section>
+      )}
+
+      {conn.friends.length > 0 && (
+        <section className="card">
+          <h2>Friends</h2>
+          {conn.friends.map((p) => <Row key={p.userId} p={p} action="unfollow" />)}
+        </section>
+      )}
+
+      {conn.following.length > 0 && (
+        <section className="card">
+          <h2>Following</h2>
+          <p className="small mute">They haven’t followed you back yet.</p>
+          {conn.following.map((p) => <Row key={p.userId} p={p} action="unfollow" />)}
+        </section>
+      )}
 
       <section className="card">
         <h2>Find people</h2>
         {!cloudEnabled && <div className="banner">Sign in to a connected account to search for friends.</div>}
-        <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void search() }}><label>Search by handle<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="@handle" /></label><button className="primary" type="submit" disabled={!cloudEnabled || q.trim().length < 2}>Search</button></form>
+        <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void search() }}><label>Search by name or handle<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or @handle" /></label><button className="primary" type="submit" disabled={!cloudEnabled || q.trim().length < 2}>Search</button></form>
         {canPickContacts
           ? <button className="ghost" onClick={() => void pick()} disabled={!cloudEnabled}>Find friends from contacts</button>
           : <p className="small mute">Contact matching isn’t available in this browser. Send an invite link instead.</p>}
         {results && results.length === 0 && <p className="small mute">No one found. They may not be on Will Power yet or have turned discovery off. Send them your invite link.</p>}
         {results?.filter((r) => r.userId !== userId).map((r) => (
-          <div className="person" key={r.userId}><span className="avatar">{r.name[0]}</span><span className="grow"><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></span><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
+          <div className="person" key={r.userId}><span className="avatar">{r.name[0]}</span><Link className="grow" to={`/friend/${r.userId}`}><b>{r.name.split(' ')[0]}</b> <span className="small mute">@{r.handle}</span></Link><button className="primary small-btn" onClick={() => void follow(r)}>Follow</button></div>
         ))}
       </section>
 
-      {friends.length > 0 && (
-        <section className="card">
-          <h2>Your friends</h2>
-          {friends.map((f) => (
-            <div key={f.userId} style={{ display: 'grid', gap: 6 }}>
-              <div className="person"><span className="avatar">{f.name[0]}</span><span className="grow"><b>{f.name.split(' ')[0]}</b> <span className="small mute">@{f.handle}</span></span><button className="ghost small-btn" onClick={() => userId && void unfollowCloud(userId, f.userId).then(load)}>Unfollow</button></div>
-              <div className="chips">{f.crews.length === 0 ? <span className="small mute">Not in a crew yet</span> : f.crews.map((id) => <button key={id} className={`chip ${data.joined.includes(id) ? 'on' : ''}`} onClick={() => joinTheirCrew(id)}>{data.joined.includes(id) ? '✓ ' : '＋ '}{crewName(id)}</button>)}</div>
-            </div>
-          ))}
-        </section>
-      )}
+      <section className="card">
+        <h2>Your handle</h2>
+        <p className="small mute">{data.handle ? 'A short name friends can search for. Nobody can find you by search unless you turn it on.' : 'Pick a handle and tap Save so friends can follow you. We suggested one; change it if you like.'}</p>
+        <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void saveCard({ handle }) }}><label>Your handle<input value={handle} onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="e.g. alex_lifts" maxLength={20} autoComplete="off" /></label><button className="primary" type="submit">Save</button></form>
+        <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByHandle} onClick={() => void saveCard({ findByHandle: !data.findByHandle })}><span>Let people find me by name or handle</span><span className={`tag ${data.findByHandle ? 'ok' : ''}`}>{data.findByHandle ? 'On' : 'Off'}</span></button>
+        <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByEmail} onClick={() => void saveCard({ findByEmail: !data.findByEmail })}><span>Let friends find me by email<br /><span className="small mute">Uses a hash of your email for matching.</span></span><span className={`tag ${data.findByEmail ? 'ok' : ''}`}>{data.findByEmail ? 'On' : 'Off'}</span></button>
+        {msg && <p className="social-feedback" role="status">{msg}</p>}
+      </section>
     </div>
   )
 }

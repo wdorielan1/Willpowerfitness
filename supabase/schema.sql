@@ -229,7 +229,11 @@ create table if not exists public.public_profiles (
 alter table public.public_profiles enable row level security;
 drop policy if exists "read discoverable" on public.public_profiles;
 create policy "read discoverable" on public.public_profiles for select to authenticated
-  using (discoverable_handle or discoverable_email or auth.uid() = user_id);
+  using (
+    discoverable_handle or discoverable_email or auth.uid() = user_id
+    or exists (select 1 from public.follows f where f.user_id = auth.uid() and f.friend_id = public_profiles.user_id)  -- people I follow
+    or exists (select 1 from public.follows f where f.friend_id = auth.uid() and f.user_id = public_profiles.user_id)  -- people who follow me
+  );
 drop policy if exists "manage own profile card" on public.public_profiles;
 create policy "manage own profile card" on public.public_profiles for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -244,6 +248,9 @@ alter table public.follows enable row level security;
 drop policy if exists "manage own follows" on public.follows;
 create policy "manage own follows" on public.follows for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- people can see who follows them (so they can follow back)
+drop policy if exists "see my followers" on public.follows;
+create policy "see my followers" on public.follows for select to authenticated using (auth.uid() = friend_id);
 
 -- ---------- map: "I'd join a crew here" wait list and crew reports ----------
 create table if not exists public.crew_interest (

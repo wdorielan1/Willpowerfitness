@@ -16,8 +16,8 @@ export default function Auth() {
   const { signUp, logIn, googleIn, googleOAuth } = useApp()
   const [params] = useSearchParams()
   useEffect(() => {
-    const ref = params.get('ref'), crew = params.get('crew')
-    if (ref || crew) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew })) } catch { /* storage unavailable */ } }
+    const ref = params.get('ref'), crew = params.get('crew'), u = params.get('u')
+    if (ref || crew || u) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew, u })) } catch { /* storage unavailable */ } }
   }, [params])
   const [mode, setMode] = useState<'signup' | 'login'>(params.get('m') === 'login' ? 'login' : 'signup')
   const [name, setName] = useState('')

@@ -17,6 +17,7 @@ import Profile from './pages/Profile'
 import Go from './pages/Go'
 import Landing from './pages/Landing'
 import Friends from './pages/Friends'
+import FriendProfile from './pages/FriendProfile'
 import Export from './pages/Export'
 import Challenges, { ChallengeSync } from './pages/Challenges'
 import Settings from './pages/Settings'
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/challenges" element={<Challenges />} />
           <Route path="/friends" element={<Friends />} />
+          <Route path="/friend/:id" element={<FriendProfile />} />
           <Route path="/export" element={<Export />} />
           <Route path="/log" element={<QuickLog />} />
           <Route path="/photos" element={<Photos />} />
@@ -108,7 +110,7 @@ export default function App() {
       </main>
       <nav className="tabbar" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && ['/challenges', '/friends'].includes(loc.pathname)) ? 'on' : '')}>
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && (['/challenges', '/friends'].includes(loc.pathname) || loc.pathname.startsWith('/friend/'))) ? 'on' : '')}>
             <Icon name={icon} /><span className="tab-label">{label}</span>
           </NavLink>
         ))}

@@ -278,7 +278,9 @@ export async function saveMyDiscovery(userId: string, p: { handle: string; name:
   return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
 }
 export async function findByHandle(q: string): Promise<PublicProfile[]> {
-  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_handle', true).ilike('handle', `${q.toLowerCase().replace(/[^a-z0-9_]/g, '')}%`).limit(10)
+  const term = q.toLowerCase().replace(/[^a-z0-9_ ]/g, '').trim()
+  if (term.length < 2) return []
+  const { data } = await supabase!.from('public_profiles').select('user_id,handle,name').eq('discoverable_handle', true).or(`handle.ilike.${term.replace(/ /g, '_')}%,name.ilike.${term}%`).limit(10)
   return (data ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string }))
 }
 export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
@@ -288,15 +290,52 @@ export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
 }
 export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
 export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
-export async function fetchFriends(userId: string): Promise<(PublicProfile & { crews: string[] })[]> {
-  const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
-  const ids = (f ?? []).map((r) => r.friend_id as string)
-  if (!ids.length) return []
+/** A person you can follow: from a crew you share, a search, or the people who already follow you. */
+export interface Person { userId: string; name: string; handle: string | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
+
+const asPerson = (id: string, profs: { user_id: string; handle: string; name: string }[], mem: { user_id: string; crew_id: string; name: string; streak: number }[], iFollow: Set<string>, followsMe: Set<string>): Person => {
+  const prof = profs.find((r) => r.user_id === id)
+  const mine = mem.filter((m) => m.user_id === id)
+  return {
+    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null,
+    crews: mine.map((m) => m.crew_id), streak: mine.reduce((a, m) => Math.max(a, m.streak ?? 0), 0), iFollow: iFollow.has(id), followsMe: followsMe.has(id),
+  }
+}
+
+/** Everyone connected to you, plus people in your crews you could follow. */
+export async function fetchConnections(userId: string, joined: string[]): Promise<{ friends: Person[]; following: Person[]; followers: Person[]; suggestions: Person[] }> {
+  const [{ data: out }, { data: inn }, { data: crewRows }] = await Promise.all([
+    supabase!.from('follows').select('friend_id').eq('user_id', userId),
+    supabase!.from('follows').select('user_id').eq('friend_id', userId),
+    joined.length ? supabase!.from('crew_members').select('user_id').in('crew_id', joined) : Promise.resolve({ data: [] as { user_id: string }[] }),
+  ])
+  const iFollow = new Set((out ?? []).map((r) => r.friend_id as string))
+  const followsMe = new Set((inn ?? []).map((r) => r.user_id as string))
+  const mates = new Set((crewRows ?? []).map((r) => r.user_id as string).filter((id) => id !== userId))
+  const ids = [...new Set([...iFollow, ...followsMe, ...mates])]
+  if (!ids.length) return { friends: [], following: [], followers: [], suggestions: [] }
   const [{ data: profs }, { data: mem }] = await Promise.all([
     supabase!.from('public_profiles').select('user_id,handle,name').in('user_id', ids),
-    supabase!.from('crew_members').select('user_id,crew_id').in('user_id', ids),
+    supabase!.from('crew_members').select('user_id,crew_id,name,streak').in('user_id', ids),
   ])
-  return (profs ?? []).map((r) => ({ userId: r.user_id as string, handle: r.handle as string, name: r.name as string, crews: (mem ?? []).filter((m) => m.user_id === r.user_id).map((m) => m.crew_id as string) }))
+  const all = ids.map((id) => asPerson(id, (profs ?? []) as never, (mem ?? []) as never, iFollow, followsMe))
+  return {
+    friends: all.filter((p) => p.iFollow && p.followsMe),
+    following: all.filter((p) => p.iFollow && !p.followsMe),
+    followers: all.filter((p) => !p.iFollow && p.followsMe),
+    suggestions: all.filter((p) => !p.iFollow && !p.followsMe && mates.has(p.userId)).slice(0, 20),
+  }
+}
+
+export async function fetchPerson(userId: string, id: string): Promise<Person | null> {
+  const [{ data: out }, { data: inn }, { data: profs }, { data: mem }] = await Promise.all([
+    supabase!.from('follows').select('friend_id').eq('user_id', userId).eq('friend_id', id),
+    supabase!.from('follows').select('user_id').eq('user_id', id).eq('friend_id', userId),
+    supabase!.from('public_profiles').select('user_id,handle,name').eq('user_id', id),
+    supabase!.from('crew_members').select('user_id,crew_id,name,streak').eq('user_id', id),
+  ])
+  if (!(profs ?? []).length && !(mem ?? []).length) return null
+  return asPerson(id, (profs ?? []) as never, (mem ?? []) as never, new Set((out ?? []).map((r) => r.friend_id as string)), new Set((inn ?? []).map((r) => r.user_id as string)))
 }
 export async function handleToUser(handle: string): Promise<string | null> {
   const { data } = await supabase!.from('public_profiles').select('user_id').eq('handle', handle.toLowerCase()).maybeSingle()

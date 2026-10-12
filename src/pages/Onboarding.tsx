@@ -37,7 +37,7 @@ export default function Onboarding() {
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
   const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
 
-  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null } | null } catch { return null } })()
+  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null; u?: string | null } | null } catch { return null } })()
   const invitedCrew = invite?.crew ? allCommunities(data.custom).find((c) => c.id === invite.crew) : undefined
   const base = suggestCrews(p, COMMUNITIES as CommunityDef[])
   const sugg = invitedCrew ? [{ crew: invitedCrew, score: 99, reasons: ['A friend invited you'] }, ...base.filter((s) => s.crew.id !== invitedCrew.id)] : base
@@ -55,7 +55,8 @@ export default function Onboarding() {
         weights: [...d.weights.filter((entry) => entry.date !== todayISO()), { date: todayISO(), lbs: p.weight }],
       }))
       if (saveError) throw new Error(saveError)
-      if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
+      if (userId && invite?.u && invite.u !== userId) void followCloud(userId, invite.u).catch(() => {})
+      else if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
       try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }
       nav('/')
     } catch (caught) {
