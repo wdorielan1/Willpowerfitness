@@ -354,7 +354,7 @@ export default function Workout() {
       void _gone
       return {
         ...d, drafts, workoutPosted: willPost ? { ...d.workoutPosted, [today]: true } : d.workoutPosted,
-        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, finishedAt: todaysLog?.finishedAt ?? Date.now(), minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
+        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, finishedAt: todaysLog?.finishedAt ?? Date.now(), minutes: todaysLog?.minutes ?? (started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined) }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
