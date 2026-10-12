@@ -188,4 +188,5 @@ date,exercise,weight,reps,sets
 - one row per exercise per date (if sets differed, use one row per distinct weight/reps)
 - weight in pounds (number only)
 - no extra commentary, just the CSV inside one code block.
+Only use workouts I have actually told you about. Do not invent or guess numbers.
 If you do not have exact dates, give your best estimate and say which ones are estimated.`

@@ -9,8 +9,10 @@ import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
+import HistoryImporter from '../HistoryImporter'
+import { mergeLogs } from '../importer'
 import { fmtTime } from '../engine'
-import type { Gear, Goal, Level, Profile } from '../types'
+import type { Gear, Goal, Level, Profile, WorkoutLog } from '../types'
 
 const empty: Profile = {
   goal: 'muscle_gain', level: 'intermediate', days: [1, 2, 4, 5, 6], style: 'hypertrophy', gear: 'gym',
@@ -26,6 +28,7 @@ export default function Onboarding() {
   const [more, setMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [imported, setImported] = useState<{ logs: WorkoutLog[]; sets: number } | null>(null)
   const pending = useRef(false)
   // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
   const [wText, setWText] = useState(String(empty.weight))
@@ -48,7 +51,7 @@ export default function Onboarding() {
         if (membershipError) throw new Error(membershipError)
       }
       const saveError = await saveAccount((d) => ({
-        ...d, profile: p, joined: chosen ? [...new Set([...d.joined, chosen])] : d.joined, primary: chosen,
+        ...d, logs: imported ? mergeLogs(d.logs, imported.logs) : d.logs, profile: p, joined: chosen ? [...new Set([...d.joined, chosen])] : d.joined, primary: chosen,
         weights: [...d.weights.filter((entry) => entry.date !== todayISO()), { date: todayISO(), lbs: p.weight }],
       }))
       if (saveError) throw new Error(saveError)
@@ -99,6 +102,13 @@ export default function Onboarding() {
       <Toggle label="Join a workout community" on={p.wantsCommunity} onClick={() => set('wantsCommunity', !p.wantsCommunity)} />
     </>,
     <>
+      <h2>Bring your lifting history</h2>
+      <p className="mute small">Already track your workouts in ChatGPT, Claude or another AI, or in notes? Bring them so you don’t start from scratch. Optional. You can also do this later in Settings.</p>
+      {imported
+        ? <p className="ok-text">✓ {imported.sets} sets across {imported.logs.length} workout{imported.logs.length === 1 ? '' : 's'} ready. They’ll be added when you finish setup. <button className="ghost small-btn" onClick={() => setImported(null)}>Remove</button></p>
+        : <HistoryImporter importLabel={(n) => `Use these ${n} sets`} onImport={(r) => setImported({ logs: r.logs, sets: r.setCount })} />}
+    </>,
+    <>
       <h2>Help us find your crew</h2>
       <p className="mute small">Three quick, optional questions. We use them to suggest people like you. Skip anything you want.</p>
       <MatchQuestions p={p} onChange={(patch) => setP((x) => ({ ...x, ...patch }))} />
@@ -120,7 +130,7 @@ export default function Onboarding() {
       <button className={`chip ${pick === 'solo' ? 'on' : ''}`} style={{ justifySelf: 'start' }} onClick={() => setPick('solo')}>Skip, I’ll train solo for now</button>
     </>,
   ]
-  const total = p.wantsCommunity ? 5 : 3
+  const total = p.wantsCommunity ? 6 : 4
   const last = step === total - 1
 
   return (
