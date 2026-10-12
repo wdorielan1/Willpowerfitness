@@ -91,6 +91,13 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Find friends; follow and unfollow
 - [ ] Profile and Settings changes save
 - [ ] Delete account / export data works
+- [ ] (Re-run supabase/schema.sql first.) Friends tab: members of your crews appear under "People in your crews" with Follow
+- [ ] Follow someone: they see you under "Follow you" with Follow back; after they follow back you both appear under Friends
+- [ ] Tap a person: friend profile shows name, handle, streak, crews; joining one of their crews works
+- [ ] Invite link: a new account that joins through it follows the inviter automatically (inviter sees them under "Follow you")
+- [ ] Search finds people by name and by handle (only those with "find me" on)
+- [ ] A suggested handle is pre-filled; Save makes you searchable and the invite link carries it
+- [ ] Unfollow moves a friend to "Follow you"; nothing shows people you never connected with
 
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
