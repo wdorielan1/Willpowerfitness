@@ -105,6 +105,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A second account sees your new photo next to your posts and check-ins (re-run supabase/schema.sql first; may take a refresh)
 - [ ] A very large or odd photo (phone camera, HEIC) is shrunk and works, or shows a clear error
 - [ ] After logging in, every account has a row in public_profiles (handle set, searchable off)
+- [ ] A new account's handle is the first part of their email (letters and numbers), and a name/handle search finds them by default
+- [ ] Two people with the same email start get different handles (the second gets digits added)
+- [ ] The Friends tab toggle shows On for new accounts, and turning it off hides them from search
 
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
