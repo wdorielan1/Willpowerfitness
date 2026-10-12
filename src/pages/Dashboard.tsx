@@ -66,6 +66,14 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {data.profile && !data.profile.sex && (
+        <section className="card">
+          <h3>Tune your plan</h3>
+          <p className="small mute">Tell us your sex and the body parts you want to focus on. It sizes your calories and adds extra work where you want it.</p>
+          <Link to="/settings" className="primary" style={{ textDecoration: 'none', textAlign: 'center' }}>Update my plan</Link>
+        </section>
+      )}
+
       <div className="today-heading">
         <p className="overline">{ci.done ? 'TODAY’S SESSION' : rest ? 'YOUR RECOVERY' : 'YOUR NEXT SESSION'}</p>
         <h1>{ci.done ? <>{todaysLog ? 'Workout logged.' : 'Workout complete.'}</> : rest ? <>Recovery<br />day.</> : <>Your next<br />workout.</>}</h1>

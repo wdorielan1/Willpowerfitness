@@ -10,6 +10,7 @@ import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../dat
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
 import HistoryImporter from '../HistoryImporter'
+import { FocusPicker, SexPicker } from '../ProfilePickers'
 import { mergeLogs } from '../importer'
 import { fmtTime } from '../engine'
 import type { Gear, Goal, Level, Profile, WorkoutLog } from '../types'
@@ -79,6 +80,8 @@ export default function Onboarding() {
       <div className="chips">
         {([['hypertrophy', 'Bodybuilding'], ['strength', 'Strength'], ['mixed', 'Mixed']] as const).map(([k, l]) => <button key={k} className={`chip ${p.style === k ? 'on' : ''}`} onClick={() => set('style', k)}>{l}</button>)}
       </div>
+      <h3>Body parts to focus on</h3>
+      <FocusPicker value={p.focus ?? []} onChange={(v) => set('focus', v)} />
     </>,
     <>
       <h2>Your schedule</h2>
@@ -95,6 +98,8 @@ export default function Onboarding() {
     </>,
     <>
       <h2>Your numbers</h2>
+      <h3>Sex</h3>
+      <SexPicker value={p.sex} onChange={(v) => set('sex', v)} />
       <div className="grid2">
         <label>Current weight (lb)<input inputMode="decimal" value={wText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setWText(v); set('weight', num(v, p.weight)) }} /></label>
         <label>Target weight (lb)<input inputMode="decimal" value={tText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setTText(v); set('target', num(v, p.target)) }} /></label>
@@ -142,7 +147,7 @@ export default function Onboarding() {
       {error && <p className="err" role="alert">{error}</p>}
       <div className="row">
         {step > 0 ? <button className="ghost" disabled={saving} onClick={() => setStep(step - 1)}>Back</button> : <span />}
-        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" onClick={() => setStep(step + 1)}>Next</button>}
+        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" disabled={step === 2 && !p.sex} onClick={() => setStep(step + 1)}>Next</button>}
       </div>
     </div>
   )

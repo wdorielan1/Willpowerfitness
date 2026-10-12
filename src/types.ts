@@ -6,6 +6,9 @@ export type WorkoutFocus = 'chest-triceps' | 'back-biceps' | 'custom'
 export type CarbDay = 'low' | 'medium' | 'high'
 export type Metric = 'workouts' | 'earlyWorkouts' | 'steps' | 'cardioMin' | 'volume'
 
+export type BodyArea = 'chest' | 'back' | 'shoulders' | 'arms' | 'abs' | 'glutes' | 'legs'
+export type Sex = 'male' | 'female' | 'other'
+
 export interface Profile {
   goal: Goal
   level: Level
@@ -19,6 +22,10 @@ export interface Profile {
   avoid: string
   reminders: boolean
   wantsCommunity: boolean
+  /** Used to size calorie targets. 'other' means prefer not to say. */
+  sex?: Sex
+  /** Up to 3 body parts to emphasise in suggested workouts. Empty means balanced. */
+  focus?: BodyArea[]
   // optional answers used only to suggest crews
   age?: string
   identities?: string[]

@@ -1,5 +1,5 @@
 import { EXERCISES, SPLIT } from './data'
-import type { AppData, CarbDay, DayType, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
+import type { BodyArea, AppData, CarbDay, DayType, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -47,6 +47,21 @@ const DAY_MUSCLES: Partial<Record<DayType, string[]>> = {
   Push: ['Chest', 'Upper chest'], Pull: ['Lats', 'Mid back', 'Back'], Legs: ['Quads', 'Hamstrings', 'Glutes', 'Legs'], 'Shoulders/Abs': ['Shoulders', 'Side delts'],
 }
 const MUST_HAVE: Partial<Record<DayType, string[]>> = { Push: ['Triceps'], Pull: ['Biceps'], Legs: ['Hamstrings'], 'Shoulders/Abs': ['Abs'] }
+
+/** Body parts someone can ask to emphasise, and which exercise muscle labels count toward each. */
+export const BODY_AREAS: { id: BodyArea; label: string; match: RegExp }[] = [
+  { id: 'chest', label: 'Chest', match: /chest/i },
+  { id: 'back', label: 'Back', match: /lats|back|traps/i },
+  { id: 'shoulders', label: 'Shoulders', match: /shoulders|delts/i },
+  { id: 'arms', label: 'Arms', match: /biceps|triceps|forearms|arms/i },
+  { id: 'abs', label: 'Abs', match: /abs|core/i },
+  { id: 'glutes', label: 'Glutes', match: /glutes|hips|posterior/i },
+  { id: 'legs', label: 'Legs', match: /quads|hamstrings|calves|legs/i },
+]
+export const MAX_FOCUS = 3
+const focusAreas = (p: Profile) => BODY_AREAS.filter((a) => p.focus?.includes(a.id))
+/** Does this exercise work a body part the person asked to emphasise? */
+export const inFocus = (x: Exercise, p: Profile) => focusAreas(p).some((a) => a.match.test(x.muscle))
 
 /** How well a library exercise suits your goal and level (higher goes earlier). */
 function affinity(x: Exercise, p: Profile): number {
@@ -179,19 +194,35 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
     ? candidates(day, p).filter((x) => focusedMuscles.includes(x.muscle))
     : candidates(day, p)
   const { block, period } = rotationFor(date, d)
-  const mustHave = focusedMuscles ? [focusedMuscles[focusedMuscles.length - 1]] : MUST_HAVE[day] ?? []
-  const nAcc = short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3
+  // muscles the person asked to emphasise that today's session can train, so their accessories come first
+  const focusToday = [...new Set(all.filter((x) => !x.key && inFocus(x, p)).map((x) => x.muscle))].slice(0, 2)
+  const baseMust = focusedMuscles ? [focusedMuscles[focusedMuscles.length - 1]] : MUST_HAVE[day] ?? []
+  const mustHave = [...new Set([...focusToday, ...baseMust])]
+  const wantsFocus = focusAreas(p).length > 0
+  const nAcc = (short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3) + (wantsFocus && !short && focusToday.length ? 1 : 0)
   const keys = pickKeys(all, day, block, focusedMuscles)
   // accessories prefer single-joint and bodyweight work, so they add to the main lifts instead of repeating them
   const leftover = all.filter((x) => !keys.includes(x) && !x.key)
   const lighter = leftover.filter((x) => !x.lib || !x.compound)
   const accessories = pickAccessories(lighter.length > nAcc ? lighter : leftover, mustHave, period, nAcc)
+  // a focus body part that today's session doesn't train yet gets one add-on exercise (rotating by week), e.g. abs or glutes on a push day
+  if (wantsFocus && !short && !focusedMuscles && day !== 'Full Body') {
+    const chosen = [...keys, ...accessories]
+    const unmet = focusAreas(p).filter((a) => !chosen.some((x) => a.match.test(x.muscle)))
+    if (unmet.length) {
+      const area = unmet[(period + hash(day)) % unmet.length]
+      const fits = (x: Exercise) => !x.mobility && available(x, p.gear) && !avoided(x, p.avoid) && levelOk(x, p) && x.day !== 'Full Body' && area.match.test(x.muscle) && !chosen.includes(x)
+      const pool = EXERCISES.filter(fits).sort((a2, b2) => Number(!!a2.compound) - Number(!!b2.compound) || affinity(b2, p) - affinity(a2, p) || hash(a2.id) - hash(b2.id))
+      const pickOne = pool.length ? pool[(period + hash(day)) % Math.min(pool.length, 8)] : undefined
+      if (pickOne) accessories.push(pickOne)
+    }
+  }
   const strengthBias = p.style === 'strength' || p.goal === 'strength'
   const removed = d.removed?.[date] ?? []
   const build = (ex0: Exercise) => {
     const swap = d.swaps[`${date}|${ex0.id}`]
     const ex = tune(swap ? EXERCISES.find((x) => x.id === swap) ?? ex0 : ex0, p)
-    let sets = ex.sets + (strengthBias && ex.key ? 1 : 0) - (p.level === 'beginner' ? 1 : 0)
+    let sets = ex.sets + (strengthBias && ex.key ? 1 : 0) + (!ex.key && inFocus(ex, p) && p.level !== 'beginner' ? 1 : 0) - (p.level === 'beginner' ? 1 : 0)
     if (short) sets -= 1
     return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
   }
@@ -304,7 +335,8 @@ export function groupStats(id: string, rate: number, members: number, date: stri
 export interface Macros { cal: number; p: number; c: number; f: number }
 /** Daily targets for a low, medium and high carb day. Protein and fat follow your settings, carbs fill the rest. */
 export function macroPlan(p: Profile, n: Settings['nutrition'] = { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 }): Record<CarbDay, Macros> {
-  const maint = p.weight * 15
+  // rough maintenance calories per lb; people who haven't said (older accounts) keep the previous number
+  const maint = p.weight * (p.sex === 'female' ? 13.5 : p.sex === 'other' ? 14.25 : 15)
   const adj: Record<Goal, number> = { fat_loss: -0.2, muscle_gain: 0.1, maintenance: 0, strength: 0.05, conditioning: 0 }
   const base = maint * (1 + adj[p.goal]) + n.calorieAdjust
   const protein = Math.round((p.goal === 'fat_loss' ? Math.min(p.weight, p.target || p.weight) : p.weight) * n.proteinPerLb)

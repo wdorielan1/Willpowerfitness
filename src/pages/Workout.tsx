@@ -3,9 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
-import { EXERCISES, SPLIT, WARMUP } from '../data'
+import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
@@ -424,6 +424,7 @@ export default function Workout() {
             </section>
             <section className="card">
               <h3>Today’s lifts</h3>
+              <p className="small mute" style={{ margin: '0 0 8px' }}>Built for your goal: <b>{GOALS[p.goal]}</b>{(p.focus?.length ?? 0) > 0 && <> · extra work for <b>{BODY_AREAS.filter((a) => p.focus!.includes(a.id)).map((a) => a.label.toLowerCase()).join(', ')}</b></>}. <Link to="/settings" style={{ textDecoration: 'underline' }}>Change</Link></p>
               {items.map((it, i) => (
                 <button key={it.ex.id} className="minirow" onClick={() => go(i + 1)}>
                   <span className="thumbs"><Thumb id={it.ex.id} /></span>

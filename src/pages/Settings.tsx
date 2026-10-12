@@ -5,6 +5,7 @@ import { DAY_NAMES, EXERCISES, GOALS, LEVELS, REST_PRESETS } from '../data'
 import { fmtRest, macroPlan, restFor } from '../engine'
 import MatchQuestions from '../MatchQuestions'
 import ProfileSettings from '../ProfileSettings'
+import { FocusPicker, SexPicker } from '../ProfilePickers'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -109,6 +110,10 @@ export default function Settings() {
 
       <section className="card">
         <h2>Body</h2>
+        <h4>Sex</h4>
+        <SexPicker value={p.sex} onChange={(v) => setP('sex', v)} />
+        <h4>Body parts to focus on</h4>
+        <FocusPicker value={p.focus ?? []} onChange={(v) => setP('focus', v)} />
         <div className="grid2">
           <label>Current weight (lb)<input inputMode="decimal" value={wText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setWText(v); setP('weight', num(v, p.weight)) }} /></label>
           <label>Target weight (lb)<input inputMode="decimal" value={tText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setTText(v); setP('target', num(v, p.target)) }} /></label>
