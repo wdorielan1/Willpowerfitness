@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import OnlineFoods from '../OnlineFoods'
+import { FoodScan, FoodSearchOnline } from '../OnlineFoods'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Sheet } from '../components'
@@ -212,11 +212,12 @@ export default function Nutrition() {
 
       {picker !== null && <Sheet title={`Add to ${names[picker]}`} onClose={() => setPicker(null)}>
         <div className="nutrition-sheet-content">
+          <FoodScan onPick={(f) => { addFood(f, picker); setPicker(null) }} />
           <label className="nutrition-search">Search foods<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chicken, rice, yogurt…" /></label>
           {!q.trim() && <div className="nutrition-food-categories" aria-label="Food categories">{categories.map((c) => <button type="button" key={c} className={cat === c ? 'on' : ''} aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>)}</div>}
           <div className="nutrition-food-list">{results.map((f) => <button type="button" key={f.id} className="nutrition-food-choice" onClick={() => { addFood(f, picker); setPicker(null) }}><span><b>{f.name}</b><span>{f.serving} · {r0(f.cal)} kcal</span><span>{macroText(f)}</span></span><span className="nutrition-food-action">Add</span></button>)}</div>
           {results.length === 0 && <p className="nutrition-help">No food matches your search. Add your own below.</p>}
-          <OnlineFoods query={q} onPick={(f) => { addFood(f, picker); setPicker(null) }} />
+          <FoodSearchOnline query={q} onPick={(f) => { addFood(f, picker); setPicker(null) }} />
           <details className="nutrition-custom-food"><summary>Add my own food</summary><div className="nutrition-custom-fields">
             <label>Food name<input value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })} placeholder="Food name" /></label>
             <label>One serving<input value={custom.serving} onChange={(e) => setCustom({ ...custom, serving: e.target.value })} placeholder="For example, 1 bowl" /></label>
@@ -233,11 +234,12 @@ export default function Nutrition() {
             <p className="nutrition-help">Choose the foods you want to eat. Then calculate servings close to this meal’s targets.</p>
             {chosen.length > 0 && <div className="nutrition-chosen-foods" aria-label="Selected foods">{chosen.map((f) => <button type="button" key={f.id} aria-label={`Remove ${f.name} from selected foods`} onClick={() => toggle(f)}><span>{f.name}</span><span aria-hidden="true">×</span></button>)}</div>}
             <button type="button" className="primary nutrition-calculate" disabled={!chosen.length} onClick={() => setBuilt(solveMeal(chosen, target(gen)))}>Calculate portions{chosen.length > 0 ? ` · ${chosen.length} food${chosen.length === 1 ? '' : 's'}` : ''}</button>
+            <FoodScan onPick={toggle} isPicked={(f) => chosen.some((x) => x.id === f.id)} />
             <label className="nutrition-search">Find a food<input value={gq} onChange={(e) => setGq(e.target.value)} placeholder="Chicken, rice, yogurt…" /></label>
             {!gq.trim() && <div className="nutrition-food-categories" aria-label="Food categories">{categories.map((c) => <button type="button" key={c} className={cat === c ? 'on' : ''} aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>)}</div>}
             <div className="nutrition-food-list">{genResults.map((f) => { const selected = chosen.some((x) => x.id === f.id); return <button type="button" key={f.id} className={`nutrition-food-choice ${selected ? 'is-selected' : ''}`} aria-pressed={selected} onClick={() => toggle(f)}><span><b>{f.name}</b><span>{f.serving} · {r0(f.cal)} kcal</span><span>{macroText(f)}</span></span><span className="nutrition-food-action">{selected ? 'Picked' : 'Pick'}</span></button> })}</div>
             {genResults.length === 0 && <p className="nutrition-help">No matching foods. Try a different search or category.</p>}
-            <OnlineFoods query={gq} onPick={toggle} isPicked={(f) => chosen.some((x) => x.id === f.id)} />
+            <FoodSearchOnline query={gq} onPick={toggle} isPicked={(f) => chosen.some((x) => x.id === f.id)} />
           </> : <>
             <button type="button" className="ghost" onClick={() => setBuilt(null)}>Change foods</button>
             {built.length === 0 && <p className="nutrition-help">These foods could not produce a portion for the selected targets. Choose another food, or add food directly to your meal.</p>}
