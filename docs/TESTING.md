@@ -11,6 +11,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Log out and back in: data is still there
 - [ ] Open the app on a second device: same account, same data
 - [ ] No yellow "could not sync" banner after a few actions
+- [ ] After "Join free", a "Check your email" page appears (not an error line) showing the email address
+- [ ] The confirmation email arrives with the Will Power layout and subject "Confirm your email to join Will Power"
+- [ ] "Send it again" is disabled for about 45 seconds, then sends a new email
+- [ ] Tapping the email's button signs you in and starts onboarding
 
 ## 2. Onboarding
 - [ ] Every step can be completed and skipped where optional
