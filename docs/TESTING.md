@@ -112,6 +112,18 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Two people with the same email start get different handles (the second gets digits added)
 - [ ] The Friends tab toggle shows On for new accounts, and turning it off hides them from search
 
+## Profiles (public pages)
+- [ ] (Re-run supabase/schema.sql first. Add the Amplify rewrite rule from docs/SOP.md.) Open https://wilpow.com/u/<your handle> in a private window while signed out: your public profile loads
+- [ ] Settings > Public profile: turn it Off, then the signed-out link shows "Profile not found"; turn it On and it loads again
+- [ ] Bio saves (160 characters) and shows on the profile
+- [ ] Profile shows streak, workouts in 30 days, total, the 12-week calendar and earned badges (locked ones are dimmed only on your own profile)
+- [ ] Make a crew post: it appears in the crew feed AND on your profile; delete it and it disappears from both
+- [ ] Posts made before turning public on stay crew-only (not on the signed-out page)
+- [ ] A post with a photo shows only text and "Shared a photo with the crew" on the public page (photo is not exposed)
+- [ ] Another member's profile in the app (Friends > tap a person) shows the same layout with Follow and Share profile
+- [ ] The page title and link preview show the person's name
+- [ ] The rest of the app still works after the base path change (icons, exercise photos, map, install to home screen)
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
