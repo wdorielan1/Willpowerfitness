@@ -656,6 +656,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .nutrition-food-list { display: flex; flex-direction: column; gap: 8px; max-height: 34dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
 .nutrition-food-choice { display: flex; flex: none; gap: 14px; align-items: center; justify-content: space-between; width: 100%; min-height: 86px; border: 1px solid var(--line); border-radius: 11px; background: var(--card2); padding: 13px; text-align: left; font-weight: 400; }
 .nutrition-food-choice > span:first-child { display: grid; gap: 5px; min-width: 0; }
+.nutrition-online { display: grid; gap: 10px; }
 .nutrition-food-choice b { font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .nutrition-food-choice > span:first-child > span { color: var(--mute); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .nutrition-food-choice.is-selected { border-color: var(--accent); }

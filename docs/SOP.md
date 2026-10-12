@@ -81,6 +81,7 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 
 ## 11. Crew map
 - Map: Leaflet + OpenStreetMap tiles (`src/CrewMap.tsx`, loaded only when the Map view opens). Place search: OpenStreetMap Nominatim (`src/geo.ts`).
+- Online food search (Fuel): Open Food Facts needs no key. For whole-food search add `VITE_USDA_API_KEY` in Amplify (free key at fdc.nal.usda.gov/api-key-signup), then redeploy. The key is visible in the browser, which is normal for this free public-data key. Without it, only Open Food Facts results show.
 - The free OpenStreetMap services are for light use. When traffic grows, set `VITE_MAP_TILES` (tile URL template) and `VITE_GEOCODE_URL` (search URL) in Amplify to a paid or hosted provider, then redeploy.
 - Crews store `place`, `lat`, `lng` (rounded to 2 decimals, about 1 mile). Never store a home address.
 - Supabase tables: `crew_interest` (the "I'd join a crew here" list, readable only as a count through `interest_near`) and `crew_reports` (read these in the Supabase Table Editor).
