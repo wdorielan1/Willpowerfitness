@@ -38,6 +38,12 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Save a meal; it appears in the plan
 - [ ] Daily totals and the Fuel goal update
 - [ ] AI export gives a usable text/file
+- [ ] Add food: type a food, tap "Search online": results appear with calories and macros
+- [ ] Add an online result: it is logged with the right numbers
+- [ ] Build meal: online results can be selected and portioned
+- [ ] Packaged food (e.g. a brand yogurt) shows a sensible serving size
+- [ ] Offline or blocked network: a clear message, nothing breaks
+- [ ] Whole-food results appear only after VITE_USDA_API_KEY is set in Amplify
 
 ## 5. Progress and photos
 - [ ] Weight, steps and cardio can be logged
