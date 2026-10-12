@@ -91,3 +91,14 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 - Two modes: cloud (Supabase keys present) and local (no keys, data stays on the device).
 - Sign in with Apple is intentionally not included (needs a paid Apple Developer account).
 - Crews with no activity for 35 days are archived (data kept). Users can join at most 3 crews.
+
+
+## Public profile pages (`/u/<handle>`)
+- The app is served from the site root now (`base: '/'` in `vite.config.ts`) so `/u/<handle>` works. Profile pages live at real paths; the rest of the app still uses `#/` routes.
+- **One-time Amplify step (needed or `/u/<handle>` shows a 404):** Amplify console > Hosting > **Rewrites and redirects** > Add rule:
+  - Source address: `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|mp4|xml)$)([^.]+$)/>`
+  - Target address: `/index.html`
+  - Type: `200 (Rewrite)`
+- After running the latest `supabase/schema.sql`: profiles that are public are readable without signing in (policy "read public profiles"); public posts need `crew_posts.is_public`.
+- Existing members start private (`is_public` false). New accounts start public. Members change it in Settings > Public profile.
+- Search engines: page titles and descriptions are set in the browser; add `robots.txt` and a sitemap later (see TODO).

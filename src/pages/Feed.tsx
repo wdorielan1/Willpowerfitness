@@ -43,7 +43,7 @@ export function usePostActions(crewId: string) {
       }
       p.progress?.('Posting…')
       if (userId) {
-        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta: p.meta })
+        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta: p.meta, isPublic: !!data.profilePublic })
         if (error) throw new Error(error)
         feed?.refresh()
       } else {

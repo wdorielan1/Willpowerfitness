@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AppData } from './types'
-import { supabase, fetchCrews, ensureMemberCloud, ensureProfileCard, setMyAvatar, syncMyAvatar } from './cloud'
+import { supabase, fetchCrews, ensureMemberCloud, ensureProfileCard, publishProfile, setMyAvatar, syncMyAvatar } from './cloud'
+import { computeStats } from './profileStats'
 import { DEFAULT_SETTINGS } from './data'
 import { withRequestTimeout, withTimeout } from './photos'
 
@@ -176,7 +177,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // every account gets a profile card (handle + Google photo) so friends can follow and see them
         const mineUrl = base.avatar || (/^https:\/\//.test(photo) ? photo : null)
         setMyAvatar(u.id, mineUrl)
-        void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null).then(() => (mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined)).catch(() => {})
+        void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null).then((r) => {
+          if (r && (dataRef.current.handle === undefined || dataRef.current.profilePublic === undefined)) {
+            update((d) => ({ ...d, handle: d.handle ?? r.handle, findByHandle: d.findByHandle ?? r.discoverable, profilePublic: d.profilePublic ?? r.isPublic }))
+          }
+          return mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined
+        }).catch(() => {})
       } catch (error) {
         if (!current()) return
         const message = error instanceof Error ? error.message : String(error)
@@ -296,6 +302,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     write(SESSION, null); setEmail(null); setData(blankData(''))
   }
+  // keep the public profile card (bio, on/off, stats) in step with your data
+  const lastPublished = useRef('')
+  useEffect(() => { lastPublished.current = '' }, [userId])
+  useEffect(() => {
+    if (!supabase || !userId || !loaded.current || !data.profile) return
+    const t = setTimeout(() => {
+      const payload = { bio: data.bio ?? null, stats: computeStats(data), ...(data.profilePublic !== undefined ? { is_public: data.profilePublic } : {}) }
+      const key = JSON.stringify(payload)
+      if (key === lastPublished.current) return
+      lastPublished.current = key
+      void publishProfile(userId, payload)
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [data, userId])
+
   const update = useCallback((fn: (d: AppData) => AppData) => {
     const next = { ...fn(dataRef.current), ts: Date.now() }
     dataRef.current = next

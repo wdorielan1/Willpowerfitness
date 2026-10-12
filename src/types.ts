@@ -57,7 +57,7 @@ export interface CrewPost {
   id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
   imagePaths: string[]; imageIds?: string[]
   imagePath?: string; imageId?: string // legacy single-photo posts
-  meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean
+  meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean; isPublic?: boolean
 }
 export interface StepLog { date: string; steps: number }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string; cat?: string; place?: string; lat?: number; lng?: number; created?: number }
@@ -108,6 +108,9 @@ export interface AppData {
   steps: StepLog[]
   challengesJoined: string[] // challenge cohort ids
   handle?: string
+  /** Public profile page (anyone with the link). Off for existing members until they choose. */
+  profilePublic?: boolean
+  bio?: string
   /** Profile photo they uploaded (small square JPEG as a data URL). Wins over the Google photo. */
   avatar?: string
   findByHandle?: boolean

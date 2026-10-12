@@ -133,6 +133,8 @@ create table if not exists public.crew_posts (
   created_at timestamptz not null default now()
 );
 alter table public.crew_posts add column if not exists image_paths text[] not null default '{}';
+-- posts made while the profile is public also show on the public profile (photos stay crew-only)
+alter table public.crew_posts add column if not exists is_public boolean not null default false;
 create index if not exists crew_posts_crew_idx on public.crew_posts (crew_id, created_at desc);
 
 create table if not exists public.crew_post_likes (
@@ -147,6 +149,9 @@ alter table public.crew_post_likes enable row level security;
 drop policy if exists "members read posts" on public.crew_posts;
 create policy "members read posts" on public.crew_posts for select to authenticated
   using (exists (select 1 from public.crew_members m where m.crew_id = crew_posts.crew_id and m.user_id = auth.uid()));
+drop policy if exists "read public posts" on public.crew_posts;
+create policy "read public posts" on public.crew_posts for select to anon, authenticated
+  using (is_public and exists (select 1 from public.public_profiles pp where pp.user_id = crew_posts.user_id and pp.is_public));
 drop policy if exists "members post" on public.crew_posts;
 create policy "members post" on public.crew_posts for insert to authenticated
   with check (auth.uid() = user_id and exists (select 1 from public.crew_members m where m.crew_id = crew_posts.crew_id and m.user_id = auth.uid()));
@@ -229,6 +234,10 @@ create table if not exists public.public_profiles (
   updated_at timestamptz not null default now()
 );
 alter table public.public_profiles add column if not exists avatar_url text;   -- Google profile photo, when they signed in with Google
+alter table public.public_profiles add column if not exists bio text check (bio is null or char_length(bio) <= 160);
+-- existing members stay private until they choose; new members get a public profile (they can switch it off in Settings)
+alter table public.public_profiles add column if not exists is_public boolean not null default false;
+alter table public.public_profiles add column if not exists stats jsonb not null default '{}'::jsonb;   -- streak, workouts, calendar days, badges, crews
 alter table public.public_profiles enable row level security;
 drop policy if exists "read discoverable" on public.public_profiles;
 create policy "read discoverable" on public.public_profiles for select to authenticated
@@ -237,6 +246,8 @@ create policy "read discoverable" on public.public_profiles for select to authen
     or exists (select 1 from public.follows f where f.user_id = auth.uid() and f.friend_id = public_profiles.user_id)  -- people I follow
     or exists (select 1 from public.follows f where f.friend_id = auth.uid() and f.user_id = public_profiles.user_id)  -- people who follow me
   );
+drop policy if exists "read public profiles" on public.public_profiles;
+create policy "read public profiles" on public.public_profiles for select to anon, authenticated using (is_public);
 drop policy if exists "manage own profile card" on public.public_profiles;
 create policy "manage own profile card" on public.public_profiles for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);

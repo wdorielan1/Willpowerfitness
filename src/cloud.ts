@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useCallback } from 'react'
 import type { CrewPost, CustomChallenge, PostKind } from './types'
 import { todayISO } from './engine'
+import type { ProfileStats } from './profileStats'
 import { CREW_BUCKET, postPhotos, withRequestTimeout, withTimeout } from './photos'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -208,8 +209,11 @@ export function useCrewCounts() {
 }
 
 // ---------------- crew feed ----------------
-export async function createPostCloud(p: { crewId: string; userId: string; name: string; kind: PostKind; text: string; imagePaths?: string[]; meta?: Record<string, unknown> }) {
-  const { error } = await withRequestTimeout((signal) => supabase!.from('crew_posts').insert({ crew_id: p.crewId, user_id: p.userId, name: p.name, kind: p.kind, text: p.text, image_path: p.imagePaths?.[0] ?? null, image_paths: p.imagePaths ?? [], meta: p.meta ?? {} }).abortSignal(signal), 30000, 'Saving post')
+export async function createPostCloud(p: { crewId: string; userId: string; name: string; kind: PostKind; text: string; imagePaths?: string[]; meta?: Record<string, unknown>; isPublic?: boolean }) {
+  const row = { crew_id: p.crewId, user_id: p.userId, name: p.name, kind: p.kind, text: p.text, image_path: p.imagePaths?.[0] ?? null, image_paths: p.imagePaths ?? [], meta: p.meta ?? {} }
+  let { error } = await withRequestTimeout((signal) => supabase!.from('crew_posts').insert((p.isPublic ? { ...row, is_public: true } : row) as never).abortSignal(signal), 30000, 'Saving post')
+  // an older database without the public flag still saves the post (crew-only)
+  if (error && p.isPublic) ({ error } = await withRequestTimeout((signal) => supabase!.from('crew_posts').insert(row as never).abortSignal(signal), 30000, 'Saving post'))
   return error?.message ?? null
 }
 export async function deletePostCloud(id: string) {
@@ -311,10 +315,10 @@ export function useLeaderboard(cohort: string | null, userId: string | null) {
 
 // ---------------- friends ----------------
 export interface PublicProfile { userId: string; handle: string; name: string; avatar?: string | null }
-type Card = { user_id: string; handle: string; name: string; avatar_url?: string | null }
-/** Profile cards, with the photo when the avatar column exists (older databases fall back without it). */
+type Card = { user_id: string; handle: string; name: string; avatar_url?: string | null; bio?: string | null; is_public?: boolean | null; stats?: ProfileStats | null }
+/** Profile cards, with the photo, bio and stats when those columns exist (older databases fall back without them). */
 async function cardQuery(apply: (q: any) => PromiseLike<{ data: unknown; error: unknown }>): Promise<Card[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
-  for (const cols of ['user_id,handle,name,avatar_url', 'user_id,handle,name']) {
+  for (const cols of ['user_id,handle,name,avatar_url,bio,is_public,stats', 'user_id,handle,name,avatar_url', 'user_id,handle,name']) {
     const { data, error } = await apply(supabase!.from('public_profiles').select(cols))
     if (!error) return (data ?? []) as Card[]
   }
@@ -330,7 +334,7 @@ export async function saveMyDiscovery(userId: string, p: { handle: string; name:
   const { error } = await supabase!.from('public_profiles').upsert({ user_id: userId, handle: p.handle.toLowerCase(), name: p.name, discoverable_handle: p.findByHandle, discoverable_email: p.findByEmail, email_hash, updated_at: new Date().toISOString() })
   return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
 }
-export interface CardResult { handle: string; created: boolean; discoverable: boolean }
+export interface CardResult { handle: string; created: boolean; discoverable: boolean; isPublic: boolean }
 /** Handle taken from the start of their email (letters, numbers, underscore), padded to at least 3 characters. */
 const handleBase = (email: string | null | undefined, name: string) => {
   const fromEmail = (email ?? '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16)
@@ -346,21 +350,53 @@ export async function ensureProfileCard(userId: string, name: string, avatar?: s
     // keep the photo current; ignore failures (older databases have no avatar column)
     if (avatar && have.avatar_url !== avatar) void Promise.resolve(supabase.from('public_profiles').update({ avatar_url: avatar }).eq('user_id', userId)).catch(() => {})
     const { data: flags } = await supabase.from('public_profiles').select('discoverable_handle').eq('user_id', userId).maybeSingle()
-    return { handle: have.handle, created: false, discoverable: !!flags?.discoverable_handle }
+    return { handle: have.handle, created: false, discoverable: !!flags?.discoverable_handle, isPublic: !!have.is_public }
   }
   const base = handleBase(email, name)
   for (let i = 0; i < 5; i++) {
     const handle = i === 0 ? base : `${base}${Math.floor(10 + Math.random() * 9000)}`.slice(0, 20)
     const row = { user_id: userId, handle, name: name || 'Member', discoverable_handle: true, discoverable_email: false }
-    let { error } = await supabase.from('public_profiles').insert((avatar ? { ...row, avatar_url: avatar } : row) as never)
-    if (error && avatar && error.code !== '23505') ({ error } = await supabase.from('public_profiles').insert(row))
-    if (!error) return { handle, created: true, discoverable: true }
+    const rich = { ...row, is_public: true, ...(avatar ? { avatar_url: avatar } : {}) }
+    let { error } = await supabase.from('public_profiles').insert(rich as never)
+    if (error && error.code !== '23505') ({ error } = await supabase.from('public_profiles').insert(row))
+    if (!error) return { handle, created: true, discoverable: true, isPublic: true }
     if (error.code !== '23505') return null
     const again = (await cardQuery((c) => c.eq('user_id', userId)))[0]
-    if (again?.handle) return { handle: again.handle, created: false, discoverable: false }
+    if (again?.handle) return { handle: again.handle, created: false, discoverable: false, isPublic: !!again.is_public }
   }
   return null
 }
+/** Publish your public-profile details (bio, on/off, stats). Ignored quietly on older databases. */
+export async function publishProfile(userId: string, patch: { bio?: string | null; is_public?: boolean; stats?: ProfileStats }) {
+  if (!supabase) return
+  await Promise.resolve(supabase.from('public_profiles').update(patch as never).eq('user_id', userId)).catch(() => {})
+}
+
+export interface PublicPost { id: string; crewId: string; kind: PostKind; text: string; ts: number; hasPhoto: boolean; isPublic: boolean }
+/** A person's posts: everything for you and crew-mates, public ones for everyone else. Row-level security decides what comes back. */
+export async function fetchUserPosts(userId: string, limit = 30): Promise<PublicPost[]> {
+  if (!supabase) return []
+  for (const cols of ['id,crew_id,kind,text,image_path,image_paths,created_at,is_public', 'id,crew_id,kind,text,image_path,image_paths,created_at']) {
+    const { data, error } = await supabase.from('crew_posts').select(cols).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)
+    if (!error) {
+      return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+        id: String(r.id), crewId: r.crew_id as string, kind: r.kind as PostKind, text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string),
+        hasPhoto: !!(r.image_path || (r.image_paths as string[] | undefined)?.length), isPublic: !!r.is_public,
+      }))
+    }
+  }
+  return []
+}
+
+/** A profile by handle. Works signed out when that profile is public. */
+export async function fetchProfileByHandle(handle: string): Promise<Person | null> {
+  if (!supabase) return null
+  const rows = await cardQuery((c) => c.eq('handle', handle.toLowerCase()).limit(1))
+  const r = rows[0]
+  if (!r) return null
+  return { userId: r.user_id, name: r.name, handle: r.handle, avatar: r.avatar_url ?? null, bio: r.bio ?? null, isPublic: !!r.is_public, stats: r.stats ?? null, crews: r.stats?.crews ?? [], streak: r.stats?.streak ?? 0, iFollow: false, followsMe: false }
+}
+
 export async function findByHandle(q: string): Promise<PublicProfile[]> {
   const term = q.toLowerCase().replace(/[^a-z0-9_ ]/g, '').trim()
   if (term.length < 2) return []
@@ -375,13 +411,13 @@ export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
 export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
 export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
 /** A person you can follow: from a crew you share, a search, or the people who already follow you. */
-export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
+export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; bio: string | null; isPublic: boolean; stats: ProfileStats | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
 
 const asPerson = (id: string, profs: Card[], mem: { user_id: string; crew_id: string; name: string; streak: number }[], iFollow: Set<string>, followsMe: Set<string>): Person => {
   const prof = profs.find((r) => r.user_id === id)
   const mine = mem.filter((m) => m.user_id === id)
   return {
-    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null, avatar: prof?.avatar_url ?? null,
+    userId: id, name: prof?.name ?? mine[0]?.name ?? 'Member', handle: prof?.handle ?? null, avatar: prof?.avatar_url ?? null, bio: prof?.bio ?? null, isPublic: !!prof?.is_public, stats: prof?.stats ?? null,
     crews: mine.map((m) => m.crew_id), streak: mine.reduce((a, m) => Math.max(a, m.streak ?? 0), 0), iFollow: iFollow.has(id), followsMe: followsMe.has(id),
   }
 }

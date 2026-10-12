@@ -4,6 +4,7 @@ import { useApp } from '../store'
 import { DAY_NAMES, EXERCISES, GOALS, LEVELS, REST_PRESETS } from '../data'
 import { fmtRest, macroPlan, restFor } from '../engine'
 import MatchQuestions from '../MatchQuestions'
+import ProfileSettings from '../ProfileSettings'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -40,6 +41,8 @@ export default function Settings() {
   return (
     <>
       <div><h1>Settings</h1><p className="mute">Everything here is adjustable. Changes save instantly.</p></div>
+
+      <ProfileSettings />
 
       <section className="card">
         <h2>⏱ Rest timer</h2>
