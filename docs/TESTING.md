@@ -47,6 +47,8 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Changing sex or focus areas in Settings changes the next workouts and (for sex) the Fuel calorie targets
 - [ ] Existing accounts see a "Tune your plan" card on Today until they answer; their calories don't change until they do
 
+- [ ] Tapping a day in "This week" opens a sheet with that day's planned exercises (sets x reps); rest days say Recovery; a finished day shows what you logged
+- [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
 - [ ] Save a meal; it appears in the plan
