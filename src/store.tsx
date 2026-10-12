@@ -176,7 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // every account gets a profile card (handle + Google photo) so friends can follow and see them
         const mineUrl = base.avatar || (/^https:\/\//.test(photo) ? photo : null)
         setMyAvatar(u.id, mineUrl)
-        void ensureProfileCard(u.id, base.name, mineUrl).then(() => (mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined)).catch(() => {})
+        void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null).then(() => (mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined)).catch(() => {})
       } catch (error) {
         if (!current()) return
         const message = error instanceof Error ? error.message : String(error)

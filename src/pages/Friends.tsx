@@ -29,7 +29,7 @@ export default function Friends() {
   // people who skipped the handle step still get a card, so friends can follow them
   useEffect(() => {
     if (!userId || !cloudEnabled || data.handle) return
-    void ensureProfileCard(userId, data.name || 'Member').then((h) => { if (h) { setHandle(h); update((d) => (d.handle ? d : { ...d, handle: h })) } }).catch(() => {})
+    void ensureProfileCard(userId, data.name || 'Member', null, email).then((r) => { if (r) { setHandle(r.handle); update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable })) } }).catch(() => {})
   }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
@@ -143,7 +143,7 @@ export default function Friends() {
 
       <section className="card">
         <h2>Your handle</h2>
-        <p className="small mute">{data.handle ? 'A short name friends can search for. Nobody can find you by search unless you turn it on.' : 'Pick a handle and tap Save so friends can follow you. We suggested one; change it if you like.'}</p>
+        <p className="small mute">{data.findByHandle ? 'Friends can find you by name or handle. Your handle starts as the first part of your email; change it below. Switch the search toggle off if you’d rather not be found.' : 'Friends can only follow you through your invite link. Turn on the toggle below to be found by name or handle.'}</p>
         <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void saveCard({ handle }) }}><label>Your handle<input value={handle} onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="e.g. alex_lifts" maxLength={20} autoComplete="off" /></label><button className="primary" type="submit">Save</button></form>
         <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByHandle} onClick={() => void saveCard({ findByHandle: !data.findByHandle })}><span>Let people find me by name or handle</span><span className={`tag ${data.findByHandle ? 'ok' : ''}`}>{data.findByHandle ? 'On' : 'Off'}</span></button>
         <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByEmail} onClick={() => void saveCard({ findByEmail: !data.findByEmail })}><span>Let friends find me by email<br /><span className="small mute">Uses a hash of your email for matching.</span></span><span className={`tag ${data.findByEmail ? 'ok' : ''}`}>{data.findByEmail ? 'On' : 'Off'}</span></button>

@@ -330,25 +330,34 @@ export async function saveMyDiscovery(userId: string, p: { handle: string; name:
   const { error } = await supabase!.from('public_profiles').upsert({ user_id: userId, handle: p.handle.toLowerCase(), name: p.name, discoverable_handle: p.findByHandle, discoverable_email: p.findByEmail, email_hash, updated_at: new Date().toISOString() })
   return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
 }
-/** Everyone gets a profile card with a handle so friends can follow them and open their profile. Never makes them searchable: that stays an opt-in. */
-export async function ensureProfileCard(userId: string, name: string, avatar?: string | null): Promise<string | null> {
+export interface CardResult { handle: string; created: boolean; discoverable: boolean }
+/** Handle taken from the start of their email (letters, numbers, underscore), padded to at least 3 characters. */
+const handleBase = (email: string | null | undefined, name: string) => {
+  const fromEmail = (email ?? '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16)
+  const fromName = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14)
+  const base = fromEmail.length >= 3 ? fromEmail : fromName.length >= 3 ? fromName : 'lifter'
+  return base
+}
+/** Everyone gets a profile card so friends can follow them and open their profile. New cards use a handle from their email and are findable by name or handle (they can switch that off on the Friends tab). */
+export async function ensureProfileCard(userId: string, name: string, avatar?: string | null, email?: string | null): Promise<CardResult | null> {
   if (!supabase) return null
   const have = (await cardQuery((c) => c.eq('user_id', userId)))[0]
   if (have?.handle) {
-    // keep the Google photo current; ignore failures (older databases have no avatar column)
+    // keep the photo current; ignore failures (older databases have no avatar column)
     if (avatar && have.avatar_url !== avatar) void Promise.resolve(supabase.from('public_profiles').update({ avatar_url: avatar }).eq('user_id', userId)).catch(() => {})
-    return have.handle
+    const { data: flags } = await supabase.from('public_profiles').select('discoverable_handle').eq('user_id', userId).maybeSingle()
+    return { handle: have.handle, created: false, discoverable: !!flags?.discoverable_handle }
   }
-  const base = (name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'
-  for (let i = 0; i < 4; i++) {
-    const handle = `${base}${Math.floor(100 + Math.random() * 9000)}`
-    const row = { user_id: userId, handle, name: name || 'Member', discoverable_handle: false, discoverable_email: false }
+  const base = handleBase(email, name)
+  for (let i = 0; i < 5; i++) {
+    const handle = i === 0 ? base : `${base}${Math.floor(10 + Math.random() * 9000)}`.slice(0, 20)
+    const row = { user_id: userId, handle, name: name || 'Member', discoverable_handle: true, discoverable_email: false }
     let { error } = await supabase.from('public_profiles').insert((avatar ? { ...row, avatar_url: avatar } : row) as never)
     if (error && avatar && error.code !== '23505') ({ error } = await supabase.from('public_profiles').insert(row))
-    if (!error) return handle
+    if (!error) return { handle, created: true, discoverable: true }
     if (error.code !== '23505') return null
     const again = (await cardQuery((c) => c.eq('user_id', userId)))[0]
-    if (again?.handle) return again.handle
+    if (again?.handle) return { handle: again.handle, created: false, discoverable: false }
   }
   return null
 }
