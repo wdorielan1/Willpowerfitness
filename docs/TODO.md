@@ -37,6 +37,7 @@ Parked ideas and open items. Move things up as priorities change. Keep secrets o
 - [ ] **Free challenge rules** (`docs/FREE-CHALLENGES.md`): draft v1 is only a starting point. Each challenge will get its own rules, so decide what a "rule set" looks like per challenge before building: day goal (16 of 30?), points and daily cap, rest day, divisions, round start dates. Then build as free challenges only.
 - [ ] **Lock divisions (later, only if sandbagging becomes a problem)**: advanced and intermediate members can't join Beginner challenges. For now divisions stay open so we don't turn anyone away. When it's time: place by logged history and imported history, allow moving up but never down, lock the choice during a round, promote repeat winners, and review top finishers before any payout.
 - [ ] **Rest timer sound on silent mode**: the sound only plays when the phone isn't on silent. Discuss options (vibration, a notification, a native app later). iPhone web apps generally can't play audio over the silent switch.
+- [ ] **Year-end recap (like a "wrapped")**: a shareable recap at the end of the year built from your own feed and activity: workouts, streaks, top lifts and PRs, challenges, crews, posts and highlights. Decide what it includes and what is private before building.
 
 ## Notes
 - MyFitnessPal has no self-serve API (partner program only). Route: Apple Health / Health Connect, or CSV import.
