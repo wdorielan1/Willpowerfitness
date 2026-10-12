@@ -48,6 +48,14 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Existing accounts see a "Tune your plan" card on Today until they answer; their calories don't change until they do
 
 - [ ] Tapping a day in "This week" opens a sheet with that day's planned exercises (sets x reps); rest days say Recovery; a finished day shows what you logged
+- [ ] Finishing a new workout opens a "Workout complete" sheet (minutes, lb lifted, sets); re-saving a finished workout does not
+- [ ] Beating your earlier best on a lift shows it under New personal records with a % gain; a first-ever log is not a PR
+- [ ] Volume vs your last session of the same type shows when you have one
+- [ ] Share a picture opens the phone share sheet (Instagram works from there); on desktop it downloads the image
+- [ ] The card shows time, stats, PRs and streak; adding a place (optional) puts it on the card; nothing uses GPS
+- [ ] The crew post for the workout mentions your top PR
+- [ ] Settings shows Saving… then ✓ Saved after a change
+- [ ] The top bar fills green as sets are logged
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
