@@ -27,7 +27,12 @@ export default function FriendProfile() {
     setMsg('Joined!')
   }
   const toggle = async () => { if (!userId || !p) return; if (p.iFollow) await unfollowCloud(userId, p.userId); else await followCloud(userId, p.userId); load() }
-  const share = async () => { if (p?.handle) { try { await navigator.clipboard.writeText(profileLink(p.handle)); setMsg('Profile link copied.') } catch { setMsg(profileLink(p.handle)) } } }
+  const share = async () => {
+    if (!p?.handle) return
+    const url = profileLink(p.handle)
+    try { if (navigator.share) { await navigator.share({ title: `${p.name} on Will Power`, url }); return } } catch { return /* cancelled */ }
+    try { await navigator.clipboard.writeText(url); setMsg('Profile link copied.') } catch { setMsg(url) }
+  }
   const stats = p ? (p.stats ?? { streak: p.streak, crews: p.crews }) : null
 
   return (

@@ -32,8 +32,11 @@ export default function Profile() {
     try { setAvatar(await avatarFromFile(f)); setMsg('Photo updated.') } catch (e) { setMsg(e instanceof Error ? e.message : 'Could not use that photo.') }
   }
   const share = async () => {
-    if (!data.handle) return
-    try { await navigator.clipboard.writeText(profileLink(data.handle)); setMsg('Profile link copied.') } catch { setMsg(profileLink(data.handle)) }
+    if (!data.handle) { setMsg('Set a handle on the Friends tab first.'); return }
+    if (!data.profilePublic) { setMsg('Turn on Public profile in Settings first, or the link will show “Profile not found”.'); return }
+    const url = profileLink(data.handle)
+    try { if (navigator.share) { await navigator.share({ title: `${data.name} on Will Power`, text: 'Train with me on Will Power.', url }); return } } catch { return /* cancelled */ }
+    try { await navigator.clipboard.writeText(url); setMsg('Profile link copied.') } catch { setMsg(url) }
   }
   const rows: [string, string][] = [
     ['Goal', GOALS[p.goal]], ['Experience', LEVELS[p.level]], ['Days', p.days.map((d) => DAY_NAMES[d]).join(', ')],
@@ -52,11 +55,12 @@ export default function Profile() {
         actions={<>
           <button className="ghost small-btn" onClick={() => file.current?.click()}>{avatarUrl ? 'Change photo' : 'Add photo'}</button>
           {data.avatar && <button className="ghost small-btn" onClick={() => { setAvatar(null); setMsg(googlePhoto ? 'Back to your Google photo.' : 'Photo removed.') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
-          {data.profilePublic && data.handle && <button className="ghost small-btn" onClick={() => void share()}>Share profile</button>}
+          <button className="ghost small-btn" onClick={() => void share()}>Share profile</button>
           <Link to="/settings" className="ghost small-btn" style={{ textDecoration: 'none' }}>Edit bio and privacy</Link>
+          {msg && <span className="small mute" role="status" style={{ flexBasis: '100%' }}>{msg}</span>}
         </>}
       />
-      <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it.' : 'Your profile is private.'} {msg}</p>
+      <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it.' : 'Your profile is private.'}</p>
 
       <section className="card">
         <h3>Your details</h3>
