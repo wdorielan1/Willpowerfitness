@@ -872,3 +872,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 /* while the rest timer is showing, leave room under the exercise so the RPE buttons can scroll clear of it */
 body.rest-timer-on .shell .workout-session .ex { padding-bottom: 190px; }
 .workout-rpe .chip { min-height: 44px; min-width: 48px; }
+.workout-ask { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--mute); }
+.workout-ask b { color: var(--text); font-weight: 600; }

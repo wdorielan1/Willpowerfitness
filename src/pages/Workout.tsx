@@ -470,12 +470,13 @@ export default function Workout() {
             </div>
 
             <div className="workout-set-table">
-              <div className="workout-set-head"><span>Set</span><span>Weight / lb</span><span>Reps</span><span /></div>
+              <p className="workout-ask"><b>Your goal:</b> {st.rows.length} sets of {ex.ex.reps[0]}–{ex.ex.reps[1]} reps{st.rec.weight ? <> at about <b>{st.rec.weight} lb</b></> : null}. Stop each set 1–2 reps before you can’t do another.</p>
+              <div className="workout-set-head"><span>Set</span><span>Weight / lb</span><span>Reps ({ex.ex.reps[0]}–{ex.ex.reps[1]})</span><span /></div>
               {st.rows.map((r, i) => (
                 <div className={`workout-set-row ${i === nextSet ? 'current' : ''} ${st.completed[i] ? 'completed' : ''}`} key={i}>
                   <span className="n">{i + 1}</span>
                   <input id={`set-${ex.ex.id}-${i}-weight`} type="number" min="0" step="any" inputMode="decimal" aria-label={`Set ${i + 1} weight`} value={r.weight} onChange={(e) => edit(ex.ex.id, st.base, i, 'weight', e.target.value)} placeholder="—" />
-                  <input id={`set-${ex.ex.id}-${i}-reps`} type="number" min="1" inputMode="numeric" aria-label={`Set ${i + 1} reps`} value={r.reps} onChange={(e) => edit(ex.ex.id, st.base, i, 'reps', e.target.value)} placeholder="—" />
+                  <input id={`set-${ex.ex.id}-${i}-reps`} type="number" min="1" inputMode="numeric" aria-label={`Set ${i + 1} reps`} value={r.reps} onChange={(e) => edit(ex.ex.id, st.base, i, 'reps', e.target.value)} placeholder={`${ex.ex.reps[0]}–${ex.ex.reps[1]}`} />
                   <button className={`set-check ${st.completed[i] ? 'done' : ''}`} aria-label={st.completed[i] ? `Set ${i + 1} logged` : `Log set ${i + 1}`} aria-pressed={st.completed[i]} onClick={() => logSet(ex.ex.id, st.base, i, restFor(ex.ex, data.settings.rest), ex.ex.name)}><Icon name="check" /></button>
                 </div>
               ))}
