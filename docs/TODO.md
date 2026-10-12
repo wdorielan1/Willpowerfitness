@@ -44,6 +44,8 @@ Parked ideas and open items. Move things up as priorities change. Keep secrets o
 - [~] **Profile redesign** (phase 1 built: header, bio, stats, 12-week calendar, badges, crews, posts, public page at /u/handle, Settings toggle). Still to do: Cheer button for visitors, per-post visibility choice, public photos, sitemap and robots.txt for search, server-side meta tags for sharing previews, more badges (PRs, challenges).
 - [ ] **Show "Saved" in Settings**: Settings changes save automatically, but nothing says so. Add a small "Saved" confirmation (and an error state if it can't sync) so people know their change took.
 - [ ] **After confirming email**: show a short "Email confirmed, you're in" screen when the confirmation link opens the app (the sign-up now shows a Check your email page first).
+- [ ] **Password length report**: a friend said passwords can only be 9 characters. The app code has no maximum (only a 6-character minimum), so check where it comes from: try signing up with a 12+ character password and note the exact error text. Likely causes are a Supabase Auth password rule (Authentication > Sign In / Providers > Password requirements), a phone password manager, or a typo. Also show the password rules on the sign-up form, and add a show/hide password button.
+- [ ] **Sign-up alerts not arriving**: set up and test the new-sign-up notification (SQL trigger that posts to an ntfy topic, see the earlier setup). Check: the SQL ran without error, the ntfy app is subscribed to the exact same topic name, and `pg_net` is enabled. Consider moving it to the email service later (see Email service item).
 
 ## Notes
 - MyFitnessPal has no self-serve API (partner program only). Route: Apple Health / Health Connect, or CSV import.
