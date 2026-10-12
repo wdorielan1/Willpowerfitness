@@ -5,6 +5,8 @@ import { computeStats } from './profileStats'
 import { DEFAULT_SETTINGS } from './data'
 import { withRequestTimeout, withTimeout } from './photos'
 
+/** signUp returns this (instead of an error) when the person must confirm their email first */
+export const CONFIRM_EMAIL = 'confirm-email'
 const SESSION = 'wpf.session'
 const ACCOUNTS = 'wpf.accounts'
 const dataKey = (email: string) => `wpf.data.${email}`
@@ -262,7 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (password.length < 6) return 'Password must be at least 6 characters.'
       const { data: r, error } = await supabase.auth.signUp({ email: key, password, options: { data: { full_name: name } } })
       if (error) return error.message
-      if (!r.session) return 'Check your email to confirm your account, then log in.'
+      if (!r.session) return CONFIRM_EMAIL
       return null
     }
     if (!/^\S+@\S+\.\S+$/.test(key)) return 'Enter a valid email.'

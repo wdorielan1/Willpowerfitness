@@ -6,6 +6,7 @@ import { Icon, type IconName } from './icons'
 import { Sheet } from './components'
 import Auth from './pages/Auth'
 import Onboarding from './pages/Onboarding'
+import CheckEmail from './pages/CheckEmail'
 import Dashboard from './pages/Dashboard'
 import Communities from './pages/Communities'
 import Workout from './pages/Workout'
@@ -66,6 +67,7 @@ export default function App() {
       <ScrollTop />
       <Routes>
         <Route path="/join" element={<Auth />} />
+        <Route path="/check-email" element={<CheckEmail />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<Landing />} />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../App'
-import { useApp } from '../store'
+import { CONFIRM_EMAIL, useApp } from '../store'
 import { TAGLINE } from '../data'
 import { cloudEnabled } from '../cloud'
 
@@ -15,6 +15,7 @@ function decodeJwt(token: string): { email: string; name?: string } {
 export default function Auth() {
   const { signUp, logIn, googleIn, googleOAuth } = useApp()
   const [params] = useSearchParams()
+  const nav = useNavigate()
   useEffect(() => {
     const ref = params.get('ref'), crew = params.get('crew'), u = params.get('u')
     if (ref || crew || u) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew, u })) } catch { /* storage unavailable */ } }
@@ -55,6 +56,7 @@ export default function Auth() {
     setErr(null)
     const res = mode === 'signup' ? await signUp(name.trim() || email.split('@')[0], email, pw) : await logIn(email, pw)
     setBusy(false)
+    if (res === CONFIRM_EMAIL) { nav(`/check-email?e=${encodeURIComponent(email.trim().toLowerCase())}`); return }
     if (res) setErr(res)
   }
 
