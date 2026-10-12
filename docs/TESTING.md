@@ -120,6 +120,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Make a crew post: it appears in the crew feed AND on your profile; delete it and it disappears from both
 - [ ] Posts made before turning public on stay crew-only (not on the signed-out page)
 - [ ] A post with a photo shows only text and "Shared a photo with the crew" on the public page (photo is not exposed)
+- [ ] (Re-run supabase/schema.sql first.) Your profile shows "N followers, N following" under your bio; tapping each opens the Followers or Following tab on Friends
+- [ ] Follow someone: their follower count goes up by one (also on their signed-out public page); unfollow and it goes back down
+- [ ] Followers and Following counts show on other members' profiles and on the signed-out public page (not tappable there)
 - [ ] Another member's profile in the app (Friends > tap a person) shows the same layout with Follow and Share profile
 - [ ] The page title and link preview show the person's name
 - [ ] The rest of the app still works after the base path change (icons, exercise photos, map, install to home screen)
