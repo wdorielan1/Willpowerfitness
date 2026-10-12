@@ -35,6 +35,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Add, Swap and remove (x) an exercise; search works
 - [ ] Build your own workout; save it; reuse it
 - [ ] Rest timer works; screen stays readable at phone size
+- [ ] With the rest timer showing, open "How hard was your last set?": the RPE buttons scroll up clear of the timer and are easy to tap
 - [ ] Week schedule: days before sign-up are not marked missed
 - [ ] Sign-up asks for sex (Male, Female, Prefer not to say) on the "Your numbers" step; Next is disabled until one is picked
 - [ ] Sign-up lets you pick up to 3 body parts to focus on (a 4th is disabled); picking none still works
