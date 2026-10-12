@@ -98,6 +98,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Search finds people by name and by handle (only those with "find me" on)
 - [ ] A suggested handle is pre-filled; Save makes you searchable and the invite link carries it
 - [ ] Unfollow moves a friend to "Follow you"; nothing shows people you never connected with
+- [ ] Sign in with Google: your Google photo shows on Profile, and friends see it on their Friends list and your friend profile
+- [ ] Sign in with email: a letter avatar shows (no broken image)
+- [ ] After logging in, every account has a row in public_profiles (handle set, searchable off)
 
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
