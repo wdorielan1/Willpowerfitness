@@ -876,3 +876,8 @@ body.rest-timer-on .shell .workout-session .ex { padding-bottom: 190px; }
 .workout-ask b { color: var(--text); font-weight: 600; }
 button.week-day { background: transparent; font: inherit; font-size: 10px; cursor: pointer; width: 100%; }
 button.week-day:active { background: var(--card2); }
+
+/* Workout progress: green fills as sets are completed; the current page is lighter */
+.workout-progress > button::before { background: linear-gradient(90deg, #34c759 var(--fill, 0%), var(--line) var(--fill, 0%)); }
+.workout-progress > button.on::before { background: linear-gradient(90deg, #34c759 var(--fill, 0%), var(--mute) var(--fill, 0%)); }
+.workout-progress > button.done::before, .workout-progress > button.done.on::before { background: #34c759; }

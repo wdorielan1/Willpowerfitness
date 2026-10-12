@@ -410,8 +410,11 @@ export default function Workout() {
       </header>
       <div className="workout-progress" role="tablist" aria-label="Workout progress">
         {Array.from({ length: pageCount }, (_, i) => {
-          const done = i >= 1 && i <= items.length && exState[i - 1].done
-          return <button key={i} role="tab" aria-selected={i === page} className={`${i === page ? 'on' : ''} ${done ? 'done' : ''}`} aria-label={i === 0 ? 'Warm-up' : i === pageCount - 1 ? 'Finish' : items[i - 1].ex.name} onClick={() => go(i)} />
+          const isEx = i >= 1 && i <= items.length
+          const done = isEx && exState[i - 1].done
+          const sets = isEx ? exState[i - 1].completed : []
+          const fill = done ? 100 : sets.length ? Math.round((sets.filter(Boolean).length / sets.length) * 100) : 0
+          return <button key={i} role="tab" aria-selected={i === page} className={`${i === page ? 'on' : ''} ${done ? 'done' : ''}`} style={{ '--fill': `${fill}%` } as React.CSSProperties} aria-label={i === 0 ? 'Warm-up' : i === pageCount - 1 ? 'Finish' : items[i - 1].ex.name} onClick={() => go(i)} />
         })}
       </div>
 
