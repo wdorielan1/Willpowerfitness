@@ -3,12 +3,12 @@ import { useApp } from './store'
 import { todayISO } from './engine'
 
 /** Round profile picture, falling back to the first letter of the name. */
-export function Avatar({ name, url, size }: { name: string; url?: string | null; size?: number }) {
+export function Avatar({ name, url, size, className = '' }: { name: string; url?: string | null; size?: number; className?: string }) {
   const [bad, setBad] = useState(false)
   const st = size ? { width: size, height: size, fontSize: Math.round(size * 0.36) } : undefined
   return url && !bad
-    ? <img className="avatar" style={st} src={url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBad(true)} />
-    : <span className="avatar" style={st}>{(name || '?')[0]}</span>
+    ? <img className={`avatar ${className}`} style={st} src={url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBad(true)} />
+    : <span className={`avatar ${className}`} style={st}>{(name || '?')[0]}</span>
 }
 
 /** Bottom sheet used for pickers. */

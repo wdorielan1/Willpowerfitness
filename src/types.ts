@@ -108,6 +108,8 @@ export interface AppData {
   steps: StepLog[]
   challengesJoined: string[] // challenge cohort ids
   handle?: string
+  /** Profile photo they uploaded (small square JPEG as a data URL). Wins over the Google photo. */
+  avatar?: string
   findByHandle?: boolean
   findByEmail?: boolean
   foodLog: Record<string, FoodEntry[]>

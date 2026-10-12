@@ -1,12 +1,20 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Avatar } from '../components'
+import { avatarFromFile } from '../photos'
 import { DAY_NAMES, GOALS, LEVELS } from '../data'
 import { fmtTime } from '../engine'
 import { useCrew } from './Crew'
 
 export default function Profile() {
-  const { data, email, logOut, avatarUrl } = useApp()
+  const { data, email, logOut, avatarUrl, googlePhoto, setAvatar } = useApp()
+  const file = useRef<HTMLInputElement>(null)
+  const [msg, setMsg] = useState('')
+  const pick = async (f: File | undefined) => {
+    if (!f) return
+    try { setAvatar(await avatarFromFile(f)); setMsg('Photo updated.') } catch (e) { setMsg(e instanceof Error ? e.message : 'Could not use that photo.') }
+  }
   const p = data.profile!
   const crew = useCrew()
   const rows: [string, string][] = [
@@ -19,7 +27,13 @@ export default function Profile() {
     <>
       <h1>Profile</h1>
       <section className="card">
-        <Avatar name={data.name} url={avatarUrl} size={56} />
+        <Avatar name={data.name} url={avatarUrl} size={72} />
+        <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} />
+        <div className="row wrap">
+          <button className="ghost small-btn" onClick={() => file.current?.click()}>{avatarUrl ? 'Change photo' : 'Add photo'}</button>
+          {data.avatar && <button className="ghost small-btn" onClick={() => { setAvatar(null); setMsg(googlePhoto ? 'Back to your Google photo.' : 'Photo removed.') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
+        </div>
+        {msg && <p className="small mute" role="status">{msg}</p>}
         <b>{data.name}</b><span className="small mute">{email}</span>
         {rows.map(([k, v]) => <div key={k} className="row small"><span className="mute">{k}</span><b>{v}</b></div>)}
         <Link to="/settings" className="btn ghost">Change these in Settings</Link>

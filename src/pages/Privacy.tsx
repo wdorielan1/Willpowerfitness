@@ -48,7 +48,7 @@ export default function Privacy() {
         <li><b>Supabase</b>: authentication and database storage.</li>
         <li><b>AWS Amplify</b>: website hosting. Netlify manages DNS.</li>
         <li><b>Google</b>: optional “Continue with Google” sign-in.</li>
-        <li><b>Google profile photo</b>: if you sign in with Google, we show your Google profile photo as your picture. People you are connected with in the app can see it, along with your first name and handle. The photo itself stays with Google; we only keep its link.</li>
+        <li><b>Google profile photo</b>: if you sign in with Google, we show your Google profile photo as your picture. People you are connected with in the app can see it, along with your first name and handle. The photo itself stays with Google; we only keep its link. You can also upload your own picture instead; we shrink it to a small square and store it with your account.</li>
         <li><b>USDA FoodData Central and Open Food Facts</b>: online food search in Fuel. When you tap “Search online”, the food name you typed is sent to these services. When you scan a barcode, the camera runs on your phone only while the scanner is open; the video is never recorded or uploaded, and only the barcode number is looked up. Nothing else about you is sent.</li>
         <li><b>OpenStreetMap</b>: map tiles and place search for the crew map. Your search words are sent to their service when you search for a place.</li>
       </ul>

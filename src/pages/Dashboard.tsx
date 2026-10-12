@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { carbPlanFor, dayFor, fmtTime, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName } from '../engine'
-import { fmtClock } from '../components'
+import { Avatar, fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
 import { Icon } from '../icons'
@@ -28,7 +28,7 @@ function SessionElapsed({ since }: { since: number }) {
 }
 
 export default function Dashboard() {
-  const { data, userId } = useApp()
+  const { data, userId, avatarUrl } = useApp()
   const p = data.profile!
   const ci = useCheckin()
   const crew = useCrew()
@@ -110,7 +110,7 @@ export default function Dashboard() {
         {live && live.members > 0 && <p className="crew-summary-meta">{live.done} of {live.members} {live.members === 1 ? 'member' : 'members'} completed today</p>}
         {people.length > 0 ? <div className="crew-summary-people">
           {people.slice(0, 3).map((person, i) => <div className="crew-summary-person" key={`${person.name}-${i}`}>
-            <span className={`avatar ${person.status}`}>{person.name[0]}</span>
+            <Avatar className={person.status} name={person.name} url={person.mine ? avatarUrl : (person as { avatar?: string | null }).avatar} />
             <span className="grow">{person.name}{person.mine ? ' (you)' : ''}</span>
             <span className="small mute">{person.status === 'done' ? 'Done' : 'Training today'}</span>
           </div>)}

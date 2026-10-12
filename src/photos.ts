@@ -70,6 +70,22 @@ export async function compress(src: Blob, max = 1280): Promise<Blob> {
   } finally { c.width = c.height = 0 }
 }
 
+/** Square-crop a picked photo to a small JPEG data URL (about 10 KB) for use as a profile picture. */
+export async function avatarFromFile(src: Blob, size = 192): Promise<string> {
+  const img = await loadImg(src)
+  const w = img.naturalWidth, h = img.naturalHeight
+  if (!w || !h) throw new Error('That photo has invalid dimensions.')
+  const side = Math.min(w, h)
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const ctx = c.getContext('2d')
+  if (!ctx) throw new Error('Not enough memory to process this photo. Try a smaller photo.')
+  try {
+    ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size)
+    return c.toDataURL('image/jpeg', 0.82)
+  } finally { c.width = c.height = 0 }
+}
+
 export function postPhotos(p: { id: string; imagePaths?: string[]; imageIds?: string[]; imagePath?: string; imageId?: string }) {
   const paths = p.imagePaths?.length ? p.imagePaths : p.imagePath ? [p.imagePath] : []
   if (paths.length) return paths.map((path) => ({ id: path, path }))

@@ -32,6 +32,8 @@ create table if not exists public.crew_members (
   primary key (crew_id, user_id)
 );
 
+alter table public.crew_members add column if not exists avatar_url text;   -- their picture, shown next to their name in the crew
+
 create table if not exists public.crew_checkins (
   crew_id text not null,
   user_id uuid not null references auth.users on delete cascade,

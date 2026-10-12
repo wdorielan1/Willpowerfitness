@@ -12,16 +12,54 @@ export const cloudEnabled = !!supabase
 
 const first = (n: string) => (n || 'Member').trim().split(/\s+/)[0]
 
-export interface LivePerson { name: string; status: 'done' | 'going'; streak: number; mine: boolean }
-export interface LiveMsg { id: string; who: string; text: string; ts: number; mine: boolean }
+export interface LivePerson { name: string; status: 'done' | 'going'; streak: number; mine: boolean; avatar?: string | null }
+export interface LiveMsg { id: string; who: string; text: string; ts: number; mine: boolean; avatar?: string | null }
 export interface LiveCrew {
   members: number
   done: number
   going: number
   people: LivePerson[]
   board: { name: string; streak: number; mine: boolean }[]
+  avatars: Record<string, string>
   messages: LiveMsg[]
   refresh: () => void
+}
+
+/** Crew members with their photos; older databases without the avatar column still work. */
+type MemberRow = { user_id: string; name: string; streak: number; avatar_url?: string | null }
+async function selectMembers(crewId: string): Promise<{ data: MemberRow[] | null }> {
+  const withPhoto = await supabase!.from('crew_members').select('user_id,name,streak,avatar_url').eq('crew_id', crewId)
+  if (!withPhoto.error) return { data: withPhoto.data as MemberRow[] | null }
+  const plain = await supabase!.from('crew_members').select('user_id,name,streak').eq('crew_id', crewId)
+  return { data: plain.data as MemberRow[] | null }
+}
+
+// the signed-in person's current picture, so joining a crew can carry it
+let mine: { userId: string | null; url: string | null } = { userId: null, url: null }
+export const setMyAvatar = (userId: string | null, url: string | null) => { mine = { userId, url } }
+/** Push your picture to your card and every crew you are in. */
+export async function syncMyAvatar(userId: string, url: string | null) {
+  if (!supabase) return
+  await Promise.all([
+    Promise.resolve(supabase.from('crew_members').update({ avatar_url: url }).eq('user_id', userId)).catch(() => {}),
+    Promise.resolve(supabase.from('public_profiles').update({ avatar_url: url }).eq('user_id', userId)).catch(() => {}),
+  ])
+}
+/** Photos for everyone in a crew, keyed by user id (used by the post feed). */
+export function useCrewAvatars(crewId: string | null, tick = 0): Record<string, string> {
+  const [map, setMap] = useState<Record<string, string>>({})
+  useEffect(() => {
+    if (!supabase || !crewId) return
+    let alive = true
+    void selectMembers(crewId).then((r) => {
+      if (!alive) return
+      const out: Record<string, string> = {}
+      for (const x of r.data ?? []) if (x.avatar_url) out[x.user_id] = x.avatar_url
+      setMap(out)
+    })
+    return () => { alive = false }
+  }, [crewId, tick])
+  return map
 }
 
 /** Real crew data from Supabase. Returns null when the backend isn't configured. */
@@ -36,7 +74,7 @@ export function useLiveCrew(crewId: string | null, userId: string | null): LiveC
     const load = async () => {
       const day = todayISO()
       const [m, c, msg] = await Promise.all([
-        supabase.from('crew_members').select('user_id,name,streak').eq('crew_id', crewId),
+        selectMembers(crewId),
         supabase.from('crew_checkins').select('user_id,name,going,done').eq('crew_id', crewId).eq('day', day),
         supabase.from('crew_messages').select('id,user_id,name,text,created_at').eq('crew_id', crewId).order('created_at', { ascending: false }).limit(20),
       ])
@@ -44,16 +82,19 @@ export function useLiveCrew(crewId: string | null, userId: string | null): LiveC
       const members = m.data ?? []
       const checks = c.data ?? []
       const streakOf = new Map(members.map((x) => [x.user_id as string, x.streak as number]))
+      const avatars: Record<string, string> = {}
+      for (const x of members) if (x.avatar_url) avatars[x.user_id as string] = x.avatar_url as string
       const people = checks
         .filter((x) => x.going || x.done)
-        .map((x) => ({ name: first(x.name), status: (x.done ? 'done' : 'going') as 'done' | 'going', streak: streakOf.get(x.user_id) ?? 0, mine: x.user_id === userId }))
+        .map((x) => ({ name: first(x.name), status: (x.done ? 'done' : 'going') as 'done' | 'going', streak: streakOf.get(x.user_id) ?? 0, mine: x.user_id === userId, avatar: avatars[x.user_id as string] ?? null }))
       setState({
         members: members.length,
         done: checks.filter((x) => x.done).length,
         going: checks.filter((x) => x.going && !x.done).length,
         people,
         board: members.map((x) => ({ name: first(x.name), streak: x.streak as number, mine: x.user_id === userId })).sort((a, b) => b.streak - a.streak).slice(0, 10),
-        messages: (msg.data ?? []).map((x) => ({ id: String(x.id), who: first(x.name), text: x.text as string, ts: Date.parse(x.created_at as string), mine: x.user_id === userId })),
+        messages: (msg.data ?? []).map((x) => ({ id: String(x.id), who: first(x.name), text: x.text as string, ts: Date.parse(x.created_at as string), mine: x.user_id === userId, avatar: avatars[x.user_id as string] ?? null })),
+        avatars,
       })
     }
     void load()
@@ -62,11 +103,13 @@ export function useLiveCrew(crewId: string | null, userId: string | null): LiveC
   }, [crewId, userId, tick])
 
   if (!supabase) return null
-  return { members: 0, done: 0, going: 0, people: [], board: [], messages: [], ...state, refresh }
+  return { members: 0, done: 0, going: 0, people: [], board: [], messages: [], avatars: {}, ...state, refresh }
 }
 
 export async function joinCrewCloud(crewId: string, userId: string, name: string, streak: number) {
-  const { error } = (await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak })) ?? {}
+  const photo = mine.userId === userId ? mine.url : null
+  let { error } = (await supabase?.from('crew_members').upsert(photo ? { crew_id: crewId, user_id: userId, name, streak, avatar_url: photo } : { crew_id: crewId, user_id: userId, name, streak })) ?? {}
+  if (error && photo) ({ error } = (await supabase?.from('crew_members').upsert({ crew_id: crewId, user_id: userId, name, streak })) ?? {})
   return error?.message ?? null
 }
 /** Make sure the database knows you're in this crew, without touching an existing streak. Safe to call any time. */

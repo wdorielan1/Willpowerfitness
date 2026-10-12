@@ -6,7 +6,7 @@ import { CAT_LABEL, GOALS, type CommunityDef, type CrewCat } from '../data'
 import { suggestCrews } from '../matching'
 import MatchQuestions from '../MatchQuestions'
 import SocialTabs from '../SocialTabs'
-import { Sheet } from '../components'
+import { Avatar, Sheet } from '../components'
 import { fmtTime, streak, todayISO } from '../engine'
 import { allCommunities } from './Crew'
 import { INACTIVE_DAYS, cloudEnabled, createCrewCloud, deleteMyPostsCloud, joinCrewCloud, leaveCrewCloud, pushCheckin, useCrewCounts, useLiveCrew } from '../cloud'
@@ -22,7 +22,7 @@ import { Icon } from '../icons'
 export const MAX_CREWS = 3
 
 export default function Communities() {
-  const { data, update, userId } = useApp()
+  const { data, update, userId, avatarUrl } = useApp()
   const ci = useCheckin()
   const all = allCommunities(data.custom)
   const counts = useCrewCounts()
@@ -246,7 +246,7 @@ export default function Communities() {
           <section className="crew-checkin card">
             <div className="section-heading"><h2>Training today</h2><Icon name="crew" size={19} /></div>
             {people.length === 0 ? <p className="small mute">No check-ins to show yet.</p> : <div className="crew-activity people">
-              {people.map((r, i) => <div className="person" key={`${r.name}-${i}`}><span className={`avatar ${r.status}`}>{r.name[0]}</span><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Training'}</span></div>)}
+              {people.map((r, i) => <div className="person" key={`${r.name}-${i}`}><Avatar className={r.status} name={r.name} url={r.mine ? avatarUrl : (r as { avatar?: string | null }).avatar} /><span className="grow">{r.name}</span><span className={`tag ${r.status === 'done' ? 'ok' : 'accent'}`}>{r.status === 'done' ? 'Done' : 'Training'}</span></div>)}
             </div>}
             <button className="checkin-button" aria-pressed={checkedIn} disabled={checkedInDone || checkingIn} onClick={() => void checkIn()}><Icon name={checkedIn ? 'check' : 'plus'} size={16} />{checkingIn ? 'Saving…' : checkedInDone ? 'Workout done' : checkedIn ? 'Cancel check-in' : 'I’m training today'}</button>
             {checkedIn && !checkedInDone && <p className="small mute checkin-note">You’re training today. Tap again if your plans change.</p>}

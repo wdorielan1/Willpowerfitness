@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
-import { ConfirmSheet, Lightbox } from '../components'
-import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewFeed } from '../cloud'
+import { Avatar, ConfirmSheet, Lightbox } from '../components'
+import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { Icon } from '../icons'
 import { todayISO } from '../engine'
@@ -61,7 +61,8 @@ export function usePostActions(crewId: string) {
 }
 
 export default function Feed({ crewId }: { crewId: string }) {
-  const { data, update, userId } = useApp()
+  const { data, update, userId, avatarUrl } = useApp()
+  const crewAvatars = useCrewAvatars(crewId)
   const { post, feed } = usePostActions(crewId)
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
@@ -152,7 +153,7 @@ export default function Feed({ crewId }: { crewId: string }) {
         return (
           <article key={p.id} className="card post">
             <div className="row">
-              <div className="person"><span className="avatar">{p.name[0]}</span><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute">{timeAgo(p.ts)}</div></div></div>
+              <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? crewAvatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute">{timeAgo(p.ts)}</div></div></div>
               {p.kind === 'qotd' && <span className="tag accent">Question of the day</span>}
               {p.kind === 'workout' && <span className="tag ok">Workout</span>}
             </div>
