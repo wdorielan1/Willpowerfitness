@@ -36,6 +36,8 @@ export default function Dashboard() {
   const nav = useNavigate()
   const day = dayFor(today, data)
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.skipped)
+  // the time you actually finished, not the time you planned to train
+  const finishedLabel = todaysLog?.finishedAt ? new Date(todaysLog.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const rest = day === 'Rest/Cardio'
   const plan = generateWorkout(today, data, !!data.short[today])
   const estimatedMinutes = Math.round(plan.items.reduce((minutes, item) => minutes + item.sets * (restFor(item.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
@@ -81,7 +83,7 @@ export default function Dashboard() {
 
       <section className="session-card" aria-label="Today’s workout">
         <div className="session-topline">
-          <span className="section-label">{ci.done ? 'COMPLETE' : ci.started && !rest ? 'IN PROGRESS' : 'PLANNED'} · {fmtTime(p.time)}</span>
+          <span className="section-label">{ci.done ? 'COMPLETE' : ci.started && !rest ? 'IN PROGRESS' : 'PLANNED'}{ci.done ? (finishedLabel ? ` · ${finishedLabel}` : '') : ` · ${fmtTime(p.time)}`}</span>
           <span className="icon-surface"><Icon name={ci.done ? 'check' : 'weight'} /></span>
         </div>
         <h2 className="session-heading">{rest ? 'Recovery' : sessionName}</h2>

@@ -52,7 +52,7 @@ export interface Exercise {
 
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
-export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number; rotationDay?: DayType }
+export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number; finishedAt?: number; rotationDay?: DayType }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]> }
@@ -98,6 +98,8 @@ export interface AppData {
   swaps: Record<string, string> // `${date}|${exId}` -> replacement exId
   short: Record<string, boolean>
   drafts: Record<string, Draft>
+  /** Days whose finished workout was already shared to the crew, so saving changes doesn't post again. */
+  workoutPosted?: Record<string, boolean>
   meals: Record<string, string[]> // date -> checked meal ids
   messages: Message[]
   custom: CustomCommunity[]

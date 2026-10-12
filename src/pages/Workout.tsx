@@ -327,7 +327,7 @@ export default function Workout() {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
     setSheet(null); go(items.length + 1)
   }
-  const wipeToday = (d: AppData): AppData => ({ ...d, drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
+  const wipeToday = (d: AppData): AppData => ({ ...d, workoutPosted: stripToday(d.workoutPosted ?? {}), drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
   const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
@@ -347,16 +347,18 @@ export default function Workout() {
       if (data.settings.rpeEnabled && rpeStr && sets.length) sets[sets.length - 1].rpe = Number(rpeStr)
       return { exId: ex.id, name: ex.name, sets, note: draft.notes[ex.id] ?? logged?.note ?? '' }
     }).filter((x) => x.sets.length)
+    // share the finished workout to the crew once per day; later "Save changes" taps just update the log
+    const willPost = !!(data.settings.autoShare && data.primary && entries.length && !data.workoutPosted?.[today])
     update((d) => {
       const { [today]: _gone, ...drafts } = d.drafts
       void _gone
       return {
-        ...d, drafts,
-        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
+        ...d, drafts, workoutPosted: willPost ? { ...d.workoutPosted, [today]: true } : d.workoutPosted,
+        logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay: todaysLog?.rotationDay ?? dayTypeFor(today, d.profile!, d.logs), short, entries, finishedAt: todaysLog?.finishedAt ?? Date.now(), minutes: started ? Math.max(1, Math.round(Math.min(Date.now() - started, d.settings.maxWorkoutHours * 3600000) / 60000)) : undefined }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
-    if (data.settings.autoShare && data.primary && entries.length) {
+    if (willPost) {
       const sets = entries.reduce((a, e) => a + e.sets.length, 0)
       const volume = Math.round(entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0))
       const mins = started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : 0
