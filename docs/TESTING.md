@@ -58,6 +58,17 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Create a challenge; share its ?join link; a second account joins
 - [ ] Leaderboard order is correct
 
+### Free challenge rules (once built, see docs/FREE-CHALLENGES.md)
+- [ ] The challenge shows its type and rules in plain words before you join
+- [ ] Show Up: a day counts only with a check-in plus a finished workout
+- [ ] Show Up: progress shows days done, days left, days still needed
+- [ ] Points: scores match the point table; the daily cap holds at 30
+- [ ] Imported or edited past logs never add points
+- [ ] Divisions: join picks one; a division with fewer than 5 players merges
+- [ ] Ties break in the documented order
+- [ ] Leave removes you from the leaderboard
+- [ ] Report a result works
+
 ## 9. Friends and profile
 - [ ] Find friends; follow and unfollow
 - [ ] Profile and Settings changes save
