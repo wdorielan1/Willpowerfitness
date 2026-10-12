@@ -4,7 +4,7 @@ import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
 import { withTimeout } from '../photos'
-import { followCloud, handleToUser, joinCrewCloud } from '../cloud'
+import { ensureProfileCard, followCloud, handleToUser, joinCrewCloud } from '../cloud'
 import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
 import { suggestCrews } from '../matching'
@@ -20,7 +20,7 @@ const empty: Profile = {
 }
 
 export default function Onboarding() {
-  const { data, saveAccount, userId } = useApp()
+  const { data, saveAccount, update, userId } = useApp()
   const nav = useNavigate()
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
@@ -55,6 +55,7 @@ export default function Onboarding() {
         weights: [...d.weights.filter((entry) => entry.date !== todayISO()), { date: todayISO(), lbs: p.weight }],
       }))
       if (saveError) throw new Error(saveError)
+      if (userId) void ensureProfileCard(userId, data.name || 'Member').then((h) => { if (h) update((d) => (d.handle ? d : { ...d, handle: h })) }).catch(() => {})
       if (userId && invite?.u && invite.u !== userId) void followCloud(userId, invite.u).catch(() => {})
       else if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
       try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }

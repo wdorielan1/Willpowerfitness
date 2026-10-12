@@ -5,7 +5,7 @@ import { Icon } from '../icons'
 import SocialTabs from '../SocialTabs'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
-import { cloudEnabled, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
+import { cloudEnabled, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
 import { streak } from '../engine'
 
 type ContactPicker = { select: (props: string[], opts: { multiple: boolean }) => Promise<{ email?: string[] }[]> }
@@ -25,6 +25,11 @@ export default function Friends() {
 
   const load = () => { if (userId && cloudEnabled) void fetchConnections(userId, data.joined).then(setConn).catch(() => {}) }
   useEffect(load, [userId, data.joined.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  // people who skipped the handle step still get a card, so friends can follow them
+  useEffect(() => {
+    if (!userId || !cloudEnabled || data.handle) return
+    void ensureProfileCard(userId, data.name || 'Member').then((h) => { if (h) { setHandle(h); update((d) => (d.handle ? d : { ...d, handle: h })) } }).catch(() => {})
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
   const share = async () => {

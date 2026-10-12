@@ -277,6 +277,22 @@ export async function saveMyDiscovery(userId: string, p: { handle: string; name:
   const { error } = await supabase!.from('public_profiles').upsert({ user_id: userId, handle: p.handle.toLowerCase(), name: p.name, discoverable_handle: p.findByHandle, discoverable_email: p.findByEmail, email_hash, updated_at: new Date().toISOString() })
   return error ? (error.code === '23505' ? 'That handle is taken. Try another.' : error.message) : null
 }
+/** Everyone gets a profile card with a handle so friends can follow them and open their profile. Never makes them searchable: that stays an opt-in. */
+export async function ensureProfileCard(userId: string, name: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data: have } = await supabase.from('public_profiles').select('handle').eq('user_id', userId).maybeSingle()
+  if (have?.handle) return have.handle as string
+  const base = (name || 'lifter').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) || 'lifter'
+  for (let i = 0; i < 4; i++) {
+    const handle = `${base}${Math.floor(100 + Math.random() * 9000)}`
+    const { error } = await supabase.from('public_profiles').insert({ user_id: userId, handle, name: name || 'Member', discoverable_handle: false, discoverable_email: false })
+    if (!error) return handle
+    if (error.code !== '23505') return null
+    const { data: again } = await supabase.from('public_profiles').select('handle').eq('user_id', userId).maybeSingle()
+    if (again?.handle) return again.handle as string
+  }
+  return null
+}
 export async function findByHandle(q: string): Promise<PublicProfile[]> {
   const term = q.toLowerCase().replace(/[^a-z0-9_ ]/g, '').trim()
   if (term.length < 2) return []
