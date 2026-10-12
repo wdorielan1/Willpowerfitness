@@ -16,7 +16,14 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Every step can be completed and skipped where optional
 - [ ] "Where do you train?" area picker saves a town-level pin
 - [ ] Crew suggestions show no fake member counts
-- [ ] (When built) Import your history step works and can be skipped
+- [ ] "Bring your lifting history" step (4 of 6) can be skipped with nothing pasted
+- [ ] Paste a CSV from ChatGPT: the preview shows matched exercises and set counts
+- [ ] Paste a CSV from Claude: same result
+- [ ] Paste plain notes (e.g. "Bench press: 185x8, 185x8"): sets are found
+- [ ] Upload a .csv file: it fills the box
+- [ ] "Use these N sets", then Remove: the import is undone
+- [ ] After "Start showing up", the imported workouts appear in Progress and today's weights start from them
+- [ ] The same import still works later from the Import page
 
 ## 3. Today and workouts
 - [ ] Today's session loads for your split, level and goal
