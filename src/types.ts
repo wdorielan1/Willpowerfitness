@@ -80,6 +80,7 @@ export interface Settings {
   rotation: 'weekly' | 'biweekly' | 'monthly' | 'never' // how often accessory exercises change (main lifts change every 4 weeks)
   autoShare: boolean // post finished workouts to my crew
   gymName?: string // optional place shown on share pictures (never live location)
+  shareFormat?: 'story' | 'post' // last share picture size
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set

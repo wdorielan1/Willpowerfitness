@@ -881,3 +881,24 @@ button.week-day:active { background: var(--card2); }
 .workout-progress > button::before { background: linear-gradient(90deg, #34c759 var(--fill, 0%), var(--line) var(--fill, 0%)); }
 .workout-progress > button.on::before { background: linear-gradient(90deg, #34c759 var(--fill, 0%), var(--mute) var(--fill, 0%)); }
 .workout-progress > button.done::before, .workout-progress > button.done.on::before { background: #34c759; }
+
+/* Workout complete sheet */
+.done-sub { margin-top: -6px; }
+.done-top { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: start; }
+.done-preview { padding: 0; min-height: 0; border-radius: 14px; overflow: hidden; background: var(--card2); border: 1px solid var(--line); aspect-ratio: 9 / 16; display: block; width: 100%; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+.done-preview.post { aspect-ratio: 4 / 5; }
+.done-preview img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.done-preview-ph { display: block; width: 100%; height: 100%; background: linear-gradient(110deg, var(--card2) 30%, var(--line) 50%, var(--card2) 70%); background-size: 200% 100%; animation: done-shimmer 1.2s linear infinite; }
+@keyframes done-shimmer { to { background-position: -200% 0; } }
+.done-stats { display: grid; gap: 8px; }
+.done-stats .stat b { font-size: 22px; }
+.done-stats .stat.up b { color: #34c759; }
+.done-prs { display: grid; gap: 8px; }
+.done-pr { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--card2); border-radius: 14px; padding: 10px 12px; }
+.done-pr > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.done-pr b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.done-pct { color: #34c759; font-weight: 800; font-size: 18px; flex: none; }
+.done-options { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg > button { min-height: 0; padding: 7px 16px; border-radius: 999px; background: transparent; font-size: 14px; font-weight: 700; color: var(--mute); border: 0; }
+.seg > button.on { background: var(--text); color: #101114; }

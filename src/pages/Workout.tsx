@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { buildShareCard, prLine, shareCard, summarize, type WorkoutSummary } from '../shareCard'
+import { buildShareCard, fmtDuration, prLine, shareCard, summarize, type CardFormat, type WorkoutSummary } from '../shareCard'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
@@ -202,36 +202,72 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   </>
 }
 
-function DoneSheet({ summary, onPlace, onClose }: { summary: WorkoutSummary; onPlace: (v: string) => void; onClose: () => void }) {
+function DoneSheet({ summary, format: initialFormat, onPrefs, onClose }: { summary: WorkoutSummary; format?: CardFormat; onPrefs: (patch: { gymName?: string; shareFormat?: CardFormat }) => void; onClose: () => void }) {
+  const [format, setFormat] = useState<CardFormat>(initialFormat ?? 'story')
   const [showPlace, setShowPlace] = useState(!!summary.place)
   const [place, setPlace] = useState(summary.place ?? '')
+  const [preview, setPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const card = { ...summary, place: showPlace ? place.trim() || undefined : undefined }
+  const urlRef = useRef<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    const t = setTimeout(() => {
+      buildShareCard(card, format).then((blob) => {
+        if (!alive) return
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+        urlRef.current = URL.createObjectURL(blob); setPreview(urlRef.current)
+      }).catch(() => {})
+    }, 200)
+    return () => { alive = false; clearTimeout(t) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, showPlace, place])
+  useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current) }, [])
+
+  const pickFormat = (f: CardFormat) => { setFormat(f); onPrefs({ shareFormat: f }) }
   const share = async () => {
     setBusy(true); setMsg('')
     try {
-      const withPlace = { ...summary, place: showPlace ? place.trim() || undefined : undefined }
-      if (showPlace) onPlace(place.trim())
-      const r = await shareCard(await buildShareCard(withPlace), `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`)
-      setMsg(r === 'saved' ? 'Image saved. Add it to your story or post.' : r === 'shared' ? 'Shared.' : '')
-    } catch { setMsg('Could not make the image. Try again.') }
+      if (showPlace) onPrefs({ gymName: place.trim() })
+      const r = await shareCard(await buildShareCard(card, format), `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`)
+      setMsg(r === 'saved' ? 'Picture saved. Add it to your story or post.' : r === 'shared' ? 'Shared. Nice.' : '')
+    } catch { setMsg('Could not make the picture. Try again.') }
     setBusy(false)
   }
+  const finished = new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const up = summary.volumeChangePct !== null && summary.volumeChangePct !== 0 ? summary.volumeChangePct : null
+
   return (
-    <Sheet title="Workout complete" onClose={onClose}>
-      <div className="grid2">
-        <div className="card2"><b style={{ fontSize: 22 }}>{summary.minutes ?? '–'}</b><div className="small mute">minutes</div></div>
-        <div className="card2"><b style={{ fontSize: 22 }}>{summary.volume.toLocaleString()}</b><div className="small mute">lb lifted · {summary.sets} sets</div></div>
+    <Sheet title={summary.prs.length ? 'New PR. Nice work.' : 'Nice work.'} onClose={onClose}>
+      <p className="small mute done-sub">{summary.title} finished at {finished}{summary.streak > 1 ? ` · ${summary.streak}-day streak` : ''}</p>
+      <div className="done-top">
+        <button type="button" className={`done-preview ${format}`} onClick={share} disabled={busy} aria-label="Share this picture">
+          {preview ? <img src={preview} alt="Preview of your share picture" /> : <span className="done-preview-ph" />}
+        </button>
+        <div className="done-stats">
+          <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>
+          <div className="stat"><b>{summary.volume.toLocaleString()}</b><span>lb moved · {summary.sets} sets</span></div>
+          {up !== null && <div className={`stat ${up > 0 ? 'up' : ''}`}><b>{up > 0 ? '▲' : '▼'} {Math.abs(up)}%</b><span>volume vs last {summary.title.toLowerCase()}</span></div>}
+        </div>
       </div>
-      {summary.volumeChangePct !== null && summary.volumeChangePct !== 0 && <p className="small" style={{ margin: 0 }}>{summary.volumeChangePct > 0 ? '▲' : '▼'} {Math.abs(summary.volumeChangePct)}% volume vs your last {summary.title.toLowerCase()}</p>}
-      {summary.prs.length > 0
-        ? <div><div className="overline">NEW PERSONAL RECORDS</div>{summary.prs.map((pr) => <p key={pr.name} style={{ margin: '6px 0 0' }}><b>{pr.name}</b> · {pr.weight} lb × {pr.reps} <span style={{ color: '#34c759' }}>+{pr.pct}%</span></p>)}</div>
-        : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up still counts.</p>}
-      {summary.streak > 1 && <p style={{ margin: 0 }}>🔥 {summary.streak}-day streak</p>}
-      <div className="chips"><button type="button" className={`chip ${showPlace ? 'on' : ''}`} aria-pressed={showPlace} onClick={() => setShowPlace(!showPlace)}>{showPlace ? '✓ Showing where I trained' : '+ Add where I trained (optional)'}</button></div>
+      {summary.prs.length > 0 && (
+        <div className="done-prs">
+          <div className="overline">New personal records</div>
+          {summary.prs.map((pr) => <div key={pr.name} className="done-pr"><span><b>{pr.name}</b><span className="small mute">{pr.weight} lb × {pr.reps}</span></span><span className="done-pct">+{pr.pct}%</span></div>)}
+        </div>
+      )}
+      {summary.prs.length === 0 && <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
+      <div className="done-options">
+        <div className="seg" role="group" aria-label="Picture size">
+          <button type="button" className={format === 'story' ? 'on' : ''} aria-pressed={format === 'story'} onClick={() => pickFormat('story')}>Story</button>
+          <button type="button" className={format === 'post' ? 'on' : ''} aria-pressed={format === 'post'} onClick={() => pickFormat('post')}>Post</button>
+        </div>
+        <button type="button" className={`chip ${showPlace ? 'on' : ''}`} aria-pressed={showPlace} onClick={() => setShowPlace(!showPlace)}>{showPlace ? '✓ Place' : '+ Add place'}</button>
+      </div>
       {showPlace && <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Gym or town, e.g. Woodbridge" maxLength={40} aria-label="Where you trained" />}
-      <button className="primary" onClick={share} disabled={busy}>{busy ? 'Making your picture…' : 'Share a picture'}</button>
-      {msg && <p className="small mute" role="status" style={{ margin: 0 }}>{msg}</p>}
+      <button className="primary" onClick={share} disabled={busy}>{busy ? 'Making your picture…' : 'Share picture'}</button>
+      {msg && <p className="small mute" role="status" style={{ margin: 0, textAlign: 'center' }}>{msg}</p>}
       <button className="ghost" onClick={onClose}>Done</button>
     </Sheet>
   )
@@ -446,7 +482,7 @@ export default function Workout() {
 
   return (
     <div className="workout-session">
-      {summary && <DoneSheet summary={summary} onPlace={(v) => update((d) => ({ ...d, settings: { ...d.settings, gymName: v } }))} onClose={() => nav('/')} />}
+      {summary && <DoneSheet summary={summary} format={data.settings.shareFormat} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => nav('/')} />}
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
         <div className="workout-header-title"><b>{sessionName} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
