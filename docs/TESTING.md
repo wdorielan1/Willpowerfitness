@@ -35,6 +35,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Add, Swap and remove (x) an exercise; search works
 - [ ] Build your own workout; save it; reuse it
 - [ ] Rest timer works; screen stays readable at phone size
+- [ ] After finishing, Today says "COMPLETE" with the real finish time (not the planned time)
+- [ ] With auto-share on: finishing posts "Finished ..." to the crew once; reopening the workout and tapping Save changes does not post again
+- [ ] Deleting the day's workout and finishing a new one posts again
 - [ ] Each exercise says "Your goal: N sets of A–B reps", the Reps column header shows the range, and empty rep boxes show the range (e.g. 6–8)
 - [ ] With the rest timer showing, open "How hard was your last set?": the RPE buttons scroll up clear of the timer and are easy to tap
 - [ ] Week schedule: days before sign-up are not marked missed
