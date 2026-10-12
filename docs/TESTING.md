@@ -100,6 +100,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Unfollow moves a friend to "Follow you"; nothing shows people you never connected with
 - [ ] Sign in with Google: your Google photo shows on Profile, and friends see it on their Friends list and your friend profile
 - [ ] Sign in with email: a letter avatar shows (no broken image)
+- [ ] Profile > Add photo / Change photo: pick a photo; it shows as a round picture; Remove photo goes back to the Google photo or a letter
+- [ ] After changing the photo, your picture shows on your posts, in the crew "Training today" list and on Today's crew card
+- [ ] A second account sees your new photo next to your posts and check-ins (re-run supabase/schema.sql first; may take a refresh)
+- [ ] A very large or odd photo (phone camera, HEIC) is shrunk and works, or shows a clear error
 - [ ] After logging in, every account has a row in public_profiles (handle set, searchable off)
 
 ## 10. General
