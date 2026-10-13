@@ -169,7 +169,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Post photos sit side by side like Strava: 1 photo fills the post, 2 share it, 3 fit across, 4 or more scroll sideways with the next one peeking; tapping a photo opens it full screen
 
 - [ ] (Run supabase/crew-videos.sql first) The crew composer has Add video next to Add photos; pick a short clip from the iPhone library and from Android: a cover frame with the length shows, with an x to remove it
-- [ ] Post the clip: the feed shows the cover with a play button and the length; tapping plays it inline with sound and controls (full screen works); the clip only downloads when tapped
+- [ ] Post the clip: scroll the feed to it and it starts by itself, without sound, and loops; the clip doesn't download before you reach it
+- [ ] Scroll past it and it pauses; scroll back and it resumes; with two clips on screen only one plays at a time
+- [ ] Tap the playing clip: sound comes on, the controls appear (pause, scrub, full screen) and it keeps playing; a "Tap for sound" pill shows before that
+- [ ] iPhone Low Power Mode (or Settings > Accessibility > Motion > Reduce Motion): clips don't autoplay and show a play button instead; tapping it plays with sound
 - [ ] A clip longer than 30 seconds, a file over 45 MB and a non-video each show a clear message and nothing is posted
 - [ ] A video and photos can't be mixed in one post (Add photos / Add video grey out once the other is chosen)
 - [ ] Another crew member sees and plays the video; someone outside the crew can't; likes and comments work on it
