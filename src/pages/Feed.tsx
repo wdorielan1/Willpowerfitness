@@ -7,7 +7,7 @@ import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
-import { clock, prepareVideo, type PreparedVideo } from '../videos'
+import { KEEP_VIDEO_DAYS, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
 import { todayISO } from '../engine'
 import type { CrewPost, PostKind, VideoMeta } from '../types'
@@ -156,6 +156,7 @@ export function FeedComposer({ crewId }: { crewId: string }) {
           <span className="post-video-time">{video.seconds ? clock(video.seconds) : `${Math.max(1, Math.round(video.file.size / 1048576))} MB`}</span>
           <button disabled={busy} aria-label="Remove video" onClick={() => setVideo(null)}><Icon name="close" size={16} /></button>
         </div></div>}
+        {video && <p className="small mute">Videos are kept for {KEEP_VIDEO_DAYS} days, then deleted. The post and its cover photo stay.</p>}
         {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
           <img src={src} alt={`Selected photo ${i + 1}`} />
           <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><Icon name="close" size={16} /></button>
@@ -248,7 +249,7 @@ export default function Feed({ crewId }: { crewId: string }) {
                 <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
               </div>
             )}
-            {clip ? <PostVideo video={clip} cover={images[0]} /> : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
+            {clip ? <PostVideo video={clip} cover={images[0]} ts={p.ts} /> : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
               <div className="post-like-group">
                 <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
@@ -283,8 +284,11 @@ let nowPlaying: HTMLVideoElement | null = null // only one clip in the feed play
  * you scroll away. Tap it for sound and controls. The clip only downloads when it first comes into view. If the phone
  * won't start it alone (Low Power Mode, data saver, reduced motion) the cover shows a play button instead.
  */
-function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
+function PostVideo({ video, cover, ts }: { video: VideoMeta; cover?: string; ts: number }) {
   const length = video.seconds ? clock(video.seconds) : ''
+  const left = videoDaysLeft(ts)
+  const expired = !!video.expired || left <= 0 // videos are deleted after 60 days; the post and its cover stay
+  const note = !expired && left <= 7 ? <p className="small mute post-video-left">Video expires in {left} day{left === 1 ? '' : 's'}</p> : null
   const box = useRef<HTMLDivElement>(null)
   const el = useRef<HTMLVideoElement>(null)
   const visible = useRef(false)
@@ -324,7 +328,7 @@ function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
   // play when it scrolls into view, pause when it leaves
   useEffect(() => {
     const box_ = box.current
-    if (!auto || !box_) return
+    if (!auto || !box_ || expired) return
     const io = new IntersectionObserver(([e]) => {
       if (e.intersectionRatio >= 0.6) { visible.current = true; if (!src) void load(); else void start() }
       else if (e.intersectionRatio < 0.25) { visible.current = false; el.current?.pause() }
@@ -337,6 +341,14 @@ function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
   const tapCover = () => { setEngaged(true); setControls(true); visible.current = true; void load() }
   const tapVideo = () => { const v = el.current; if (!v) return; if (blocked) { void start(); return } if (!engaged) { v.muted = false; setEngaged(true); void start(); window.setTimeout(() => setControls(true), 200) } }
 
+  if (expired) {
+    return (
+      <div className="post-video-cover post-video-expired" role="img" aria-label={`Video expired. Videos are kept for ${KEEP_VIDEO_DAYS} days.`}>
+        {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
+        <span className="post-video-gone"><Icon name="video" size={26} />Video expired<small>Videos are kept for {KEEP_VIDEO_DAYS} days</small></span>
+      </div>
+    )
+  }
   if (!src) {
     return (
       <div ref={box}>
@@ -346,6 +358,7 @@ function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
           {length && <span className="post-video-time">{length}</span>}
         </button>
         {err && <p className="small err" role="alert">{err}</p>}
+        {note}
       </div>
     )
   }
@@ -356,6 +369,7 @@ function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
         onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
       {blocked && <button className="post-video-play post-video-play-over" aria-label="Play video" onClick={() => void start()}><Icon name="play" size={26} /></button>}
       {!engaged && !blocked && <span className="post-video-hint" aria-hidden="true">Tap for sound</span>}
+      {note}
     </div>
   )
 }

@@ -95,7 +95,7 @@ export function postPhotos(p: { id: string; imagePaths?: string[]; imageIds?: st
 /** The clip on a crew post, if it has one. */
 export function postVideo(meta?: Record<string, unknown>): VideoMeta | null {
   const v = meta?.video as VideoMeta | undefined
-  return v && typeof v === 'object' && (v.path || v.id) ? v : null
+  return v && typeof v === 'object' && (v.path || v.id || v.expired) ? v : null
 }
 
 export interface SaveResult { path?: string; where: 'cloud' | 'device'; error?: string }

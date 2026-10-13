@@ -1296,3 +1296,8 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-video-wrap { position: relative; }
 .post-video-play-over { z-index: 2; border: 0; padding: 0; min-height: 0; cursor: pointer; }
 .post-video-hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: rgba(0, 0, 0, .6); color: #fff; pointer-events: none; }
+.post-video-expired { cursor: default; }
+.post-video-expired img, .post-video-expired .post-video-blank { filter: brightness(.35) saturate(.6); }
+.post-video-gone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #fff; font-size: 15px; font-weight: 700; text-align: center; padding: 12px; }
+.post-video-gone small { font-size: 12px; font-weight: 500; opacity: .8; }
+.post-video-left { margin: 6px 0 0; }

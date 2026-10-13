@@ -1,4 +1,8 @@
 export const MAX_VIDEO_SECONDS = 30
+/** Clips are deleted this many days after they are posted (the supabase/functions/expire-videos function does the deleting). */
+export const KEEP_VIDEO_DAYS = 60
+/** Whole days a clip posted at `ts` has left before it is deleted; 0 or less once it is gone. */
+export const videoDaysLeft = (ts: number) => KEEP_VIDEO_DAYS - Math.floor((Date.now() - ts) / 86400000)
 export const MAX_VIDEO_BYTES = 45 * 1024 * 1024
 const KNOWN = /\.(mp4|m4v|mov|webm)$/i
 const mb = (n: number) => `${Math.round(n / 1048576)} MB`
