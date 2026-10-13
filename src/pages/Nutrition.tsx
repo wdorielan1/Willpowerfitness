@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FoodScan, FoodSearchOnline } from '../OnlineFoods'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { Sheet } from '../components'
 import MyFoods from '../MyFoods'
@@ -70,7 +70,9 @@ export default function Nutrition() {
   const [rangeEnd, setRangeEnd] = useState(addDays(today, 6))
   const [bulkCarb, setBulkCarb] = useState<CarbDay | 'plan'>('medium')
   const [calendarNotice, setCalendarNotice] = useState('')
-  const [tab, setTab] = useState<'meals' | 'foods'>('meals')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<'meals' | 'foods'>(params.get('tab') === 'foods' ? 'foods' : 'meals')
+  useEffect(() => { if (params.get('tab') === 'foods') setTab('foods') }, [params])
 
   useEffect(() => { setSel(planned.carb) }, [planned.carb])
 

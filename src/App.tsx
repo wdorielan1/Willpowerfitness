@@ -29,6 +29,7 @@ import ImportHistory from './pages/ImportHistory'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import Notifications, { NotificationBell } from './Notifications'
+import Search from './pages/Search'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power" />
@@ -85,7 +86,7 @@ export default function App() {
       <ChallengeSync />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
-        <div className="top-actions"><NotificationBell /><button className="icon-button account-button" aria-label="Open account menu" onClick={() => setAccountMenu(true)}><Icon name="person" /></button></div>
+        <div className="top-actions"><Link to="/search" className="icon-button" aria-label="Search"><Icon name="search" /></Link><NotificationBell /><button className="icon-button account-button" aria-label="Open account menu" onClick={() => setAccountMenu(true)}><Icon name="person" /></button></div>
       </header>
       <main>
         {syncError && <div className="account-sync-note" role="status"><p>{syncError}</p><button className="quiet-action" onClick={retryAccount}>Retry connection</button></div>}
@@ -104,6 +105,7 @@ export default function App() {
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/shortcuts" element={<Shortcuts />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/search" element={<Search />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/privacy" element={<Privacy />} />
