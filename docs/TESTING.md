@@ -68,6 +68,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A workout finished before the sticker update can still be shared from Today
 - [ ] Reopening a finished workout shows Share this workout near the bottom of the review page
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
+- [ ] Undo completion on Today asks first (Yes, undo it / Cancel); Cancel keeps the workout complete; confirming keeps your logged sets
 
 ## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
@@ -127,6 +128,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Crew check-in and chat work
 - [ ] Report a crew
 - [ ] The crew page has the Share something with your crew... box right under the Feed / Challenges / Friends tabs, styled like an input; posting there shows the post in the feed below and the box clears
+- [ ] Share workout (crew page) opens the share screen: Card, or My photo + sticker (add a photo, drag and resize the sticker); Post to crew posts the picture with the workout line
+- [ ] After sharing, the button reads Workout shared and cannot be tapped again that day; a message confirms it posted
+- [ ] Deleting that workout post brings Share workout back
 
 ## 7. Crew map
 - [ ] Map tiles load
