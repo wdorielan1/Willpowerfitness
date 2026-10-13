@@ -250,7 +250,7 @@ try {
     window.ClipboardItem = class { constructor(value) { this.value = value } }
   })
   await page.getByRole('button', { name: 'Copy sticker', exact: true }).click()
-  check('Successful copy shows Instagram paste instruction', await page.getByRole('status').textContent() === 'Copied. In Instagram, open your story and paste.')
+  check('Successful copy shows Instagram paste instruction', await page.locator('.share-message').textContent() === 'Copied. In Instagram, open your story and paste.')
   await screenshot('copied-instruction')
   check('No JavaScript errors during browser scenarios', errors.length === 0)
   check('No photo or workout data uploaded; harness makes no external requests', external.length === 0)

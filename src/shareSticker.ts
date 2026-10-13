@@ -29,6 +29,15 @@ export async function buildWorkoutSticker(
   if (!measure) throw new Error('This browser cannot create a workout sticker.')
 
   const ink = color === 'dark' ? '#101114' : '#ffffff'
+  // Deeper brand colors with dark text, so they hold contrast on bright photos.
+  const green = color === 'dark' ? '#15803d' : GREEN
+  const accent = color === 'dark' ? '#d9480f' : ACCENT
+  // Small text gets a thin contrasting outline under the fill so it stays readable on bright, busy photos.
+  const halo = color === 'dark' ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)'
+  const ink2 = (g: CanvasRenderingContext2D, value: string, x: number, y: number, size: number) => {
+    if (size < 50) { g.save(); g.lineJoin = 'round'; g.lineWidth = Math.max(3, size * 0.14); g.strokeStyle = halo; g.strokeText(value, x, y); g.restore() }
+    g.fillText(value, x, y)
+  }
   const draws: Draw[] = []
   let y = 0
   const font = (weight: number, size: number) => `${weight} ${size}px ${FONT}`
@@ -58,7 +67,7 @@ export async function buildWorkoutSticker(
     draws.push((g) => {
       g.font = font(weight, size)
       g.fillStyle = fill
-      lines.forEach((line, i) => g.fillText(line, 0, top + i * lineHeight))
+      lines.forEach((line, i) => ink2(g, line, 0, top + i * lineHeight, size))
     })
     y += lines.length * lineHeight + gap
   }
@@ -76,7 +85,7 @@ export async function buildWorkoutSticker(
       g.restore()
       g.fillStyle = labelColor
       g.font = font(800, 32)
-      g.fillText(label, 108, top + 23)
+      ink2(g, label, 108, top + 23, 32)
     })
     y += 104
   }
@@ -110,9 +119,9 @@ export async function buildWorkoutSticker(
         g.font = font(800, size)
       }
       g.fillStyle = ink
-      g.fillText(cell.value, i * cellWidth, top)
+      ink2(g, cell.value, i * cellWidth, top, size)
       g.font = font(700, 21)
-      g.fillText(cell.label, i * cellWidth, top + 61)
+      ink2(g, cell.label, i * cellWidth, top + 61, 21)
     }))
     y += 105
   }
@@ -120,9 +129,9 @@ export async function buildWorkoutSticker(
   const achievements = () => {
     if (summary.volumeChangePct !== null && Number.isFinite(summary.volumeChangePct)) {
       text(`${signed(summary.volumeChangePct)} volume vs last session`, 29, 700,
-        summary.volumeChangePct > 0 ? GREEN : ink, 10)
+        summary.volumeChangePct > 0 ? green : ink, 10)
     }
-    if (summary.streak > 1) text(`${number(summary.streak)}-day streak`, 29, 700, ACCENT, 10)
+    if (summary.streak > 1) text(`${number(summary.streak)}-day streak`, 29, 700, accent, 10)
     if (summary.place?.trim()) text(summary.place.trim(), 25, 600, ink, 10)
   }
 
@@ -131,7 +140,7 @@ export async function buildWorkoutSticker(
     header('WORKOUT COMPLETE')
     text(summary.title.toUpperCase(), 44, 800, ink, 18)
     if (summary.prs.length) {
-      text(`${summary.prs.length} NEW ${summary.prs.length === 1 ? 'PR' : 'PRS'}`, 28, 800, GREEN, 18)
+      text(`${summary.prs.length} NEW ${summary.prs.length === 1 ? 'PR' : 'PRS'}`, 28, 800, green, 18)
       for (const pr of summary.prs) {
         text(pr.name, 36, 800, ink, 2)
         text(`${number(pr.weight)} lb × ${number(pr.reps)}  ·  ${signed(pr.pct)}`, 33, 700, ink, 24)
@@ -140,11 +149,11 @@ export async function buildWorkoutSticker(
     stats()
     achievements()
   } else {
-    header(hero ? 'NEW PR' : 'WORKOUT COMPLETE', hero ? GREEN : ink)
+    header(hero ? 'NEW PR' : 'WORKOUT COMPLETE', hero ? green : ink)
     if (hero) {
-      if (style === 'performance') text(hero.name, 43, 800, ink, 9)
+      text(hero.name, style === 'minimal' ? 46 : 43, 800, ink, 9)
       lift(hero.weight, hero.reps, style === 'minimal' ? 148 : 126)
-      text(`${signed(hero.pct)} improvement`, style === 'minimal' ? 40 : 35, 700, GREEN, 12)
+      text(`${signed(hero.pct)} improvement`, style === 'minimal' ? 40 : 35, 700, green, 12)
     } else {
       text(summary.title.toUpperCase(), style === 'minimal' ? 108 : 90, 900, ink, 12)
     }

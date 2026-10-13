@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Sheet } from './components'
-import { buildShareCard, type CardFormat, type WorkoutSummary } from './shareCard'
+import { buildShareCard, fmtDuration, type CardFormat, type WorkoutSummary } from './shareCard'
 import { buildWorkoutSticker } from './shareSticker'
-import { clampPlacement, composeSharePhoto, copyWorkoutSticker, drawPhotoComposition, getFrameSize, loadSharePhoto, shareWorkoutImage, stickerRect } from './sharePhoto'
+import { clampPlacement, composeSharePhoto, copyWorkoutSticker, drawPhotoComposition, getFrameSize, loadSharePhoto, photoBrightness, shareWorkoutImage, stickerRect } from './sharePhoto'
 import type { Settings, StickerPlacement, StickerStyle, StickerTextColor } from './types'
 
 type ImageAsset = { key: string; blob: Blob; url: string; image: HTMLImageElement }
@@ -50,6 +50,8 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
   const [message, setMessage] = useState('')
   const [imageError, setImageError] = useState('')
   const [composed, setComposed] = useState<{ key: string; blob: Blob } | null>(null)
+  const [colorNote, setColorNote] = useState('')
+  const manualColor = useRef(false)
   const canvas = useRef<HTMLCanvasElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const photoVersion = useRef(0)
@@ -67,9 +69,23 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
   const rect = sticker ? stickerRect(fitted, sticker.image, format) : null
   const maxScale = sticker ? clampPlacement({ ...fitted, scale: 1 }, sticker.image, format).scale : .95
   const compositionKey = JSON.stringify([stickerKey, format, fitted, photoVersion.current])
+  const rectRef = useRef(rect); rectRef.current = rect
+  const colorRef = useRef(color); colorRef.current = color
+
+  // Pick readable text for the photo under the sticker, until the person chooses a color themselves.
+  const autoColor = (source: HTMLCanvasElement | null) => {
+    if (!source || manualColor.current || !rectRef.current) return
+    const brightness = photoBrightness(source, rectRef.current, format)
+    const next: StickerTextColor | null = brightness > 0.6 ? 'dark' : brightness < 0.45 ? 'white' : null
+    if (!next || next === colorRef.current) return
+    setColor(next)
+    setColorNote(next === 'dark' ? 'Dark text picked for this bright photo. Switch anytime.' : 'White text picked for this dark photo. Switch anytime.')
+  }
 
   useEffect(() => () => { photoVersion.current++ }, [])
   useEffect(() => () => { if (photo) { photo.width = 0; photo.height = 0 } }, [photo])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { autoColor(photo) }, [photo, sticker?.key, format])
   useEffect(() => {
     if (!sticker) return
     const p = clampPlacement(placementRef.current, sticker.image, format)
@@ -104,6 +120,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
     try {
       const decoded = await loadSharePhoto(file)
       if (version !== photoVersion.current) { decoded.width = 0; decoded.height = 0; return }
+      setColorNote('')
       setPhoto(decoded); setMode('sticker')
     } catch { if (version === photoVersion.current) setMessage('Could not open that photo. Try a JPEG, PNG or another photo from your library.') }
     finally { if (version === photoVersion.current) setPhotoLoading(false) }
@@ -141,6 +158,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
     if (!pointers.current.delete(e.pointerId)) return
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     onPrefs({ shareStickerPlacement: placementRef.current })
+    autoColor(photo)
   }
   const output = mode === 'card' ? background?.blob : photo ? composed?.key === compositionKey ? composed.blob : undefined : sticker?.blob
   const shareText = `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`
@@ -158,13 +176,31 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
     finally { setBusy(false) }
   }
   const error = stickerError || (mode === 'card' ? cardError : imageError)
+  const momentum: [string, string][] = []
+  if (summary.volumeChangePct !== null && summary.volumeChangePct !== 0) momentum.push([`${summary.volumeChangePct > 0 ? '▲' : '▼'} ${Math.abs(summary.volumeChangePct)}% volume vs your last ${summary.title.toLowerCase()}`, summary.volumeChangePct > 0 ? 'up' : ''])
+  if (summary.streak > 1) momentum.push([`${summary.streak}-day streak`, 'streak'])
 
   return <Sheet title="Workout complete" onClose={onClose}>
     <div className="workout-share">
-      <p className="share-intro"><b>{summary.title}</b> · {summary.sets} sets{summary.minutes !== undefined ? ` · ${summary.minutes} min` : ''}<span>Your work. Your photo. Your people.</span></p>
+      <p className="share-intro"><b>{summary.title}</b> finished at {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>Your work. Your photo. Your people.</span></p>
+      <div className="share-recap">
+        <div className="share-recap-stats">
+          <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>
+          <div className="stat"><b>{summary.volume.toLocaleString()}</b><span>lb moved</span></div>
+          <div className="stat"><b>{summary.sets}</b><span>sets</span></div>
+        </div>
+        {momentum.length > 0 && <p className="share-recap-line">{momentum.map(([text, cls]) => <span key={text} className={cls}>{text}</span>)}</p>}
+        {summary.prs.length > 0
+          ? <div className="done-prs">
+              {summary.prs.slice(0, 3).map((pr) => <div key={pr.name} className="done-pr"><span><b>{pr.name}</b><span className="small mute">New PR · {pr.weight} lb × {pr.reps}</span></span><span className="done-pct">+{pr.pct}%</span></div>)}
+              {summary.prs.length > 3 && <p className="small mute" style={{ margin: 0 }}>+{summary.prs.length - 3} more PR{summary.prs.length - 3 === 1 ? '' : 's'}. Pick Full recap to share them all.</p>}
+            </div>
+          : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
+      </div>
       {mode === 'sticker' && <>
         <div className="share-segments" role="group" aria-label="Sticker style">{STYLES.map(([value, label]) => <button type="button" key={value} className={style === value ? 'on' : ''} aria-pressed={style === value} onClick={() => { setStyle(value); onPrefs({ shareStickerStyle: value }); setMessage('') }}>{label}</button>)}</div>
-        <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>
+        <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { manualColor.current = true; setColorNote(''); setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>
+        {colorNote && <p className="share-hint" role="status">{colorNote}</p>}
       </>}
       <div className={`share-preview-wrap ${photo && mode === 'sticker' ? 'with-photo' : ''}`}>
         {mode === 'card' ? <div className={`share-card-preview ${format}`}>{background ? <img src={background.url} alt="Original Will Power background card" /> : <span className="share-loading">Preparing card…</span>}</div>
@@ -184,7 +220,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
       </>}
       {mode === 'sticker' && <>
         <input ref={input} className="share-file-input" type="file" accept="image/*" aria-label="Choose your photo" onChange={(e) => { void addPhoto(e.target.files?.[0]); e.target.value = '' }} />
-        <div className="share-photo-actions"><button type="button" className="ghost" disabled={photoLoading || busy} onClick={() => input.current?.click()}>{photoLoading ? 'Opening photo…' : photo ? 'Change photo' : 'Add your photo'}</button>{photo && <button type="button" className="quiet-button" onClick={() => { photoVersion.current++; setPhoto(null); setComposed(null); setImageError('') }}>Remove photo</button>}</div>
+        <div className="share-photo-actions"><button type="button" className="ghost" disabled={photoLoading || busy} onClick={() => input.current?.click()}>{photoLoading ? 'Opening photo…' : photo ? 'Change photo' : 'Add your photo'}</button>{photo && <button type="button" className="quiet-button" onClick={() => { photoVersion.current++; setPhoto(null); setComposed(null); setImageError(''); setColorNote('') }}>Remove photo</button>}</div>
         <p className="share-hint">{photo ? 'Your photo stays on this device.' : 'Transparent PNG. Add a photo, or take it to Instagram.'}</p>
       </>}
       <div className={`share-actions ${mode === 'card' ? 'card-mode' : ''}`}>

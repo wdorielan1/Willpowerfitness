@@ -156,6 +156,25 @@ export function drawPhotoComposition(canvas: HTMLCanvasElement, photo: HTMLCanva
   context.drawImage(sticker, rect.x, rect.y, rect.width, rect.height)
 }
 
+/** Average brightness (0 dark to 1 bright) of the photo under a frame rectangle, after cover-fit. */
+export function photoBrightness(photo: HTMLCanvasElement, rect: { x: number; y: number; width: number; height: number }, format: CardFormat): number {
+  const frame = getFrameSize(format), k = 0.1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(frame.width * k); canvas.height = Math.round(frame.height * k)
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context || !photo.width || !photo.height) return 0
+  const cover = Math.max(frame.width / photo.width, frame.height / photo.height)
+  const width = photo.width * cover, height = photo.height * cover
+  context.drawImage(photo, (frame.width - width) / 2 * k, (frame.height - height) / 2 * k, width * k, height * k)
+  const x = Math.max(0, Math.floor(rect.x * k)), y = Math.max(0, Math.floor(rect.y * k))
+  const w = Math.max(1, Math.min(canvas.width - x, Math.ceil(rect.width * k))), h = Math.max(1, Math.min(canvas.height - y, Math.ceil(rect.height * k)))
+  const data = context.getImageData(x, y, w, h).data
+  let sum = 0
+  for (let i = 0; i < data.length; i += 4) sum += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255
+  canvas.width = canvas.height = 1
+  return sum / (data.length / 4)
+}
+
 /** JPEG removes source photo metadata, including any location metadata. */
 export function composeSharePhoto(photo: HTMLCanvasElement, sticker: HTMLImageElement, placement: StickerPlacement, format: CardFormat): Promise<Blob> {
   const canvas = document.createElement('canvas')
