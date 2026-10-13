@@ -176,6 +176,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Deleting a video post removes it for everyone and the file is gone from Supabase Storage (crew-photos); a failed post leaves nothing behind in Storage
 - [ ] iPhone clips (HEVC) play for you and for a friend on a different phone or computer; note any that don't
 - [ ] A friend's public profile shows "Shared a video with the crew" (never the video itself)
+- [ ] While a clip uploads the Post button shows a live percentage ("Uploading video 67% of 24 MB") and finishes without freezing, on Wi-Fi and on mobile data
+- [ ] A clip the phone can't preview still posts: the feed shows a plain tile with a play button and no length (note which clips these are)
+- [ ] If an upload is refused you get a plain sentence with the reason in brackets (too big for storage / videos not switched on: run crew-videos.sql / not in the crew), the video stays picked, and nothing half-posted is left in Storage
 
 ## 7. Crew map
 - [ ] Map tiles load
