@@ -56,6 +56,13 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The crew post for the workout mentions your top PR
 - [ ] Settings shows Saving… then ✓ Saved after a change
 - [ ] The top bar fills green as sets are logged
+- [ ] Stickers: Minimal / Performance / Full recap all show real numbers; Minimal names the lift
+- [ ] Add your photo (iPhone camera + library): sticker sits on it; drag, pinch and the size slider work
+- [ ] A bright photo switches the sticker to dark text (and a dark photo to white) with a note; tapping White/Dark yourself sticks
+- [ ] Copy sticker, then paste into an Instagram Story over a photo AND over a video
+- [ ] Share with a photo opens the share sheet with the combined picture (Instagram listed)
+- [ ] "No photo? Use a card" still makes the Story/Post card
+- [ ] The sheet shows time, lb moved, sets, volume change, streak and top PRs
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
