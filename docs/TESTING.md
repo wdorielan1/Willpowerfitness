@@ -67,7 +67,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] After finishing, Today shows a Share this workout button; it opens the sticker screen with the right numbers
 - [ ] A workout finished before the sticker update can still be shared from Today
 - [ ] Reopening a finished workout shows Share this workout near the bottom of the review page
-n## Comments (needs supabase/comments.sql run first)
+- [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
+
+## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
 - [ ] A second account (not in the crew) CANNOT see or comment on a crew-only post
 - [ ] A second account CAN see and comment on a post you made public, from your profile
@@ -76,7 +78,16 @@ n## Comments (needs supabase/comments.sql run first)
 - [ ] Signed out, open your public /u/ page: comments on public posts are readable, with a link to log in or join
 - [ ] The comment count updates on the post, and a comment from another phone appears within about 15 seconds
 - [ ] Typing 31 comments within an hour is stopped with a friendly message
-n## Notifications (needs supabase/notifications.sql run first)
+
+## Likes (needs supabase/comment-likes.sql run first)
+- [ ] Under a crew post with likes, the number reads N likes; tapping it lists who liked it (names and pictures)
+- [ ] Tapping the heart still likes and unlikes the post
+- [ ] Every comment has a heart; tapping it likes (orange) and unlikes, and the count updates straight away
+- [ ] Tapping a comment's count lists who liked that comment
+- [ ] A second account (not in the crew) can like a comment on a public post but cannot see or like comments on a crew-only post
+- [ ] A person who left the crew shows as Former member in the post likes list
+
+## Notifications (needs supabase/notifications.sql run first)
 - [ ] A bell sits next to the profile button in the header; it shows a number when something is new
 - [ ] Another account commenting on your post, liking it, or following you adds a notification (within about 30 seconds, or when you reopen the app)
 - [ ] Your own likes, comments and follows never notify you
@@ -84,7 +95,7 @@ n## Notifications (needs supabase/notifications.sql run first)
 - [ ] Opening Notifications shows the new ones highlighted with a dot, then clears the number on the bell
 - [ ] Tapping a follow opens that person's profile; tapping a comment or like opens your profile
 - [ ] With no notifications the page says nothing yet, with no errors
-- [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
+
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
 - [ ] Save a meal; it appears in the plan
