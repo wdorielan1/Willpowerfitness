@@ -123,6 +123,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Longer ranges show About N workouts a week; the weekly chart gets more bars; history and cardio have Show more
 - [ ] The chosen range is remembered the next time you open Progress
 - [ ] A range with nothing in it says so and suggests a longer range
+- [ ] Import > Body weight shows a ChatGPT prompt for daily weigh-ins; pasting a date,weight CSV previews a graph with the 7-day average, counts, range and any skipped lines
+- [ ] Importing adds the weigh-ins and keeps your own number on days you had already logged; the result links to Progress
+- [ ] Progress body weight is a line graph with daily readings and a 7-day average line; the change line says (7-day averages) with lots of data
+- [ ] Share on the body weight (and strength) graph opens Share your progress: a transparent graph sticker you can copy into Instagram, or lay over your own photo (drag, pinch, size slider, white or dark text) and share
 
 ## 6. Crews
 - [ ] Join and leave a crew
