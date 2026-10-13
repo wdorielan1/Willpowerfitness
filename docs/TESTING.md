@@ -118,6 +118,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Each My foods row has Add: it logs one serving to the meal picked in Add to; tapping again adds another serving to the same meal row (no duplicate rows); the bars at the top update
 - [ ] My foods search, remove (asks Remove?), and Add one food yourself all work; saved foods also appear in Add food under My foods
 - [ ] The My foods table fits at phone width with the Add button fully visible
+- [ ] Each meal card shows protein, carbs and fat in both the Target line and the Logged total (not just calories and protein)
 
 ## 5. Progress and photos
 - [ ] Weight, steps and cardio can be logged
