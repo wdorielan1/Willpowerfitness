@@ -14,6 +14,8 @@ export interface GraphStickerData {
   unit: string
   /** draw a 7-day average line over the daily readings (body weight) */
   smooth: boolean
+  /** leave out the start and latest numbers, so only the line and the change are shown */
+  hideValues?: boolean
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
@@ -77,8 +79,10 @@ export async function buildGraphSticker(g: GraphStickerData, color: StickerTextC
   // the first and last values, with a dot on the end of the line
   const first = avg ? avg[0] : g.pts[0], last = avg ? avg[avg.length - 1] : g.pts[g.pts.length - 1]
   for (const p of [first, last]) { c.beginPath(); c.arc(X(p.x), Y(p.y), 13, 0, Math.PI * 2); c.fillStyle = ink; c.fill() }
-  text(`${num(first.y)} ${g.unit}`, X(first.x) + 14, Y(first.y) - (Y(first.y) > y + 80 ? 56 : -22), 34, 800, ink, 'left')
-  text(`${num(last.y)} ${g.unit}`, X(last.x) - 14, Y(last.y) - (Y(last.y) > y + 80 ? 56 : -22), 34, 800, ink, 'right')
+  if (!g.hideValues) {
+    text(`${num(first.y)} ${g.unit}`, X(first.x) + 14, Y(first.y) - (Y(first.y) > y + 80 ? 56 : -22), 34, 800, ink, 'left')
+    text(`${num(last.y)} ${g.unit}`, X(last.x) - 14, Y(last.y) - (Y(last.y) > y + 80 ? 56 : -22), 34, 800, ink, 'right')
+  }
   y += GRAPH_H + 14
   text(dayLabel(g.pts[0].x), gx, y, 28, 700, ink, 'left')
   text(dayLabel(g.pts[g.pts.length - 1].x), gx + gw, y, 28, 700, ink, 'right')

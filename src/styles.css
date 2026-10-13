@@ -1099,3 +1099,5 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .myfoods-prompt { white-space: pre-wrap; background: var(--card2); border-radius: 12px; padding: 12px; font-size: 13px; margin: 0; }
 .myfoods-preview { display: grid; gap: 10px; }
 .myfoods-manual summary { cursor: pointer; font-weight: 700; }
+.share-privacy { display: grid; gap: 4px; justify-items: start; }
+.share-privacy .share-hint { margin: 0; }

@@ -99,8 +99,10 @@ export default function Progress() {
   const liftName = lifts.find(([id]) => id === exId)?.[1] ?? 'Strength'
   const strengthDelta = strengthPts.length > 1 ? Math.round((strengthPts[strengthPts.length - 1].y - strengthPts[0].y) * 10) / 10 : 0
   const [shareKind, setShareKind] = useState<'weight' | 'strength' | null>(null)
+  // weight is personal, so the sticker leaves out the actual numbers unless you switch that off
+  const hideWeight = data.settings.shareHideWeight ?? true
   const graphs: Record<'weight' | 'strength', GraphStickerData | null> = {
-    weight: wPts.length > 1 ? { title: 'Body weight', headline: signed(wDelta), note: `${range.name}${smoothDelta ? ' \u00b7 7-day averages' : ''}`, pts: wPts, unit: 'lb', smooth: true } : null,
+    weight: wPts.length > 1 ? { title: 'Body weight', headline: signed(wDelta), note: `${range.name}${smoothDelta ? ' \u00b7 7-day averages' : ''}`, pts: wPts, unit: 'lb', smooth: true, hideValues: hideWeight } : null,
     strength: strengthPts.length > 1 ? { title: `${liftName} \u00b7 est. 1RM`, headline: signed(strengthDelta), note: range.name, pts: strengthPts, unit: 'lb', smooth: false } : null,
   }
   const sharing = shareKind ? graphs[shareKind] : null
@@ -179,7 +181,7 @@ export default function Progress() {
         {wkCardio.length ? <div className="progress-cardio-list">{wkCardio.slice(0, cardioShown).map((c, i) => <div key={i} className="progress-cardio-row"><div><b>{c.kind}</b><time dateTime={c.date}>{dateLabel(c.date)}</time></div><span>{c.minutes} min</span></div>)}</div> : <p className="progress-empty">No cardio logged in {range.name.toLowerCase()}.</p>}
         {wkCardio.length > cardioShown && <button type="button" className="progress-more" onClick={() => setCardioShown(cardioShown + 10)}>Show {Math.min(10, wkCardio.length - cardioShown)} more</button>}
       </section>
-      {sharing && <StickerShareSheet title="Share your progress" intro={`${sharing.title} \u00b7 ${sharing.note}`} stickerKey={JSON.stringify(sharing)} buildSticker={(c) => buildGraphSticker(sharing, c)} shareText={`My ${sharing.title.toLowerCase()} progress on Will Power`} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setShareKind(null)} />}
+      {sharing && <StickerShareSheet title="Share your progress" intro={`${sharing.title} \u00b7 ${sharing.note}`} stickerKey={JSON.stringify(sharing)} buildSticker={(c) => buildGraphSticker(sharing, c)} shareText={`My ${sharing.title.toLowerCase()} progress on Will Power`} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setShareKind(null)} toggle={shareKind === 'weight' ? { label: 'Hide my weight', on: hideWeight, onChange: (on) => update((d) => ({ ...d, settings: { ...d.settings, shareHideWeight: on } })), hint: hideWeight ? 'Shows the line and how much you changed, but not what you weigh.' : 'Shows your starting and current weight on the graph.' } : undefined} />}
       {del && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => { const [dt, b] = del.split('|'); removeLog(dt, !!b); setDel(null) }} onCancel={() => setDel(null)} />}
     </div>
   )

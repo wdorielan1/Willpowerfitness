@@ -12,8 +12,10 @@ const DEFAULT_PLACEMENT: StickerPlacement = { x: .5, y: .62, scale: .9 }
  * A transparent sticker people can copy into Instagram or lay over their own photo (drag, pinch, resize),
  * then share. The sticker itself comes from `buildSticker`; everything else is the same as the workout share screen.
  */
-export function StickerShareSheet({ title, intro, stickerKey, buildSticker, shareText, settings, onPrefs, onClose }: {
+export function StickerShareSheet({ title, intro, stickerKey, buildSticker, shareText, settings, onPrefs, onClose, toggle }: {
   title: string; intro: string
+  /** an on/off choice about what the sticker shows (for example, hiding weights) */
+  toggle?: { label: string; hint: string; on: boolean; onChange: (on: boolean) => void }
   /** changes whenever the sticker's content changes (the sticker is rebuilt when it does) */
   stickerKey: string
   buildSticker: (color: StickerTextColor) => Promise<Blob>
@@ -153,6 +155,7 @@ export function StickerShareSheet({ title, intro, stickerKey, buildSticker, shar
         <p className="share-intro">{intro}</p>
         <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { manualColor.current = true; setColorNote(''); setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>
         {colorNote && <p className="share-hint" role="status">{colorNote}</p>}
+        {toggle && <div className="share-privacy"><button type="button" className={`chip ${toggle.on ? 'on' : ''}`} aria-pressed={toggle.on} onClick={() => toggle.onChange(!toggle.on)}>{toggle.on ? '\u2713 ' : ''}{toggle.label}</button><p className="share-hint">{toggle.hint}</p></div>}
         <div className={`share-preview-wrap ${photo ? 'with-photo' : ''}`}>
           {photo
             ? <div className={`share-photo-stage ${format}`} aria-label={`${format === 'story' ? 'Story' : 'Post'} photo preview`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd} onLostPointerCapture={pointerEnd}>
