@@ -80,6 +80,11 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Logging the last set (swipe, check or footer button) logs the sets before it too, filling any blank weight or reps from it
 - [ ] The first time you reach the sets, a looping demo shows a row swiping right (green) then left (red); it goes away after you swipe a set or tap Got it, and a one-line hint stays
 - [ ] Swiping a set never flips to another exercise
+- [ ] Today's lifts (warm-up page): swipe a lift left and it is removed right away with a "Removed ... Undo" line; Undo puts it back in the same spot
+- [ ] Swipe a lift right: a green "Add new" panel shows; the lift stays and a new one (same muscle) appears right after it with "Added ... after ... Undo"; Undo removes it again
+- [ ] A new lift never has the same name as one already in the workout; Swap and Add exercise lists don't show same-named lifts either
+- [ ] The same swipes work on the lifts list on the review page; press-and-hold drag and a quick tap still work on those rows, and a swipe never flips the page
+- [ ] Removed or added lifts carry into the exercise pages (progress bar segments match the list) and the finished log
 
 ## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
