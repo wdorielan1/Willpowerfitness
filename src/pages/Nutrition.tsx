@@ -3,6 +3,7 @@ import { FoodScan, FoodSearchOnline } from '../OnlineFoods'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Sheet } from '../components'
+import MyFoods from '../MyFoods'
 import { FOODS, FOOD_CATS, MEAL_NAMES, MEAL_SHARE } from '../foods'
 import { addDays, carbPlanFor, fromISO, macroPlan, MEALS, projectDays, todayISO } from '../engine'
 import { GOALS } from '../data'
@@ -69,6 +70,7 @@ export default function Nutrition() {
   const [rangeEnd, setRangeEnd] = useState(addDays(today, 6))
   const [bulkCarb, setBulkCarb] = useState<CarbDay | 'plan'>('medium')
   const [calendarNotice, setCalendarNotice] = useState('')
+  const [tab, setTab] = useState<'meals' | 'foods'>('meals')
 
   useEffect(() => { setSel(planned.carb) }, [planned.carb])
 
@@ -83,6 +85,15 @@ export default function Nutrition() {
   const save = (fn: (list: FoodEntry[]) => FoodEntry[]) => update((d) => ({ ...d, foodLog: { ...d.foodLog, [today]: fn(d.foodLog[today] ?? []) } }))
   const addFood = (f: FoodItem, meal: number) =>
     save((l) => [...l, { id: `${Date.now()}${Math.random().toString(36).slice(2, 5)}`, meal, name: f.name, serving: f.serving, qty: 1, cal: f.cal, p: f.p, c: f.c, f: f.f }])
+  // logging a saved food again in the same meal adds a serving instead of a duplicate row
+  const addOrBump = (f: FoodItem, meal: number) => save((l) => {
+    const same = l.find((x) => Math.min(x.meal, n.meals - 1) === meal && x.name === f.name && x.serving === f.serving)
+    if (!same) return [...l, { id: `${Date.now()}${Math.random().toString(36).slice(2, 5)}`, meal, name: f.name, serving: f.serving, qty: 1, cal: f.cal, p: f.p, c: f.c, f: f.f }]
+    const k = (same.qty + 1) / same.qty
+    return l.map((x) => (x === same ? { ...x, qty: x.qty + 1, cal: x.cal * k, p: x.p * k, c: x.c * k, f: x.f * k } : x))
+  })
+  const hour = new Date().getHours()
+  const usualMeal = Math.min(n.meals - 1, Math.max(0, Math.floor(((hour - 6) / 15) * n.meals)))
   const setQty = (e: FoodEntry, qty: number) => {
     if (qty <= 0) return save((l) => l.filter((x) => x.id !== e.id))
     const k = qty / e.qty
@@ -165,6 +176,14 @@ export default function Nutrition() {
         <p className="nutrition-help">Estimates based on your profile. Adjust calories, protein and fat in Settings.</p>
       </section>
 
+      <div className="nutrition-tabs" role="tablist" aria-label="Nutrition sections">
+        <button type="button" role="tab" aria-selected={tab === 'meals'} className={tab === 'meals' ? 'on' : ''} onClick={() => setTab('meals')}>Today’s meals</button>
+        <button type="button" role="tab" aria-selected={tab === 'foods'} className={tab === 'foods' ? 'on' : ''} onClick={() => setTab('foods')}>My foods{data.customFoods.length > 0 && <span className="nutrition-tab-count">{data.customFoods.length}</span>}</button>
+      </div>
+
+      {tab === 'foods' && <MyFoods foods={data.customFoods} mealNames={names} defaultMeal={usualMeal} onAdd={addOrBump} onSave={(items) => update((d) => ({ ...d, customFoods: [...d.customFoods, ...items] }))} onRemove={(id) => update((d) => ({ ...d, customFoods: d.customFoods.filter((x) => x.id !== id) }))} />}
+
+      {tab === 'meals' && <>
       <div className="nutrition-meals-heading"><h2>Today’s meals</h2><label className="nutrition-meal-count">Meals per day<select aria-label="Meals per day" value={n.meals} onChange={(e) => setN({ meals: Number(e.target.value) })}>{[2, 3, 4, 5, 6].map((k) => <option key={k} value={k}>{k} meals</option>)}</select></label></div>
       <div className="nutrition-meals">
         {names.map((name, i) => {
@@ -209,6 +228,7 @@ export default function Nutrition() {
         </div> : <p className="nutrition-help">Tap a date to adjust one day. Legs and full body are high carb; rest days are low.</p>}
         {calendarNotice && <p className="nutrition-calendar-notice" role="status">{calendarNotice}</p>}
       </section>
+      </>}
 
       {picker !== null && <Sheet title={`Add to ${names[picker]}`} onClose={() => setPicker(null)}>
         <div className="nutrition-sheet-content">
