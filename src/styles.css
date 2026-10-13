@@ -238,9 +238,9 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .crew-optional summary { cursor: pointer; font-size: 13px; color: var(--mute); }
 .crew-optional > section { margin-top: 14px; }
 .shell .feed-composer { padding: 18px 0; background: transparent; border: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; gap: 10px; }
-.feed-composer textarea { border: 0; border-radius: 0; background: transparent; padding: 0; resize: vertical; min-height: 68px; font-size: 14px; line-height: 1.5; }
-.feed-composer textarea:focus { outline: none; }
-.feed-composer textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 6px; }
+.feed-composer textarea { border: 1px solid var(--line); border-radius: 12px; background: var(--card2); padding: 12px 14px; resize: vertical; min-height: 76px; font-size: 16px; line-height: 1.5; }
+.feed-composer textarea::placeholder { color: var(--mute); }
+.feed-composer textarea:focus { outline: none; border-color: var(--accent); }
 .composer-actions .ghost { border: 0; color: var(--mute); padding: 8px 0; min-height: 40px; background: transparent; font-size: 11px; }
 .composer-actions .primary { font-size: 12px; min-height: 40px; padding: 9px 17px; background: var(--card); color: var(--text); border: 1px solid var(--line); }
 .composer-actions .primary:not(:disabled):hover { border-color: var(--ok); }

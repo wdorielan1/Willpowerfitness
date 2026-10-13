@@ -3,7 +3,7 @@ import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox } from '../components'
 import { CommentThread } from '../Comments'
 import { LikersSheet, type LikerRow } from '../Likers'
-import { createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
+import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { Icon } from '../icons'
 import { todayISO } from '../engine'
@@ -62,10 +62,10 @@ export function usePostActions(crewId: string) {
   return { post, feed }
 }
 
-export default function Feed({ crewId }: { crewId: string }) {
-  const { data, update, userId, avatarUrl } = useApp()
-  const crewAvatars = useCrewAvatars(crewId)
-  const { post, feed } = usePostActions(crewId)
+/** The "share something" box. It sits at the top of the crew page; the posts below it live in Feed. */
+export function FeedComposer({ crewId }: { crewId: string }) {
+  const { data } = useApp()
+  const { post } = usePostActions(crewId)
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -77,12 +77,8 @@ export default function Feed({ crewId }: { crewId: string }) {
   }, [photos])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const [del, setDel] = useState<CrewPost | null>(null)
-  const [big, setBig] = useState<{ srcs: string[]; start: number } | null>(null)
   const file = useRef<HTMLInputElement>(null)
   const todaysLog = data.logs.find((l) => l.date === todayISO() && !l.baseline && !l.imported)
-  const posts = feed ? feed.posts : data.posts.filter((p) => p.crewId === crewId).sort((a, b) => b.ts - a.ts)
-  const urls = usePhotoUrls(posts.flatMap(postPhotos), CREW_BUCKET)
 
   const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown> }) => {
     if (posting.current) return
@@ -94,6 +90,7 @@ export default function Feed({ crewId }: { crewId: string }) {
       const error = await post({ ...body, photos: selected, progress: setProgress })
       if (error) { setErr(error); return }
       if (!override) { setText(''); setPhotos([]) }
+      announceFeedChanged()
     } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
     finally { posting.current = false; setBusy(false) }
   }
@@ -104,6 +101,44 @@ export default function Feed({ crewId }: { crewId: string }) {
     const vol = todaysLog.entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0)
     void submit({ kind: 'workout', text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets, volume: Math.round(vol), exercises: todaysLog.entries.length } })
   }
+
+  return (
+    <>
+      <section className="card feed-composer">
+        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew..." maxLength={1000} />
+        {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
+          <img src={src} alt={`Selected photo ${i + 1}`} />
+          <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><Icon name="close" size={16} /></button>
+        </div>)}</div>}
+        <input ref={file} type="file" accept="image/*" multiple disabled={busy} hidden onChange={(e) => {
+          const picked = Array.from(e.target.files ?? [])
+          if (picked.length + photos.length > 10) setErr('Choose up to 10 photos.')
+          else { setPhotos((p) => [...p, ...picked]); setErr('') }
+          e.target.value = ''
+        }} />
+        <div className="row wrap composer-actions">
+          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
+          {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}><Icon name="weight" size={18} />Share workout</button>}
+          <span style={{ flex: 1 }} />
+          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
+        </div>
+        {busy && <p className="small mute" role="status">{progress}</p>}
+        {err && <p role="alert" className="err small">{err}</p>}
+      </section>
+
+    </>
+  )
+}
+
+export default function Feed({ crewId }: { crewId: string }) {
+  const { data, update, userId, avatarUrl } = useApp()
+  const crewAvatars = useCrewAvatars(crewId)
+  const { feed } = usePostActions(crewId)
+  const [err, setErr] = useState('')
+  const [del, setDel] = useState<CrewPost | null>(null)
+  const [big, setBig] = useState<{ srcs: string[]; start: number } | null>(null)
+  const posts = feed ? feed.posts : data.posts.filter((p) => p.crewId === crewId).sort((a, b) => b.ts - a.ts)
+  const urls = usePhotoUrls(posts.flatMap(postPhotos), CREW_BUCKET)
 
   const [likers, setLikers] = useState<{ title: string; people: LikerRow[] | null } | null>(null)
   const showLikers = (p: CrewPost) => {
@@ -132,28 +167,7 @@ export default function Feed({ crewId }: { crewId: string }) {
 
   return (
     <>
-      <section className="card feed-composer">
-        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew" maxLength={1000} />
-        {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
-          <img src={src} alt={`Selected photo ${i + 1}`} />
-          <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><Icon name="close" size={16} /></button>
-        </div>)}</div>}
-        <input ref={file} type="file" accept="image/*" multiple disabled={busy} hidden onChange={(e) => {
-          const picked = Array.from(e.target.files ?? [])
-          if (picked.length + photos.length > 10) setErr('Choose up to 10 photos.')
-          else { setPhotos((p) => [...p, ...picked]); setErr('') }
-          e.target.value = ''
-        }} />
-        <div className="row wrap composer-actions">
-          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
-          {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}><Icon name="weight" size={18} />Share workout</button>}
-          <span style={{ flex: 1 }} />
-          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
-        </div>
-        {busy && <p className="small mute" role="status">{progress}</p>}
-        {err && <p role="alert" className="err small">{err}</p>}
-      </section>
-
+      {err && <p role="alert" className="err small">{err}</p>}
       {posts.length === 0 && <section className="feed-empty"><span className="icon-surface"><Icon name="weight" /></span><h3>No posts yet.</h3><p>Post a workout, ask a question,<br />or let your crew know you’re coming.</p></section>}
       {posts.map((p) => {
         const images = postPhotos(p).map((photo) => urls[photo.id]).filter(Boolean)

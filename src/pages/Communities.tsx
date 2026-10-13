@@ -15,7 +15,7 @@ import CrewMapPanel from '../CrewMapPanel'
 import PlacePicker from '../PlacePicker'
 import AreaPicker from '../AreaPicker'
 import { roundCoord, type Place } from '../geo'
-import Feed from './Feed'
+import Feed, { FeedComposer } from './Feed'
 import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
 import { Icon } from '../icons'
 
@@ -226,6 +226,8 @@ export default function Communities() {
             {archived(crew) && <div className="banner">This crew has been quiet for {INACTIVE_DAYS}+ days. Post something to wake it up.</div>}
           </header>
           <SocialTabs />
+
+          <FeedComposer key={crew.id} crewId={crew.id} />
 
           <Qotd key={crew.id} crewId={crew.id} />
 

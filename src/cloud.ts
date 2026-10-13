@@ -342,6 +342,10 @@ export function useNotifications(userId: string | null) {
   return { items, unread: items.filter((n) => !n.read).length, loaded, refresh, markAllRead }
 }
 
+const FEED_EVENT = 'wpf-feed-changed'
+/** Tell every open feed to reload, e.g. after a post from the box at the top of the crew page. */
+export const announceFeedChanged = () => window.dispatchEvent(new Event(FEED_EVENT))
+
 /** The feed for one crew (newest first). Null when the backend isn't configured. */
 export function useCrewFeed(crewId: string | null, userId: string | null) {
   const [posts, setPosts] = useState<CrewPost[]>([])
@@ -368,7 +372,9 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
     }
     void load()
     const id = setInterval(load, 15000)
-    return () => { alive = false; clearInterval(id) }
+    const changed = () => { void load() }
+    window.addEventListener(FEED_EVENT, changed)
+    return () => { alive = false; clearInterval(id); window.removeEventListener(FEED_EVENT, changed) }
   }, [crewId, userId, tick])
   return supabase ? { posts, refresh } : null
 }
