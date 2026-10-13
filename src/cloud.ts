@@ -243,6 +243,50 @@ export async function toggleLikeCloud(postId: string, userId: string, liked: boo
   else await supabase?.from('crew_post_likes').insert({ post_id: postId, user_id: userId })
 }
 
+// ---------------- comments ----------------
+export interface PostComment { id: string; postId: string; userId: string; name: string; text: string; ts: number }
+const toComment = (r: Record<string, unknown>): PostComment => ({ id: String(r.id), postId: String(r.post_id), userId: r.user_id as string, name: (r.name as string) || 'Member', text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string) })
+export async function fetchComments(postId: string): Promise<PostComment[]> {
+  if (!supabase) return []
+  const { data } = await supabase.from('crew_post_comments').select('id,post_id,user_id,name,text,created_at').eq('post_id', postId).order('created_at', { ascending: true }).limit(200)
+  return (data ?? []).map((r) => toComment(r as Record<string, unknown>))
+}
+/** How many comments each post has, in one request. An older database without comments just returns nothing. */
+export async function fetchCommentCounts(postIds: string[]): Promise<Record<string, number>> {
+  if (!supabase || !postIds.length) return {}
+  const { data, error } = await supabase.from('crew_post_comments').select('post_id').in('post_id', postIds)
+  if (error) return {}
+  const out: Record<string, number> = {}
+  for (const r of data ?? []) { const k = String((r as { post_id: number }).post_id); out[k] = (out[k] ?? 0) + 1 }
+  return out
+}
+export async function addCommentCloud(postId: string, userId: string, text: string): Promise<string | null> {
+  if (!supabase) return 'Comments need an internet connection.'
+  const { error } = await supabase.from('crew_post_comments').insert({ post_id: postId, user_id: userId, text: text.trim().slice(0, 500) })
+  if (!error) return null
+  if (/crew_post_comments|schema cache/i.test(error.message)) return 'Comments are not switched on yet.'
+  if (/too fast|very fast/i.test(error.message)) return 'You are commenting very fast. Try again in a little while.'
+  return error.message
+}
+export async function deleteCommentCloud(id: string): Promise<string | null> {
+  const { error } = (await supabase?.from('crew_post_comments').delete().eq('id', id)) ?? {}
+  return error?.message ?? null
+}
+export async function reportCommentCloud(commentId: string, userId: string, reason = ''): Promise<string | null> {
+  const { error } = (await supabase?.from('comment_reports').insert({ comment_id: commentId, user_id: userId, reason: reason.slice(0, 500) })) ?? {}
+  if (error && /duplicate/i.test(error.message)) return null // already reported by you
+  return error?.message ?? null
+}
+/** The signed-in person on pages that live outside the app shell (the public /u/ profile page). */
+export function useSessionUserId(): string | null {
+  const [id, setId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!supabase) return
+    void supabase.auth.getSession().then(({ data }) => setId(data.session?.user.id ?? null)).catch(() => {})
+  }, [])
+  return id
+}
+
 /** The feed for one crew (newest first). Null when the backend isn't configured. */
 export function useCrewFeed(crewId: string | null, userId: string | null) {
   const [posts, setPosts] = useState<CrewPost[]>([])
@@ -255,6 +299,7 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
       const { data: rows } = await supabase.from('crew_posts').select('id,user_id,name,kind,text,image_path,image_paths,meta,created_at').eq('crew_id', crewId).order('created_at', { ascending: false }).limit(40)
       const ids = (rows ?? []).map((r) => r.id as number)
       const { data: likes } = ids.length ? await supabase.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
+      const counts = await fetchCommentCounts(ids.map(String))
       if (!alive) return
       setPosts((rows ?? []).map((r) => {
         const l = (likes ?? []).filter((x) => x.post_id === r.id)
@@ -262,7 +307,7 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
           id: String(r.id), crewId, userId: r.user_id as string, name: r.name as string, kind: r.kind as PostKind, text: r.text as string,
           imagePaths: r.image_paths?.length ? r.image_paths as string[] : r.image_path ? [r.image_path as string] : [],
           imagePath: (r.image_path as string | null) ?? undefined, meta: (r.meta as Record<string, unknown>) ?? {}, ts: Date.parse(r.created_at as string),
-          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId),
+          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId), comments: counts[String(r.id)] ?? 0,
         }
       }))
     }
@@ -372,16 +417,18 @@ export async function publishProfile(userId: string, patch: { bio?: string | nul
   await Promise.resolve(supabase.from('public_profiles').update(patch as never).eq('user_id', userId)).catch(() => {})
 }
 
-export interface PublicPost { id: string; crewId: string; kind: PostKind; text: string; ts: number; hasPhoto: boolean; isPublic: boolean }
+export interface PublicPost { id: string; crewId: string; kind: PostKind; text: string; ts: number; hasPhoto: boolean; isPublic: boolean; comments?: number }
 /** A person's posts: everything for you and crew-mates, public ones for everyone else. Row-level security decides what comes back. */
 export async function fetchUserPosts(userId: string, limit = 30): Promise<PublicPost[]> {
   if (!supabase) return []
   for (const cols of ['id,crew_id,kind,text,image_path,image_paths,created_at,is_public', 'id,crew_id,kind,text,image_path,image_paths,created_at']) {
     const { data, error } = await supabase.from('crew_posts').select(cols).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)
     if (!error) {
-      return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+      const rows = (data ?? []) as unknown as Record<string, unknown>[]
+      const counts = await fetchCommentCounts(rows.map((r) => String(r.id)))
+      return rows.map((r) => ({
         id: String(r.id), crewId: r.crew_id as string, kind: r.kind as PostKind, text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string),
-        hasPhoto: !!(r.image_path || (r.image_paths as string[] | undefined)?.length), isPublic: !!r.is_public,
+        hasPhoto: !!(r.image_path || (r.image_paths as string[] | undefined)?.length), isPublic: !!r.is_public, comments: counts[String(r.id)] ?? 0,
       }))
     }
   }

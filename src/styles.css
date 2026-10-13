@@ -962,3 +962,16 @@ button.week-day:active { background: var(--card2); }
 .share-recap-line .up { color: #34c759; }
 .share-recap-line .streak { color: var(--accent); }
 .session-primary + .ghost { margin-top: 10px; }
+
+/* Comments under posts */
+.comments { display: grid; gap: 8px; }
+.post-comments-toggle { display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 0; padding: 6px 10px 6px 0; background: transparent; color: var(--mute); font-size: 13px; font-weight: 700; }
+.post-comments-toggle.on { color: var(--text); }
+.comments-panel { display: grid; gap: 10px; padding: 12px; background: var(--card2); border-radius: 14px; }
+.comment { display: grid; gap: 2px; }
+.comment p { font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-head { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.comment-actions { display: flex; gap: 12px; min-height: 0; }
+.comment-actions .quiet-action, .comment-actions .link-danger { min-height: 0; padding: 2px 0; font-size: 12px; }
+.comment-form { display: flex; gap: 8px; }
+.comment-form input { flex: 1; min-width: 0; }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../store'
 import ProfileView from '../ProfileView'
+import { CommentThread } from '../Comments'
 import { profileLink } from '../ProfileSettings'
 import { cloudEnabled, fetchPerson, fetchUserPosts, followCloud, joinCrewCloud, unfollowCloud, type Person, type PublicPost } from '../cloud'
 import { allCommunities } from './Crew'
@@ -47,6 +48,7 @@ export default function FriendProfile() {
             crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
             onCrew={joinTheirCrew} crewJoined={(c) => data.joined.includes(c)}
             emptyPosts="No posts to show."
+            renderPost={(x) => userId ? <CommentThread postId={x.id} count={x.comments} me={{ id: userId }} postMine={p.userId === userId} /> : null}
             actions={p.userId === userId ? null : <>
               <button className={p.iFollow ? 'ghost' : 'primary'} onClick={() => void toggle()}>{p.iFollow ? 'Unfollow' : p.followsMe ? 'Follow back' : 'Follow'}</button>
               {p.isPublic && p.handle && <button className="ghost" onClick={() => void share()}>Share profile</button>}

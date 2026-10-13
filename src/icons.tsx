@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 const paths = {
+  comment: <path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.4A8 8 0 1 1 21 12Z" />,
   heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />,
   home: <path d="m3 10 9-7 9 7v10h-6v-6H9v6H3Z" />,
   weight: <path d="M2 8v8m4-11v14m12-14v14m4-11v8M6 12h12" />,

@@ -40,6 +40,8 @@ export interface ProfileViewProps {
   actions?: ReactNode
   /** what to say when there are no posts */
   emptyPosts?: string
+  /** extra content under each post (comments) */
+  renderPost?: (post: PublicPost) => ReactNode
   followers?: number | null
   following?: number | null
   /** link the counts to the Followers / Following lists (your own profile) */
@@ -109,6 +111,7 @@ export default function ProfileView(p: ProfileViewProps) {
             <div className="row"><span className="small mute">{p.crewName(x.crewId)} · {ago(x.ts)}</span>{x.kind === 'workout' ? <span className="tag ok">Workout</span> : x.kind === 'qotd' ? <span className="tag accent">Question of the day</span> : null}</div>
             {x.text && <p>{x.text}</p>}
             {x.hasPhoto && <p className="small mute">📷 Shared a photo with the crew</p>}
+            {p.renderPost?.(x)}
           </article>
         ))}
       </section>

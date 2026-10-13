@@ -64,7 +64,7 @@ export interface CrewPost {
   id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
   imagePaths: string[]; imageIds?: string[]
   imagePath?: string; imageId?: string // legacy single-photo posts
-  meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean; isPublic?: boolean
+  meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean; isPublic?: boolean; comments?: number
 }
 export interface StepLog { date: string; steps: number }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string; cat?: string; place?: string; lat?: number; lng?: number; created?: number }

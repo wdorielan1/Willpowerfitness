@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox } from '../components'
+import { CommentThread } from '../Comments'
 import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { Icon } from '../icons'
@@ -171,6 +172,7 @@ export default function Feed({ crewId }: { crewId: string }) {
               <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} />{p.likes || ''}</button>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
+            {userId && <CommentThread postId={p.id} count={p.comments} me={{ id: userId }} postMine={p.mine} />}
           </article>
         )
       })}

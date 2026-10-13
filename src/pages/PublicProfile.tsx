@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Logo } from '../App'
 import ProfileView from '../ProfileView'
+import { CommentThread } from '../Comments'
 import { allCommunities } from './Crew'
-import { cloudEnabled, fetchProfileByHandle, fetchUserPosts, type Person, type PublicPost } from '../cloud'
+import { cloudEnabled, fetchProfileByHandle, fetchUserPosts, useSessionUserId, type Person, type PublicPost } from '../cloud'
 
 const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`)
@@ -14,6 +15,7 @@ const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
 export default function PublicProfile({ handle }: { handle: string }) {
   const [person, setPerson] = useState<Person | null | undefined>(undefined)
   const [posts, setPosts] = useState<PublicPost[] | null>(null)
+  const me = useSessionUserId()
   const crews = allCommunities([])
   const crewName = (id: string) => crews.find((c) => c.id === id)?.name ?? 'A crew'
 
@@ -49,7 +51,7 @@ export default function PublicProfile({ handle }: { handle: string }) {
       {person === null && <section className="card"><h2>Profile not found</h2><p className="small mute">This profile is private or doesn’t exist.</p><a className="primary" href="/" style={{ textDecoration: 'none', textAlign: 'center' }}>Go to Will Power</a></section>}
       {person && (
         <>
-          <ProfileView name={person.name} handle={person.handle} avatar={person.avatar} bio={person.bio} followers={person.followers} following={person.following} stats={person.stats} posts={posts} crewName={crewName} emptyPosts="No public posts yet."
+          <ProfileView name={person.name} handle={person.handle} avatar={person.avatar} bio={person.bio} followers={person.followers} following={person.following} stats={person.stats} posts={posts} crewName={crewName} renderPost={(x) => <CommentThread postId={x.id} count={x.comments} me={me ? { id: me } : null} postMine={!!me && me === person.userId} />} emptyPosts="No public posts yet."
             actions={<a className="primary" href={join} style={{ textDecoration: 'none' }}>Join {person.name.split(' ')[0]} on Will Power</a>} />
           <p className="small mute" style={{ textAlign: 'center' }}>Wake Up. Show Up. Lift.</p>
         </>

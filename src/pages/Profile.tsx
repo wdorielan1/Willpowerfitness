@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import ProfileView from '../ProfileView'
+import { CommentThread } from '../Comments'
 import { profileLink } from '../ProfileSettings'
 import { computeStats } from '../profileStats'
 import { avatarFromFile } from '../photos'
@@ -52,6 +53,7 @@ export default function Profile() {
         followers={counts?.followers ?? (cloudEnabled ? null : 0)} following={counts?.following ?? (cloudEnabled ? null : 0)} countsLink={cloudEnabled}
         crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
         emptyPosts="No posts yet. Post in a crew and it shows here."
+        renderPost={(x) => userId ? <CommentThread postId={x.id} count={x.comments} me={{ id: userId }} postMine /> : null}
         actions={<>
           <button className="ghost small-btn" onClick={() => file.current?.click()}>{avatarUrl ? 'Change photo' : 'Add photo'}</button>
           {data.avatar && <button className="ghost small-btn" onClick={() => { setAvatar(null); setMsg(googlePhoto ? 'Back to your Google photo.' : 'Photo removed.') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
