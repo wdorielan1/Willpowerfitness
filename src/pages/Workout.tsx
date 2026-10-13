@@ -233,7 +233,8 @@ export default function Workout() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
   const [validation, setValidation] = useState('')
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
-  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
+  const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
+  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
   useEffect(() => { if (sp.get('change')) { if (active) setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp, active])
 
@@ -401,7 +402,13 @@ export default function Workout() {
   const DaySheet = sheet?.kind === 'day' && (
     <Sheet title="Change today's workout" onClose={() => setSheet(null)}>
       <p className="small mute">Change this session while keeping your usual weekly plan.</p>
-      <div className="train-session-choices">{sessionChoices(suggested, data.myWorkouts ?? []).filter((choice) => choice.id !== 'build').map((choice) => <button key={choice.id} onClick={() => chooseDay(choice.day, choice.focus, choice.ids)}>{choice.label}</button>)}</div>
+      <div className="train-session-choices">{sessionChoices(suggested, data.myWorkouts ?? []).map((choice) => <button key={choice.id} onClick={() => (choice.id === 'build' ? setSheet({ kind: 'build' }) : chooseDay(choice.day, choice.focus, choice.ids))}>{choice.label}</button>)}</div>
+    </Sheet>
+  )
+  const BuildSheet = sheet?.kind === 'build' && (
+    <Sheet title="Build your own workout" onClose={() => setSheet(null)}>
+      <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => chooseDay('Full Body', 'custom', buildIds)}
+        onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))} />
     </Sheet>
   )
 
@@ -560,6 +567,7 @@ export default function Workout() {
       {ask === 'discard' && <ConfirmSheet title="Discard this workout?" message="Are you sure you want to discard this workout? The sets you entered and the workout timer will be cleared." confirmLabel="Yes, discard it" onConfirm={discard} onCancel={() => setAsk(null)} />}
       {ask === 'delete' && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and today's check-in will be undone. This can't be undone." confirmLabel="Yes, delete it" onConfirm={deleteLogged} onCancel={() => setAsk(null)} />}
       {DaySheet}
+      {BuildSheet}
       {sheet?.kind === 'options' && (() => {
         const item = items.find((it) => it.ex.id === sheet.exId)
         if (!item) return null
