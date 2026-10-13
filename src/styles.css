@@ -987,3 +987,15 @@ button.week-day:active { background: var(--card2); }
 .notif-body { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: 14px; }
 .notif-snippet { color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notif-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }
+
+/* Who liked: post and comment likes */
+.post-like-group { display: flex; align-items: center; gap: 2px; }
+.post-like-count { min-height: 40px; padding: 8px 8px 8px 4px; background: transparent; color: var(--mute); font-size: 13px; font-weight: 700; }
+button.post-like-count:active { color: var(--text); }
+.comment-like-group { display: inline-flex; align-items: center; gap: 2px; }
+.comment-like { display: inline-flex; min-height: 0; padding: 2px 4px 2px 0; background: transparent; color: var(--mute); }
+.comment-like.on { color: var(--accent); }
+.comment-like.on svg { fill: var(--accent); }
+.comment-like-count { min-height: 0; padding: 2px 6px 2px 0; background: transparent; color: var(--mute); font-size: 12px; font-weight: 700; }
+.likers { display: grid; gap: 8px; }
+.liker { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }

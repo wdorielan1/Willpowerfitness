@@ -238,18 +238,42 @@ async function removePostRows(rows: { id: number; image_paths: string[]; image_p
   const { error } = await withTimeout(supabase.from('crew_posts').delete().in('id', rows.map((r) => r.id)), 15000, 'Deleting posts')
   if (error) throw new Error(error.message)
 }
+export interface Liker { userId: string; name: string; avatar?: string | null }
+/** Who liked a post. Likes are crew-only, so names and pictures come from the crew list. */
+export async function fetchPostLikers(postId: string, crewId: string): Promise<Liker[]> {
+  if (!supabase) return []
+  const { data: likes } = await supabase.from('crew_post_likes').select('user_id').eq('post_id', postId)
+  const ids = (likes ?? []).map((l) => l.user_id as string)
+  if (!ids.length) return []
+  const { data: members } = await selectMembers(crewId)
+  const byId = new Map((members ?? []).map((m) => [m.user_id, m]))
+  return ids.map((id) => { const m = byId.get(id); return { userId: id, name: m?.name || 'Former member', avatar: m?.avatar_url ?? null } })
+}
 export async function toggleLikeCloud(postId: string, userId: string, liked: boolean) {
   if (liked) await supabase?.from('crew_post_likes').delete().eq('post_id', postId).eq('user_id', userId)
   else await supabase?.from('crew_post_likes').insert({ post_id: postId, user_id: userId })
 }
 
 // ---------------- comments ----------------
-export interface PostComment { id: string; postId: string; userId: string; name: string; text: string; ts: number }
-const toComment = (r: Record<string, unknown>): PostComment => ({ id: String(r.id), postId: String(r.post_id), userId: r.user_id as string, name: (r.name as string) || 'Member', text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string) })
+export interface PostComment { id: string; postId: string; userId: string; name: string; text: string; ts: number; likers: { userId: string; name: string }[] }
+const toComment = (r: Record<string, unknown>): PostComment => ({ id: String(r.id), postId: String(r.post_id), userId: r.user_id as string, name: (r.name as string) || 'Member', text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string), likers: [] })
 export async function fetchComments(postId: string): Promise<PostComment[]> {
   if (!supabase) return []
   const { data } = await supabase.from('crew_post_comments').select('id,post_id,user_id,name,text,created_at').eq('post_id', postId).order('created_at', { ascending: true }).limit(200)
-  return (data ?? []).map((r) => toComment(r as Record<string, unknown>))
+  const rows = (data ?? []).map((r) => toComment(r as Record<string, unknown>))
+  if (!rows.length) return rows
+  // who liked each comment (an older database without comment likes just shows none)
+  const { data: likes, error } = await supabase.from('crew_comment_likes').select('comment_id,user_id,name').in('comment_id', rows.map((r) => r.id))
+  if (!error) for (const l of likes ?? []) rows.find((r) => r.id === String((l as { comment_id: number }).comment_id))?.likers.push({ userId: (l as { user_id: string }).user_id, name: ((l as { name: string }).name) || 'Member' })
+  return rows
+}
+export async function toggleCommentLikeCloud(commentId: string, userId: string, liked: boolean): Promise<string | null> {
+  if (!supabase) return 'Likes need an internet connection.'
+  const { error } = liked
+    ? await supabase.from('crew_comment_likes').delete().eq('comment_id', commentId).eq('user_id', userId)
+    : await supabase.from('crew_comment_likes').insert({ comment_id: commentId, user_id: userId })
+  if (!error) return null
+  return /crew_comment_likes|schema cache/i.test(error.message) ? 'Comment likes are not switched on yet.' : error.message
 }
 /** How many comments each post has, in one request. An older database without comments just returns nothing. */
 export async function fetchCommentCounts(postIds: string[]): Promise<Record<string, number>> {

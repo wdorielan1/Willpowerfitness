@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox } from '../components'
 import { CommentThread } from '../Comments'
-import { createPostCloud, deletePostCloud, ensureMemberCloud, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
+import { LikersSheet, type LikerRow } from '../Likers'
+import { createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { Icon } from '../icons'
 import { todayISO } from '../engine'
@@ -104,6 +105,12 @@ export default function Feed({ crewId }: { crewId: string }) {
     void submit({ kind: 'workout', text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets, volume: Math.round(vol), exercises: todaysLog.entries.length } })
   }
 
+  const [likers, setLikers] = useState<{ title: string; people: LikerRow[] | null } | null>(null)
+  const showLikers = (p: CrewPost) => {
+    if (!userId) return
+    setLikers({ title: 'Liked by', people: null })
+    void fetchPostLikers(p.id, p.crewId).then((people) => setLikers({ title: 'Liked by', people })).catch(() => setLikers({ title: 'Liked by', people: [] }))
+  }
   const like = (p: CrewPost) => {
     if (userId) { void toggleLikeCloud(p.id, userId, p.liked).then(() => feed?.refresh()); return }
     update((d) => ({ ...d, posts: d.posts.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)) }))
@@ -169,13 +176,19 @@ export default function Feed({ crewId }: { crewId: string }) {
             )}
             {images.length > 0 && <PostCarousel srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
-              <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} />{p.likes || ''}</button>
+              <div className="post-like-group">
+                <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
+                {p.likes > 0 && (userId
+                  ? <button className="post-like-count" onClick={() => showLikers(p)} aria-label={`See who liked this post, ${p.likes} ${p.likes === 1 ? 'like' : 'likes'}`}>{p.likes} {p.likes === 1 ? 'like' : 'likes'}</button>
+                  : <span className="post-like-count">{p.likes}</span>)}
+              </div>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
             {userId && <CommentThread postId={p.id} count={p.comments} me={{ id: userId }} postMine={p.mine} />}
           </article>
         )
       })}
+      {likers && <LikersSheet title={likers.title} people={likers.people} onClose={() => setLikers(null)} />}
       {big && <Lightbox srcs={big.srcs} start={big.start} onClose={() => setBig(null)} />}
       {del && <ConfirmSheet title="Delete this post?" message="Are you sure you want to delete this post? It will be removed for everyone in the crew." confirmLabel="Yes, delete it" onConfirm={() => void remove(del)} onCancel={() => setDel(null)} />}
     </>
