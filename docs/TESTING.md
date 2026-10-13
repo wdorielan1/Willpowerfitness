@@ -67,6 +67,15 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] After finishing, Today shows a Share this workout button; it opens the sticker screen with the right numbers
 - [ ] A workout finished before the sticker update can still be shared from Today
 - [ ] Reopening a finished workout shows Share this workout near the bottom of the review page
+n## Comments (needs supabase/comments.sql run first)
+- [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
+- [ ] A second account (not in the crew) CANNOT see or comment on a crew-only post
+- [ ] A second account CAN see and comment on a post you made public, from your profile
+- [ ] You can delete your own comment; as the post owner you can delete anyone's comment on your post; you cannot delete others' comments on other people's posts
+- [ ] Report on someone else's comment shows a thank-you; the row appears in the comment_reports table in Supabase
+- [ ] Signed out, open your public /u/ page: comments on public posts are readable, with a link to log in or join
+- [ ] The comment count updates on the post, and a comment from another phone appears within about 15 seconds
+- [ ] Typing 31 comments within an hour is stopped with a friendly message
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
