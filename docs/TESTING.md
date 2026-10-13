@@ -168,6 +168,15 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Deleting that workout post makes Post to crew available again
 - [ ] Post photos sit side by side like Strava: 1 photo fills the post, 2 share it, 3 fit across, 4 or more scroll sideways with the next one peeking; tapping a photo opens it full screen
 
+- [ ] (Run supabase/crew-videos.sql first) The crew composer has Add video next to Add photos; pick a short clip from the iPhone library and from Android: a cover frame with the length shows, with an x to remove it
+- [ ] Post the clip: the feed shows the cover with a play button and the length; tapping plays it inline with sound and controls (full screen works); the clip only downloads when tapped
+- [ ] A clip longer than 30 seconds, a file over 45 MB and a non-video each show a clear message and nothing is posted
+- [ ] A video and photos can't be mixed in one post (Add photos / Add video grey out once the other is chosen)
+- [ ] Another crew member sees and plays the video; someone outside the crew can't; likes and comments work on it
+- [ ] Deleting a video post removes it for everyone and the file is gone from Supabase Storage (crew-photos); a failed post leaves nothing behind in Storage
+- [ ] iPhone clips (HEVC) play for you and for a friend on a different phone or computer; note any that don't
+- [ ] A friend's public profile shows "Shared a video with the crew" (never the video itself)
+
 ## 7. Crew map
 - [ ] Map tiles load
 - [ ] Place search finds a town
