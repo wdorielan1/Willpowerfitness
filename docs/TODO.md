@@ -26,6 +26,7 @@ Parked ideas and open items. Move things up as priorities change. Keep secrets o
 7. [ ] **Progress insights**: charts per exercise, personal records, weekly streaks.
 8. [ ] **Crew map follow-ups**: marker clustering when there are many pins, "Follow me" mode with a direction cone (optional), report review screen.
 9. [ ] **Challenge creators can delete their own challenge.**
+10. [ ] **Delete my profile / account**: there is no way to do this in the app yet (Settings only has Log out). Add "Delete my account" at the bottom of Settings with a confirm sheet that says what goes (profile, workouts, photos, posts, comments, likes, notifications, crew memberships) and offers Export your data first. Cloud: a `security definer` SQL function (`delete_my_account()`) that deletes the signed-in user's rows and their `auth.users` record (cascades do the rest), plus removing their files from storage; then sign out. Local mode: clear `wpf.data.<email>`. Decide what happens to crews they own and to anyone's comments on their posts, and block deletion while they are in a live paid challenge. Lighter option to mention in the same screen: turn off "public / discoverable" instead. Also needed for App Store and Play Store listings and privacy rules.
 
 ## Bigger projects
 - [ ] **AI coach (OpenAI)**: Supabase Edge Function holds the key. Per-user daily limits and a usage table. Spending cap in OpenAI.
