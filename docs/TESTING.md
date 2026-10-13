@@ -126,6 +126,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Question of the day: one per day, hides after answering, returns if the answer is deleted
 - [ ] Crew check-in and chat work
 - [ ] Report a crew
+- [ ] The crew page has the Share something with your crew... box right under the Feed / Challenges / Friends tabs, styled like an input; posting there shows the post in the feed below and the box clears
 
 ## 7. Crew map
 - [ ] Map tiles load
