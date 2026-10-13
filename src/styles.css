@@ -975,3 +975,15 @@ button.week-day:active { background: var(--card2); }
 .comment-actions .quiet-action, .comment-actions .link-danger { min-height: 0; padding: 2px 0; font-size: 12px; }
 .comment-form { display: flex; gap: 8px; }
 .comment-form input { flex: 1; min-width: 0; }
+
+/* Notifications: header bell and list */
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.bell-button { position: relative; text-decoration: none; }
+.bell-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #101114; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; }
+.notif-list { display: grid; gap: 0; padding: 4px 0; overflow: hidden; }
+.notif { display: flex; gap: 12px; align-items: center; padding: 12px 14px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
+.notif:last-child { border-bottom: 0; }
+.notif.new { background: rgba(255, 107, 61, .08); }
+.notif-body { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: 14px; }
+.notif-snippet { color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }

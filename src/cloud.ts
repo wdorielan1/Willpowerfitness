@@ -287,6 +287,37 @@ export function useSessionUserId(): string | null {
   return id
 }
 
+// ---------------- notifications ----------------
+export interface AppNotification { id: string; kind: 'comment' | 'like' | 'follow'; actorId: string; actorName: string; postId: string | null; snippet: string; read: boolean; ts: number }
+const NOTIFY_EVENT = 'wpf-notifications-changed'
+/** Your latest notifications and how many are unread. Quietly empty on a database without them. */
+export function useNotifications(userId: string | null) {
+  const [items, setItems] = useState<AppNotification[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const refresh = useCallback(async () => {
+    if (!supabase || !userId) return
+    const { data, error } = await supabase.from('notifications').select('id,kind,actor_id,actor_name,post_id,snippet,read,created_at').order('created_at', { ascending: false }).limit(40)
+    if (!error) setItems((data ?? []).map((r) => ({ id: String(r.id), kind: r.kind as AppNotification['kind'], actorId: r.actor_id as string, actorName: (r.actor_name as string) || 'Someone', postId: r.post_id == null ? null : String(r.post_id), snippet: (r.snippet as string) ?? '', read: !!r.read, ts: Date.parse(r.created_at as string) })))
+    setLoaded(true)
+  }, [userId])
+  useEffect(() => {
+    if (!supabase || !userId) return
+    void refresh()
+    const id = setInterval(() => { void refresh() }, 30000)
+    const again = () => { if (document.visibilityState !== 'hidden') void refresh() }
+    const changed = () => { void refresh() }
+    document.addEventListener('visibilitychange', again)
+    window.addEventListener(NOTIFY_EVENT, changed)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', again); window.removeEventListener(NOTIFY_EVENT, changed) }
+  }, [userId, refresh])
+  const markAllRead = useCallback(async () => {
+    if (!supabase || !userId) return
+    const { error } = await supabase.from('notifications').update({ read: true } as never).eq('user_id', userId).eq('read', false)
+    if (!error) window.dispatchEvent(new Event(NOTIFY_EVENT))
+  }, [userId])
+  return { items, unread: items.filter((n) => !n.read).length, loaded, refresh, markAllRead }
+}
+
 /** The feed for one crew (newest first). Null when the backend isn't configured. */
 export function useCrewFeed(crewId: string | null, userId: string | null) {
   const [posts, setPosts] = useState<CrewPost[]>([])
