@@ -211,7 +211,7 @@ export default function Feed({ crewId }: { crewId: string }) {
                 <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
               </div>
             )}
-            {images.length > 0 && <PostCarousel srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
+            {images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
               <div className="post-like-group">
                 <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
@@ -232,13 +232,9 @@ export default function Feed({ crewId }: { crewId: string }) {
   )
 }
 
-function PostCarousel({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => void }) {
-  const [index, setIndex] = useState(0)
-  const track = useRef<HTMLDivElement>(null)
-  return <div className="post-carousel">
-    <div className="post-photo-track" ref={track} onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
-      {srcs.map((src, i) => <button className="post-photo" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
-    </div>
-    {srcs.length > 1 && <><span className="photo-counter">{index + 1}/{srcs.length}</span><div className="dots">{srcs.map((_, i) => <button key={i} aria-label={`Show photo ${i + 1}`} aria-current={i === index} className={`dot ${i === index ? 'on' : ''}`} onClick={() => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: 'smooth' })} />)}</div></>}
+/** Photos side by side like Strava: one fills the post, two share it, three fit across, and more scroll sideways. */
+function PostPhotos({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => void }) {
+  return <div className="post-strip" data-count={Math.min(srcs.length, 4)} role="list" aria-label={`${srcs.length} photo${srcs.length === 1 ? '' : 's'}${srcs.length > 3 ? ', swipe to see more' : ''}`}>
+    {srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
   </div>
 }

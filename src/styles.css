@@ -144,15 +144,6 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .pg-l { animation: slideL .22s ease both; }
 
 /* Crew posts: one photo per swipe, bounded to the mobile card. */
-.post, .post-carousel { min-width: 0; }
-.post-carousel { position: relative; }
-.post-photo-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 12px; }
-.post-photo-track::-webkit-scrollbar { display: none; }
-.post-photo { flex: 0 0 100%; min-width: 0; padding: 0; scroll-snap-align: start; scroll-snap-stop: always; background: var(--card2); border-radius: 0; }
-.post-photo:active { transform: none; }
-.post-photo img { width: 100%; height: 320px; object-fit: contain; display: block; }
-.photo-counter { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 12px; background: #000b; font-size: 12px; }
-.post-carousel .dots { padding-top: 10px; }
 .photo-previews { display: flex; gap: 8px; overflow-x: auto; min-width: 0; }
 .photo-previews > div { position: relative; flex: 0 0 80px; }
 .photo-previews img { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; }
@@ -252,9 +243,6 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .post-like { display: flex; gap: 7px; padding: 8px 0; background: transparent; color: var(--mute); min-height: 40px; font-size: 13px; }
 .post-like.on { color: var(--accent); }
 .post-like.on svg { fill: var(--accent); }
-.post .post-photo-track { background: var(--card); }
-.post-carousel .dot { min-height: 22px; min-width: 22px; width: 22px; height: 22px; border: 7px solid var(--bg); }
-.post-carousel .dot.on { width: 34px; border-color: var(--bg); }
 .shell.training { padding-bottom: calc(130px + env(safe-area-inset-bottom)); }
 .shell.training > .top, .shell.training > .tabbar { display: none; }
 .shell.training main { padding-top: calc(16px + env(safe-area-inset-top)); }
@@ -1101,3 +1089,15 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .myfoods-manual summary { cursor: pointer; font-weight: 700; }
 .share-privacy { display: grid; gap: 4px; justify-items: start; }
 .share-privacy .share-hint { margin: 0; }
+
+/* Post photos: a strip, side by side */
+.post-strip { --gap: 6px; display: flex; gap: var(--gap); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 12px; min-width: 0; }
+.post-strip::-webkit-scrollbar { display: none; }
+.post-strip-item { flex: 0 0 var(--w); width: var(--w); min-width: 0; padding: 0; min-height: 0; aspect-ratio: 1; scroll-snap-align: start; overflow: hidden; border-radius: 10px; background: var(--card2); }
+.post-strip-item:active { transform: none; opacity: .85; }
+.post-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.post-strip[data-count="1"] { --w: 100%; }
+.post-strip[data-count="1"] .post-strip-item { aspect-ratio: 4 / 3; }
+.post-strip[data-count="2"] { --w: calc((100% - var(--gap)) / 2); }
+.post-strip[data-count="3"] { --w: calc((100% - var(--gap) * 2) / 3); }
+.post-strip[data-count="4"] { --w: calc((100% - var(--gap) * 2) / 3.25); }
