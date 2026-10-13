@@ -76,6 +76,14 @@ n## Comments (needs supabase/comments.sql run first)
 - [ ] Signed out, open your public /u/ page: comments on public posts are readable, with a link to log in or join
 - [ ] The comment count updates on the post, and a comment from another phone appears within about 15 seconds
 - [ ] Typing 31 comments within an hour is stopped with a friendly message
+n## Notifications (needs supabase/notifications.sql run first)
+- [ ] A bell sits next to the profile button in the header; it shows a number when something is new
+- [ ] Another account commenting on your post, liking it, or following you adds a notification (within about 30 seconds, or when you reopen the app)
+- [ ] Your own likes, comments and follows never notify you
+- [ ] Liking, unliking and liking again only notifies once
+- [ ] Opening Notifications shows the new ones highlighted with a dot, then clears the number on the bell
+- [ ] Tapping a follow opens that person's profile; tapping a comment or like opens your profile
+- [ ] With no notifications the page says nothing yet, with no errors
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
