@@ -64,6 +64,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] "No photo? Use a card" still makes the Story/Post card
 - [ ] The sheet shows time, lb moved, sets, volume change, streak and top PRs
 - [ ] During a workout, Change workout lists Build your own; picking exercises and Start lifting switches to a Custom workout with exactly those
+- [ ] After finishing, Today shows a Share this workout button; it opens the sticker screen with the right numbers
+- [ ] A workout finished before the sticker update can still be shared from Today
+- [ ] Reopening a finished workout shows Share this workout near the bottom of the review page
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
