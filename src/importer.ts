@@ -1,6 +1,6 @@
 import { EXERCISES } from './data'
 import { addDays, iso, todayISO } from './engine'
-import type { DayType, LogEntry, WorkoutLog } from './types'
+import type { DayType, LogEntry, WeightLog, WorkoutLog } from './types'
 
 const ALIASES: Record<string, string> = {
   'bench': 'bench', 'bench press': 'bench', 'flat bench': 'bench', 'barbell bench': 'bench',
@@ -190,3 +190,69 @@ date,exercise,weight,reps,sets
 - no extra commentary, just the CSV inside one code block.
 Only use workouts I have actually told you about. Do not invent or guess numbers.
 If you do not have exact dates, give your best estimate and say which ones are estimated.`
+
+
+// ---------- body weight ----------
+export interface WeightImportResult {
+  entries: WeightLog[]
+  skipped: string[]
+  /** days that appeared more than once (the last reading is kept) */
+  duplicates: number
+}
+
+const DATE_IN_TEXT = [
+  /\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b/,
+  /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/,
+  /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/i,
+  /\b\d{1,2}[/.-]\d{1,2}\b/,
+]
+
+/** Read daily weigh-ins from a CSV or plain lines like "2026-09-01, 185.4" or "Sep 1: 184.8 lb". */
+export function parseWeights(text: string, opts: { kg: boolean }): WeightImportResult {
+  const today = todayISO()
+  const byDate = new Map<string, number>()
+  const skipped: string[] = []
+  let duplicates = 0
+  for (const raw of text.replace(/```[a-z]*/gi, '').split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    let dateText = '', date: string | null = null
+    for (const re of DATE_IN_TEXT) {
+      const m = line.match(re)
+      if (!m) continue
+      date = parseDate(m[0])
+      if (date) { dateText = m[0]; break }
+    }
+    if (!date) { if (!/^[a-z _,;\t-]+$/i.test(line)) skipped.push(line); continue } // a header like "date,weight" is not a problem
+    // a date with no year that lands in the future belongs to last year
+    if (date > today && !/\d{4}/.test(dateText) && dateText.split(/[/.\s,-]+/).filter(Boolean).length <= 2) date = iso(new Date(+date.slice(0, 4) - 1, +date.slice(5, 7) - 1, +date.slice(8, 10)))
+    const rest = line.replace(dateText, ' ')
+    const m = rest.match(/(?<![\d.])(\d{2,4}(?:\.\d+)?)(?!\d)\s*(kgs?|kilos?|lbs?|pounds?)?/i)
+    if (!m) { skipped.push(line); continue }
+    const kg = m[2] ? /^k/i.test(m[2]) : opts.kg
+    const value = parseFloat(m[1])
+    const lbs = Math.round((kg ? value * 2.20462 : value) * 10) / 10
+    if (!(lbs >= 40 && lbs <= 900) || date > today) { skipped.push(line); continue }
+    if (byDate.has(date)) duplicates++
+    byDate.set(date, lbs)
+  }
+  const entries = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, lbs]) => ({ date, lbs }))
+  return { entries, skipped, duplicates }
+}
+
+/** Add imported weigh-ins without touching days you have already logged. */
+export function mergeWeights(existing: WeightLog[], incoming: WeightLog[]): { weights: WeightLog[]; added: number; kept: number } {
+  const have = new Set(existing.map((w) => w.date))
+  const fresh = incoming.filter((w) => !have.has(w.date))
+  return { weights: [...existing, ...fresh].sort((a, b) => a.date.localeCompare(b.date)), added: fresh.length, kept: incoming.length - fresh.length }
+}
+
+export const CHATGPT_WEIGHT_PROMPT = `I weigh myself every day the same way (same scale, same time, usually first thing in the morning). Look through my body weight history and export ALL of it as a CSV with exactly these columns:
+date,weight
+- date as YYYY-MM-DD
+- one row per day, oldest to newest
+- weight in pounds with one decimal (convert from kg if needed: kg x 2.20462)
+- if there is more than one reading on a day, use the first (morning) one
+- no extra commentary, just the CSV inside one code block.
+Only use weigh-ins that are actually in the data I gave you. Do not invent, average, smooth or fill in missing days. If a day is missing, leave it out.
+If you can't tell the dates, ask me instead of guessing.`

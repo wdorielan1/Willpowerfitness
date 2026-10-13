@@ -2,7 +2,7 @@ import type { WorkoutSummary } from './shareCard'
 import type { StickerStyle, StickerTextColor } from './types'
 
 // The same W paths as the original share card, without the logo's black tile.
-const MARK = ['M323 380H434L678 748L620 845Z', 'M726 117L907 398L785 592L887 748L830 840L544 399ZM726 294L795 399L726 503L657 399Z', 'M1004 380H1116L930 681L872 591Z']
+export const MARK = ['M323 380H434L678 748L620 845Z', 'M726 117L907 398L785 592L887 748L830 840L544 399ZM726 294L795 399L726 503L657 399Z', 'M1004 380H1116L930 681L872 591Z']
 const ACCENT = '#ff6b3d'
 const GREEN = '#34c759'
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'

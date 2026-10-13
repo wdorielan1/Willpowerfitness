@@ -11,7 +11,7 @@ const DEFAULT_PLACEMENT: StickerPlacement = { x: .5, y: .72, scale: .8 }
 const STYLES: [StickerStyle, string][] = [['minimal', 'Minimal'], ['performance', 'Performance'], ['full', 'Full recap']]
 
 /** The image is prepared before the tap, preserving mobile clipboard/share user activation. */
-function useImageAsset(key: string, build: () => Promise<Blob>) {
+export function useImageAsset(key: string, build: () => Promise<Blob>) {
   const [asset, setAsset] = useState<ImageAsset | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {

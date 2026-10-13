@@ -3,21 +3,30 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { EXERCISES } from '../data'
 import { addDays, todayISO } from '../engine'
-import { mergeLogs, type ImportResult } from '../importer'
+import { mergeLogs, mergeWeights, type ImportResult } from '../importer'
+import WeightImporter from '../WeightImporter'
 import HistoryImporter from '../HistoryImporter'
-import type { LogEntry, WorkoutLog } from '../types'
+import type { LogEntry, WeightLog, WorkoutLog } from '../types'
 
 const BASELINE_IDS = ['bench', 'incdb', 'chestmach', 'row', 'pulldown', 'cablerow', 'squat', 'legpress', 'rdl', 'deadlift', 'dbpress', 'latraise', 'dbcurl', 'pushdown']
 
 export default function ImportHistory() {
   const { data, update } = useApp()
-  const [tab, setTab] = useState<'paste' | 'start'>('paste')
+  const [tab, setTab] = useState<'paste' | 'start' | 'weight'>('paste')
   const [done, setDone] = useState('')
+  const [doneLink, setDoneLink] = useState<{ to: string; label: string }>({ to: '/workout', label: 'See today’s workout' })
 
   const doImport = (result: ImportResult) => {
     if (!result.logs.length) return
     update((d) => ({ ...d, logs: mergeLogs(d.logs, result.logs) }))
     setDone(`Imported ${result.setCount} sets across ${result.logs.length} workout${result.logs.length === 1 ? '' : 's'}. Your next workouts will use these weights.`)
+    setDoneLink({ to: '/workout', label: 'See today’s workout' })
+  }
+  const doImportWeights = (entries: WeightLog[]) => {
+    const merged = mergeWeights(data.weights, entries)
+    update((d) => ({ ...d, weights: mergeWeights(d.weights, entries).weights }))
+    setDone(`Added ${merged.added} weigh-in${merged.added === 1 ? '' : 's'}${merged.kept ? ` (${merged.kept} day${merged.kept === 1 ? '' : 's'} you had already logged kept your number)` : ''}.`)
+    setDoneLink({ to: '/progress', label: 'See your graph' })
   }
 
   // starting weights
@@ -42,13 +51,16 @@ export default function ImportHistory() {
 
   return (
     <>
-      <div><h1>Import your lifting history</h1><p className="mute">Don’t start from scratch. Bring in what you’ve already lifted.</p></div>
+      <div><h1>Import your history</h1><p className="mute">Don’t start from scratch. Bring in what you’ve already lifted and weighed.</p></div>
       <div className="tabs">
-        <button className={tab === 'paste' ? 'on' : ''} onClick={() => setTab('paste')}>Paste / upload</button>
+        <button className={tab === 'paste' ? 'on' : ''} onClick={() => setTab('paste')}>Lifts</button>
         <button className={tab === 'start' ? 'on' : ''} onClick={() => setTab('start')}>Starting weights</button>
+        <button className={tab === 'weight' ? 'on' : ''} onClick={() => setTab('weight')}>Body weight</button>
       </div>
 
       {tab === 'paste' && <HistoryImporter onImport={doImport} />}
+
+      {tab === 'weight' && <WeightImporter existing={data.weights} onImport={doImportWeights} />}
 
       {tab === 'start' && (
         <section className="card">
@@ -65,7 +77,7 @@ export default function ImportHistory() {
         </section>
       )}
 
-      {done && <div className="ok-text">✓ {done} <Link to="/workout" style={{ textDecoration: 'underline' }}>See today’s workout</Link></div>}
+      {done && <div className="ok-text">✓ {done} <Link to={doneLink.to} style={{ textDecoration: 'underline' }}>{doneLink.label}</Link></div>}
     </>
   )
 }

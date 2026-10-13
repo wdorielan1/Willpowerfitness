@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { addDays, e1rm, fromISO, streak, todayISO, weekCounts } from '../engine'
 import { Icon } from '../icons'
+import { WeightChart } from '../WeightChart'
+import { StickerShareSheet } from '../StickerShare'
+import { buildGraphSticker, type GraphStickerData } from '../graphSticker'
 
 const RANGES = [
   { id: '7d', label: '7D', days: 7, name: 'Last 7 days' },
@@ -84,10 +87,23 @@ export default function Progress() {
   const wkWorkouts = Object.entries(data.checkins).filter(([d, c]) => d >= rangeStart && c.done).length
   const wkCardio = data.cardio.filter((c) => c.date >= rangeStart).sort((a, b) => b.date.localeCompare(a.date))
   const wkMin = wkCardio.reduce((a, c) => a + c.minutes, 0)
-  const wDelta = wPts.length > 1 ? Math.round((wPts[wPts.length - 1].y - wPts[0].y) * 10) / 10 : 0
+  // with lots of daily weigh-ins, compare the first and last week's averages instead of two single mornings
+  const smoothDelta = wPts.length >= 14
+  const avgOf = (a: { y: number }[]) => a.reduce((t, p) => t + p.y, 0) / a.length
+  const wDelta = wPts.length > 1 ? Math.round(((smoothDelta ? avgOf(wPts.slice(-7)) - avgOf(wPts.slice(0, 7)) : wPts[wPts.length - 1].y - wPts[0].y)) * 10) / 10 : 0
   const best = Math.max(0, ...Object.keys(data.checkins).sort().reduce<number[]>((acc, d) => { acc.push(data.checkins[d].done ? (acc.at(-1) ?? 0) + 1 : 0); return acc }, []))
 
   const weeklyTarget = data.profile?.days.length ?? 3
+  // the graphs people can turn into a transparent sticker to share
+  const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '\u2212' : ''}${Math.abs(v)} lb`
+  const liftName = lifts.find(([id]) => id === exId)?.[1] ?? 'Strength'
+  const strengthDelta = strengthPts.length > 1 ? Math.round((strengthPts[strengthPts.length - 1].y - strengthPts[0].y) * 10) / 10 : 0
+  const [shareKind, setShareKind] = useState<'weight' | 'strength' | null>(null)
+  const graphs: Record<'weight' | 'strength', GraphStickerData | null> = {
+    weight: wPts.length > 1 ? { title: 'Body weight', headline: signed(wDelta), note: `${range.name}${smoothDelta ? ' \u00b7 7-day averages' : ''}`, pts: wPts, unit: 'lb', smooth: true } : null,
+    strength: strengthPts.length > 1 ? { title: `${liftName} \u00b7 est. 1RM`, headline: signed(strengthDelta), note: range.name, pts: strengthPts, unit: 'lb', smooth: false } : null,
+  }
+  const sharing = shareKind ? graphs[shareKind] : null
   const remaining = Math.max(0, weeklyTarget - wkWorkouts)
   const perWeek = Math.round((wkWorkouts / (rangeDays / 7)) * 10) / 10
 
@@ -129,7 +145,7 @@ export default function Progress() {
       </section>
 
       <section className="progress-section" aria-labelledby="progress-strength-title">
-        <div className="progress-section-head"><h2 id="progress-strength-title">Strength</h2><span>Estimated one-rep max</span></div>
+        <div className="progress-section-head"><h2 id="progress-strength-title">Strength</h2><span className="progress-head-actions"><span>Estimated one-rep max</span>{graphs.strength && <button type="button" className="progress-log" aria-label="Share strength graph" onClick={() => setShareKind('strength')}><Icon name="upload" size={16} />Share</button>}</span></div>
         {lifts.length ? (
           <>
             <label className="progress-lift-picker">Exercise<select value={exId} onChange={(e) => setSel(e.target.value)}>{lifts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></label>
@@ -139,9 +155,9 @@ export default function Progress() {
       </section>
 
       <section className="progress-section" aria-labelledby="progress-weight-title">
-        <div className="progress-section-head"><h2 id="progress-weight-title">Body weight</h2><Link to="/log?t=weight" className="progress-log" aria-label="Log body weight"><Icon name="plus" size={16} />Log</Link></div>
-        <Line pts={wPts} unit="lb" label="Body weight trend" empty={`Log your weight twice${range.days ? ` within ${range.name.toLowerCase()}` : ''} to see a trend.`} />
-        {wPts.length > 1 && <p className="progress-note">{wDelta > 0 ? '+' : ''}{wDelta} lb {range.id === 'all' ? 'since your first entry' : `over ${range.name.toLowerCase()}`} · target {data.profile?.target} lb</p>}
+        <div className="progress-section-head"><h2 id="progress-weight-title">Body weight</h2><span className="progress-head-actions">{graphs.weight && <button type="button" className="progress-log" aria-label="Share body weight graph" onClick={() => setShareKind('weight')}><Icon name="upload" size={16} />Share</button>}<Link to="/log?t=weight" className="progress-log" aria-label="Log body weight"><Icon name="plus" size={16} />Log</Link></span></div>
+        <WeightChart pts={wPts} empty={`Log your weight twice${range.days ? ` within ${range.name.toLowerCase()}` : ''} to see a trend.`} />
+        {wPts.length > 1 && <p className="progress-note">{wDelta > 0 ? '+' : ''}{wDelta} lb {range.id === 'all' ? 'since your first entry' : `over ${range.name.toLowerCase()}`}{smoothDelta ? ' (7-day averages)' : ''} · target {data.profile?.target} lb</p>}
       </section>
 
       <section className="progress-section" aria-labelledby="progress-history-title">
@@ -163,6 +179,7 @@ export default function Progress() {
         {wkCardio.length ? <div className="progress-cardio-list">{wkCardio.slice(0, cardioShown).map((c, i) => <div key={i} className="progress-cardio-row"><div><b>{c.kind}</b><time dateTime={c.date}>{dateLabel(c.date)}</time></div><span>{c.minutes} min</span></div>)}</div> : <p className="progress-empty">No cardio logged in {range.name.toLowerCase()}.</p>}
         {wkCardio.length > cardioShown && <button type="button" className="progress-more" onClick={() => setCardioShown(cardioShown + 10)}>Show {Math.min(10, wkCardio.length - cardioShown)} more</button>}
       </section>
+      {sharing && <StickerShareSheet title="Share your progress" intro={`${sharing.title} \u00b7 ${sharing.note}`} stickerKey={JSON.stringify(sharing)} buildSticker={(c) => buildGraphSticker(sharing, c)} shareText={`My ${sharing.title.toLowerCase()} progress on Will Power`} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setShareKind(null)} />}
       {del && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => { const [dt, b] = del.split('|'); removeLog(dt, !!b); setDel(null) }} onCancel={() => setDel(null)} />}
     </div>
   )
