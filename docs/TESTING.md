@@ -179,6 +179,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Deleting a video post removes it for everyone and the file is gone from Supabase Storage (crew-photos); a failed post leaves nothing behind in Storage
 - [ ] iPhone clips (HEVC) play for you and for a friend on a different phone or computer; note any that don't
 - [ ] A friend's public profile shows "Shared a video with the crew" (never the video itself)
+- [ ] Picking a video shows "Videos are kept for 60 days, then deleted. The post and its cover photo stay."; the Privacy page mentions it
+- [ ] (After deploying the expire-videos function and its daily Cron job) a video post with created_at set to 61 days ago, once the function has run, shows "Video expired" with its cover and text, no player, and the file is gone from Storage > crew-photos; a 59-day-old one is untouched and says "Video expires in 1 day"
+- [ ] The Cron job's history shows a successful run each day, and the function's reply is `{"checked":N,"removed":N,"marked":N}` with no error; running it twice in a row removes nothing the second time
+- [ ] An expired video post can still be liked, commented on and deleted
 - [ ] While a clip uploads the Post button shows a live percentage ("Uploading video 67% of 24 MB") and finishes without freezing, on Wi-Fi and on mobile data
 - [ ] A clip the phone can't preview still posts: the feed shows a plain tile with a play button and no length (note which clips these are)
 - [ ] If an upload is refused you get a plain sentence with the reason in brackets (too big for storage / videos not switched on: run crew-videos.sql / not in the crew), the video stays picked, and nothing half-posted is left in Storage
