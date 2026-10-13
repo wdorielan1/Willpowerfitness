@@ -113,6 +113,11 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Camera permission denied: a clear message, and typing the barcode number still works
 - [ ] A barcode not in the database: "No product found" message
 - [ ] Closing the scanner turns the camera light off
+- [ ] Nutrition has two tabs, Today's meals and My foods; the calorie and macro bars stay at the top on both
+- [ ] My foods > Import from ChatGPT shows a prompt; pasting a CSV or a markdown table previews a table (food, serving, kcal, P, C, F) and Add N foods saves them
+- [ ] Each My foods row has Add: it logs one serving to the meal picked in Add to; tapping again adds another serving to the same meal row (no duplicate rows); the bars at the top update
+- [ ] My foods search, remove (asks Remove?), and Add one food yourself all work; saved foods also appear in Add food under My foods
+- [ ] The My foods table fits at phone width with the Add button fully visible
 
 ## 5. Progress and photos
 - [ ] Weight, steps and cardio can be logged
