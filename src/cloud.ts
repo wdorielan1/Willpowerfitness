@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { CrewPost, CustomChallenge, PostKind } from './types'
 import { todayISO } from './engine'
 import type { ProfileStats } from './profileStats'
-import { CREW_BUCKET, postPhotos, withRequestTimeout, withTimeout } from './photos'
+import { CREW_BUCKET, postPhotos, postVideo, withRequestTimeout, withTimeout } from './photos'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -218,19 +218,20 @@ export async function createPostCloud(p: { crewId: string; userId: string; name:
 }
 export async function deletePostCloud(id: string) {
   if (!supabase) return
-  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path').eq('id', id), 15000, 'Loading post')
+  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path,meta').eq('id', id), 15000, 'Loading post')
   if (error) throw new Error(error.message)
   await removePostRows(data ?? [])
 }
 export async function deleteMyPostsCloud(crewId: string, userId: string) {
   if (!supabase) return
-  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path').eq('crew_id', crewId).eq('user_id', userId), 15000, 'Loading posts')
+  const { data, error } = await withTimeout(supabase.from('crew_posts').select('id,image_paths,image_path,meta').eq('crew_id', crewId).eq('user_id', userId), 15000, 'Loading posts')
   if (error) throw new Error(error.message)
   await removePostRows(data ?? [])
 }
-async function removePostRows(rows: { id: number; image_paths: string[]; image_path: string | null }[]) {
+async function removePostRows(rows: { id: number; image_paths: string[]; image_path: string | null; meta?: Record<string, unknown> | null }[]) {
   if (!supabase || !rows.length) return
-  const paths = rows.flatMap((r) => postPhotos({ id: String(r.id), imagePaths: r.image_paths, imagePath: r.image_path ?? undefined }).map((p) => p.id))
+  // a clip lives in the same bucket as the photos, so it goes with the post
+  const paths = rows.flatMap((r) => [...postPhotos({ id: String(r.id), imagePaths: r.image_paths, imagePath: r.image_path ?? undefined }).map((p) => p.id), ...(postVideo(r.meta ?? undefined)?.path ? [postVideo(r.meta ?? undefined)!.path!] : [])])
   if (paths.length) {
     const { error } = await withTimeout(supabase.storage.from(CREW_BUCKET).remove(paths), 30000, 'Deleting photos')
     if (error) throw new Error(error.message)

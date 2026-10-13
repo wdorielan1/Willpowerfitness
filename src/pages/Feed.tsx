@@ -6,10 +6,11 @@ import { LikersSheet, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
-import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
+import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
+import { clock, prepareVideo, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
 import { todayISO } from '../engine'
-import type { CrewPost, PostKind } from '../types'
+import type { CrewPost, PostKind, VideoMeta } from '../types'
 
 const timeAgo = (ts: number) => {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000))
@@ -24,18 +25,29 @@ export function usePostActions(crewId: string) {
   const { data, update, userId } = useApp()
   const feed = useCrewFeed(crewId, userId)
   const name = data.name || 'Member'
-  const post = async (p: { kind: PostKind; text: string; photos?: Blob[]; meta?: Record<string, unknown>; progress?: (text: string) => void }): Promise<string | null> => {
+  const post = async (p: { kind: PostKind; text: string; photos?: Blob[]; video?: PreparedVideo; meta?: Record<string, unknown>; progress?: (text: string) => void }): Promise<string | null> => {
     const imagePaths: string[] = [], imageIds: string[] = []
     const uploaded: { id: string; path?: string }[] = []
+    let meta = p.meta
     try {
       if ((p.photos?.length ?? 0) > 10) throw new Error('Choose up to 10 photos.')
+      if (p.video && p.photos?.length) throw new Error('Post a video or photos, not both.')
       if (userId) {
         p.progress?.('Confirming membership…')
         const m = await ensureMemberCloud(crewId, userId, name)
         if (m) throw new Error(`Couldn’t confirm your crew membership: ${m}`)
       }
-      for (const [i, photo] of (p.photos ?? []).entries()) {
-        p.progress?.(`Uploading ${i + 1} of ${p.photos!.length}`)
+      if (p.video) { // the clip goes up first; the still frame below is saved like a photo and becomes the cover
+        p.progress?.('Uploading video…')
+        const vid = crypto.randomUUID()
+        const r = await saveVideoBlob(vid, p.video.file, p.video.type, userId, userId ? `${crewId}/${userId}` : '')
+        uploaded.push({ id: vid, path: r.path })
+        const clip: VideoMeta = { ...(r.path ? { path: r.path } : { id: vid }), type: p.video.type, seconds: p.video.seconds, size: p.video.file.size }
+        meta = { ...meta, video: clip }
+      }
+      const stills = p.video ? [p.video.poster] : p.photos ?? []
+      for (const [i, photo] of stills.entries()) {
+        p.progress?.(p.video ? 'Finishing…' : `Uploading ${i + 1} of ${stills.length}`)
         const small = await compress(photo)
         const id = crypto.randomUUID()
         const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, userId ? `${crewId}/${userId}` : '')
@@ -47,11 +59,11 @@ export function usePostActions(crewId: string) {
       }
       p.progress?.('Posting…')
       if (userId) {
-        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta: p.meta, isPublic: !!data.profilePublic })
+        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta, isPublic: !!data.profilePublic })
         if (error) throw new Error(error)
         feed?.refresh()
       } else {
-        const local: CrewPost = { id: crypto.randomUUID(), crewId, name, kind: p.kind, text: p.text, imagePaths, imageIds, meta: p.meta, ts: Date.now(), mine: true, likes: 0, liked: false }
+        const local: CrewPost = { id: crypto.randomUUID(), crewId, name, kind: p.kind, text: p.text, imagePaths, imageIds, meta, ts: Date.now(), mine: true, likes: 0, liked: false }
         update((d) => ({ ...d, posts: [local, ...d.posts] }))
       }
       return null
@@ -71,6 +83,20 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
+  const [video, setVideo] = useState<PreparedVideo | null>(null)
+  const [videoCover, setVideoCover] = useState('')
+  const [checking, setChecking] = useState(false)
+  const videoFile = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!video) { setVideoCover(''); return }
+    const u = URL.createObjectURL(video.poster); setVideoCover(u)
+    return () => URL.revokeObjectURL(u)
+  }, [video])
+  const pickVideo = async (f?: File) => {
+    if (!f) return
+    setErr(''); setChecking(true)
+    try { setVideo(await prepareVideo(f)) } catch (error) { setErr(error instanceof Error ? error.message : String(error)) } finally { setChecking(false) }
+  }
   const [progress, setProgress] = useState('Posting…')
   const posting = useRef(false)
   useEffect(() => {
@@ -92,13 +118,14 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown>; photos?: Blob[] }): Promise<string | null> => {
     if (posting.current) return 'Already posting. One moment.'
     const selected = override ? (override.photos ?? []) : photos
-    const body = override ?? { kind: (selected.length ? 'photo' : 'post') as PostKind, text: text.trim() }
-    if (!body.text && !selected.length) return 'Nothing to post.'
+    const clip = override ? undefined : video ?? undefined
+    const body = override ?? { kind: (clip ? 'video' : selected.length ? 'photo' : 'post') as PostKind, text: text.trim() }
+    if (!body.text && !selected.length && !clip) return 'Nothing to post.'
     posting.current = true; setBusy(true); setErr(''); setProgress('Posting…')
     try {
-      const error = await post({ ...body, photos: selected, progress: setProgress })
+      const error = await post({ ...body, photos: selected, video: clip, progress: setProgress })
       if (error) { setErr(error); return error }
-      if (!override) { setText(''); setPhotos([]) }
+      if (!override) { setText(''); setPhotos([]); setVideo(null) }
       announceFeedChanged()
       return null
     } catch (error) { const m = error instanceof Error ? error.message : String(error); setErr(m); return m }
@@ -123,6 +150,10 @@ export function FeedComposer({ crewId }: { crewId: string }) {
     <>
       <section className="card feed-composer">
         <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew..." maxLength={1000} />
+        {video && <div className="photo-previews"><div className="video-cover">
+          <img src={videoCover} alt="Cover of your video" /><span className="post-video-time">{clock(video.seconds)}</span>
+          <button disabled={busy} aria-label="Remove video" onClick={() => setVideo(null)}><Icon name="close" size={16} /></button>
+        </div></div>}
         {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
           <img src={src} alt={`Selected photo ${i + 1}`} />
           <button disabled={busy} aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><Icon name="close" size={16} /></button>
@@ -133,11 +164,13 @@ export function FeedComposer({ crewId }: { crewId: string }) {
           else { setPhotos((p) => [...p, ...picked]); setErr('') }
           e.target.value = ''
         }} />
+        <input ref={videoFile} type="file" accept="video/*" disabled={busy} hidden onChange={(e) => { void pickVideo(e.target.files?.[0]); e.target.value = '' }} />
         <div className="row wrap composer-actions">
-          <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
+          <button className="ghost small-btn" disabled={busy || photos.length >= 10 || !!video} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
+          <button className="ghost small-btn" disabled={busy || checking || !!video || photos.length > 0} onClick={() => videoFile.current?.click()}><Icon name="video" size={18} />{checking ? 'Checking…' : 'Add video'}</button>
           {todaysLog && <button className="ghost small-btn" onClick={() => setAskShare(true)} disabled={busy}><Icon name={shared ? 'check' : 'weight'} size={18} />Share workout</button>}
           <span style={{ flex: 1 }} />
-          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
+          <button className="primary small-btn" onClick={() => void submit()} disabled={busy || checking || (!text.trim() && !photos.length && !video)}>{busy ? progress : 'Post'}</button>
         </div>
         {busy && <p className="small mute" role="status">{progress}</p>}
         {err && <p role="alert" className="err small">{err}</p>}
@@ -172,7 +205,8 @@ export default function Feed({ crewId }: { crewId: string }) {
     try {
       if (userId) await deletePostCloud(p.id)
       else {
-        await Promise.all(postPhotos(p).map((photo) => deletePhotoBlob(photo, CREW_BUCKET)))
+        const clip = postVideo(p.meta)
+        await Promise.all([...postPhotos(p), ...(clip?.id ? [{ id: clip.id }] : [])].map((photo) => deletePhotoBlob(photo, CREW_BUCKET)))
         update((d) => ({ ...d, posts: d.posts.filter((x) => x.id !== p.id) }))
       }
       if (p.kind === 'qotd') { // deleting the answer brings the question back
@@ -194,6 +228,7 @@ export default function Feed({ crewId }: { crewId: string }) {
       {posts.length === 0 && <section className="feed-empty"><span className="icon-surface"><Icon name="weight" /></span><h3>No posts yet.</h3><p>Post a workout, ask a question,<br />or let your crew know you’re coming.</p></section>}
       {posts.map((p) => {
         const images = postPhotos(p).map((photo) => urls[photo.id]).filter(Boolean)
+        const clip = postVideo(p.meta)
         const meta = p.meta as { sets?: number; volume?: number; exercises?: number; q?: string } | undefined
         return (
           <article key={p.id} className="card post">
@@ -211,7 +246,7 @@ export default function Feed({ crewId }: { crewId: string }) {
                 <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
               </div>
             )}
-            {images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
+            {clip ? <PostVideo video={clip} cover={images[0]} /> : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
               <div className="post-like-group">
                 <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
@@ -237,4 +272,32 @@ function PostPhotos({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => v
   return <div className="post-strip" data-count={Math.min(srcs.length, 4)} role="list" aria-label={`${srcs.length} photo${srcs.length === 1 ? '' : 's'}${srcs.length > 3 ? ', swipe to see more' : ''}`}>
     {srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
   </div>
+}
+
+/** A clip in the feed: the cover frame with a play button. The clip itself only loads when it is tapped. */
+function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [err, setErr] = useState('')
+  const made = useRef<string | null>(null)
+  useEffect(() => () => { if (made.current) URL.revokeObjectURL(made.current) }, [])
+  const play = async () => {
+    setErr('')
+    try {
+      const url = await videoUrl(video)
+      if (!url) throw new Error('This video isn\u2019t available right now.')
+      if (url.startsWith('blob:')) made.current = url
+      setSrc(url)
+    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
+  }
+  if (src) return <video className="post-video" src={src} poster={cover} controls autoPlay playsInline preload="auto" onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
+  return (
+    <>
+      <button className="post-video-cover" aria-label={`Play video, ${clock(video.seconds)}`} onClick={() => void play()}>
+        {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
+        <span className="post-video-play"><Icon name="play" size={26} /></span>
+        <span className="post-video-time">{clock(video.seconds)}</span>
+      </button>
+      {err && <p className="small err" role="alert">{err}</p>}
+    </>
+  )
 }

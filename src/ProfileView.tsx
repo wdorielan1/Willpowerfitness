@@ -110,7 +110,7 @@ export default function ProfileView(p: ProfileViewProps) {
           <article key={x.id} className="pv-post">
             <div className="row"><span className="small mute">{p.crewName(x.crewId)} · {ago(x.ts)}</span>{x.kind === 'workout' ? <span className="tag ok">Workout</span> : x.kind === 'qotd' ? <span className="tag accent">Question of the day</span> : null}</div>
             {x.text && <p>{x.text}</p>}
-            {x.hasPhoto && <p className="small mute">📷 Shared a photo with the crew</p>}
+            {x.kind === 'video' ? <p className="small mute">🎬 Shared a video with the crew</p> : x.hasPhoto && <p className="small mute">📷 Shared a photo with the crew</p>}
             {p.renderPost?.(x)}
           </article>
         ))}

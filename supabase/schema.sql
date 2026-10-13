@@ -179,6 +179,8 @@ create policy "crew photos upload" on storage.objects for insert to authenticate
 drop policy if exists "crew photos delete own" on storage.objects;
 create policy "crew photos delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'crew-photos' and (storage.foldername(storage.objects.name))[2] = auth.uid()::text);
+-- crew posts can carry a short video (up to 30 seconds) in the same bucket; cap one file at 45 MB (see crew-videos.sql)
+update storage.buckets set file_size_limit = 47185920 where id = 'crew-photos';
 
 -- ---------- challenges: one row per person per challenge cohort ----------
 create table if not exists public.challenge_scores (

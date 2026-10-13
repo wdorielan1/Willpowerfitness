@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './cloud'
-import type { Photo } from './types'
+import type { Photo, VideoMeta } from './types'
 
 const BUCKET = 'progress-photos'
 export const CREW_BUCKET = 'crew-photos'
@@ -92,6 +92,12 @@ export function postPhotos(p: { id: string; imagePaths?: string[]; imageIds?: st
   return (p.imageIds?.length ? p.imageIds : p.imageId ? [p.imageId] : []).map((id) => ({ id }))
 }
 
+/** The clip on a crew post, if it has one. */
+export function postVideo(meta?: Record<string, unknown>): VideoMeta | null {
+  const v = meta?.video as VideoMeta | undefined
+  return v && typeof v === 'object' && (v.path || v.id) ? v : null
+}
+
 export interface SaveResult { path?: string; where: 'cloud' | 'device'; error?: string }
 
 export async function savePhotoBlob(id: string, blob: Blob, userId: string | null, bucket = BUCKET, folder = userId ?? ''): Promise<SaveResult> {
@@ -107,6 +113,30 @@ export async function savePhotoBlob(id: string, blob: Blob, userId: string | nul
   }
   await idb('readwrite', (s) => s.put(blob, id))
   return { where: 'device' }
+}
+
+/** Save a crew clip next to the crew's photos (same private bucket and rules). Throws when the upload fails. */
+export async function saveVideoBlob(id: string, file: Blob, type: string, userId: string | null, folder: string): Promise<SaveResult> {
+  if (supabase && userId) {
+    const ext = type.includes('quicktime') ? 'mov' : type.includes('webm') ? 'webm' : 'mp4'
+    const path = `${folder}/${id}.${ext}`
+    const { error } = await withTimeout(supabase.storage.from(CREW_BUCKET).upload(path, file, { contentType: type, upsert: false }), 180000, 'Video upload')
+    if (error) throw new Error(error.message)
+    return { path, where: 'cloud' }
+  }
+  await idb('readwrite', (s) => s.put(file, id))
+  return { where: 'device' }
+}
+
+/** A playable address for a crew clip: a signed link for cloud posts, an on-device copy otherwise. Revoke blob: addresses when done. */
+export async function videoUrl(v: VideoMeta): Promise<string | null> {
+  if (v.path && supabase) {
+    const { data } = await supabase.storage.from(CREW_BUCKET).createSignedUrl(v.path, 3600)
+    return data?.signedUrl ?? null
+  }
+  if (!v.id) return null
+  const b = await idb<Blob | undefined>('readonly', (s) => s.get(v.id!))
+  return b ? URL.createObjectURL(b) : null
 }
 
 export async function deletePhotoBlob(p: { id: string; path?: string }, bucket = BUCKET) {

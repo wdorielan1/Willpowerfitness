@@ -59,7 +59,9 @@ export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string,
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
 export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }
-export type PostKind = 'post' | 'qotd' | 'workout' | 'photo'
+export type PostKind = 'post' | 'qotd' | 'workout' | 'photo' | 'video'
+/** A short clip on a crew post, kept in the post's meta. Cloud posts have a storage path, on-device ones an id. */
+export interface VideoMeta { path?: string; id?: string; type: string; seconds: number; size: number }
 export interface CrewPost {
   id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
   imagePaths: string[]; imageIds?: string[]

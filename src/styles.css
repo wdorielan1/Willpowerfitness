@@ -1281,3 +1281,14 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .photo-camera-tools .quiet-action { min-height: 44px; white-space: nowrap; }
 .photo-camera-capture { min-height: 50px; font-size: 14px; border-radius: 10px; }
 @media (max-width:359px) { .progress-photos-add { padding: 16px; } .progress-photos-pair { gap: 8px; } .progress-photos-selectors { gap: 8px; } .progress-photos-caption, .progress-photo-tile-footer time { font-size: 10px; } .photo-camera-controls { padding-left: 16px; padding-right: 16px; } }
+
+/* Crew videos */
+.video-cover { position: relative; flex: 0 0 80px; }
+.video-cover .post-video-time { right: 6px; bottom: 6px; font-size: 10px; padding: 2px 5px; }
+.post-video-cover { position: relative; display: block; width: 100%; padding: 0; min-height: 0; border: 0; border-radius: 12px; overflow: hidden; background: var(--card2); }
+.post-video-cover img, .post-video-blank { display: block; width: 100%; max-height: 460px; min-height: 200px; object-fit: cover; background: var(--card2); }
+.post-video-blank { height: 240px; }
+.post-video-play { position: absolute; inset: 0; margin: auto; width: 62px; height: 62px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); color: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, .5); }
+.post-video-play svg { fill: currentColor; margin-left: 3px; }
+.post-video-time { position: absolute; right: 10px; bottom: 10px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(0, 0, 0, .65); color: #fff; font-variant-numeric: tabular-nums; }
+.post-video { display: block; width: 100%; max-height: 520px; border-radius: 12px; background: #000; }
