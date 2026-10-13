@@ -17,6 +17,8 @@ const paths = {
   plus: <path d="M12 4v16M4 12h16" />,
   upload: <path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5" />,
   download: <path d="M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5" />,
+  copy: <><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 8V3H3v13h5" /></>,
+  file: <path d="M14 2H4v20h16V8l-6-6Zm0 0v6h6M8 13h8m-8 4h6" />,
   trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></>,
   check: <path d="m5 12 4 4L19 6" />,

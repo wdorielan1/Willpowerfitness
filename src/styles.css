@@ -1123,3 +1123,43 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-strip[data-count="3"] { --w: calc((100% - var(--gap) * 2) / 3); }
 .post-strip[data-count="4"] { --w: calc((100% - var(--gap) * 2) / 3.25); }
 .search-results > :last-child { border-bottom: 0; }
+
+/* Export: readable controls and practical file actions. */
+.export-page { display: grid; gap: 26px; min-width: 0; }
+.export-heading { display: grid; gap: 10px; }
+.export-heading .quiet-action { justify-self: start; margin-top: -6px; }
+.export-heading > p { font-size: 14px; line-height: 1.7; color: var(--mute); }
+.export-summary { display: grid; gap: 20px; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+.export-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shell .export-page h2 { font-size: 18px; font-weight: 550; letter-spacing: -.4px; }
+.export-section-head > svg { color: var(--mute); }
+.export-period { gap: 8px; font-size: 12px; font-weight: 500; }
+.export-period select { font-size: 14px; min-height: 48px; }
+.export-sections { border: 0; padding: 0; margin: 0; min-width: 0; }
+.export-sections legend { font-size: 12px; color: var(--mute); padding: 0; margin-bottom: 11px; }
+.export-sections > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.export-toggle { display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 12px; color: var(--text); font-weight: 500; cursor: pointer; }
+.export-toggle input, .export-coaching-toggle input { width: 16px; height: 16px; min-height: 16px; padding: 0; margin: 0; flex: none; border-radius: 3px; accent-color: var(--accent); }
+.export-toggle span { min-width: 0; line-height: 1.45; }
+.export-preview, .export-coaching { border-top: 1px solid var(--line); padding-top: 4px; min-width: 0; }
+.export-preview summary, .export-coaching summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; cursor: pointer; font-size: 12px; color: var(--mute); list-style: none; }
+.export-preview summary::-webkit-details-marker, .export-coaching summary::-webkit-details-marker { display: none; }
+.export-preview[open] summary svg, .export-coaching[open] summary svg { transform: rotate(90deg); }
+.export-preview pre { margin: 6px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.65; max-height: 280px; overflow-y: auto; }
+.export-preview pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.export-summary-actions { display: grid; gap: 9px; }
+.export-summary-actions button { min-height: 48px; padding: 12px; border-radius: 10px; font-size: 13px; }
+.export-feedback { font-size: 12px; line-height: 1.6; }
+.export-coaching-toggle { display: flex; align-items: flex-start; gap: 10px; padding-top: 9px; font-size: 12px; line-height: 1.7; font-weight: 400; cursor: pointer; }
+.export-coaching-toggle input { margin-top: 3px; }
+.export-section { display: grid; gap: 15px; min-width: 0; padding-top: 24px; border-top: 1px solid var(--line); }
+.export-note { font-size: 13px; line-height: 1.7; color: var(--mute); }
+.export-downloads { display: grid; gap: 10px; }
+.export-download-row { display: flex; align-items: center; gap: 12px; min-height: 78px; width: 100%; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-align: left; }
+.export-download-row > svg { flex: none; color: var(--mute); }
+.export-download-row > span { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.export-download-row b { font-size: 14px; font-weight: 550; }
+.export-download-row span span { font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--mute); }
+.export-download-row:hover { border-color: var(--line-strong); background: var(--card2); }
+.export-privacy .quiet-action { justify-self: start; min-height: 44px; }
+@media (max-width:359px) { .export-summary { padding: 16px; } .export-toggle { padding: 9px 7px; gap: 7px; font-size: 11px; } .export-download-row { padding: 13px 10px; gap: 10px; } }
