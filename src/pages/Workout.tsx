@@ -247,7 +247,7 @@ export default function Workout() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
   const [resharing, setResharing] = useState(false)
   const [validation, setValidation] = useState('')
-  const [undo, setUndo] = useState<null | { label: string; prev: Draft }>(null)
+  const [undo, setUndo] = useState<null | { label: string; restore?: (d: AppData) => AppData }>(null)
   // the little swipe demo plays until they swipe a set or tap Got it, then never comes back
   const [swipeSeen, setSwipeSeen] = useState(() => { try { return localStorage.getItem('wpf.swipeSeen') === '1' } catch { return false } })
   const seeSwipe = () => { setSwipeSeen(true); try { localStorage.setItem('wpf.swipeSeen', '1') } catch { /* private mode: it just shows again next time */ } }
@@ -309,7 +309,8 @@ export default function Workout() {
     })
   /** Swipe-to-delete: gone straight away, with a few seconds to take it back. */
   const removeSet = (exId: string, base: SetEntry[], i: number, reps: string) => {
-    setUndo({ label: `Set ${i + 1} deleted`, prev: draft }); setValidation('')
+    const before = draft
+    setUndo({ label: `Set ${i + 1} deleted`, restore: (d) => ({ ...d, drafts: { ...d.drafts, [today]: before } }) }); setValidation('')
     dropSet(exId, base, i, reps)
   }
   const logSet = (exId: string, base: SetEntry[], i: number, rest: number, name: string) => {
@@ -366,7 +367,7 @@ export default function Workout() {
     const isExtra = (data.extras[today] ?? []).includes(cur)
     update((d) => {
       const drafts = { ...d.drafts, [today]: { ...(d.drafts[today] ?? { sets: {}, notes: {} }), sets: Object.fromEntries(Object.entries(d.drafts[today]?.sets ?? {}).filter(([k]) => k !== cur)), completed: Object.fromEntries(Object.entries(d.drafts[today]?.completed ?? {}).filter(([k]) => k !== cur)), touched: Object.fromEntries(Object.entries(d.drafts[today]?.touched ?? {}).filter(([k]) => k !== cur)) } }
-      if (isExtra) return { ...d, extras: { ...d.extras, [today]: (d.extras[today] ?? []).map((x) => (x === cur ? next : x)) }, drafts }
+      if (isExtra) return { ...d, extras: { ...d.extras, [today]: (d.extras[today] ?? []).map((x) => (x === cur ? next : x)) }, exOrder: d.exOrder?.[today] ? { ...d.exOrder, [today]: d.exOrder[today].map((x) => (x === cur ? next : x)) } : d.exOrder, drafts }
       return { ...d, swaps: { ...d.swaps, [`${today}|${orig}`]: next }, drafts }
     })
     setSheet(null)
@@ -376,6 +377,23 @@ export default function Workout() {
     update((d) => isExtra
       ? { ...d, extras: { ...d.extras, [today]: (d.extras[today] ?? []).filter((x) => x !== cur) } }
       : { ...d, removed: { ...d.removed, [today]: [...(d.removed[today] ?? []), orig] } })
+  }
+  /** Swipe left on a lift: gone from today's workout, with a few seconds to take it back. */
+  const removeLift = (it: (typeof items)[number]) => {
+    const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
+    removeEx(it.orig, it.ex.id)
+    setUndo({ label: `Removed ${it.ex.name}`, restore: (d) => ({ ...d, ...prev }) })
+  }
+  /** Swipe right on a lift: keep it and add a new one right after it that works the same muscle and fits their gear. */
+  const addAfter = (it: (typeof items)[number]) => {
+    const opts = swapOptions(it.ex, planIds, p)
+    const pick = opts[Math.floor(Math.random() * Math.min(opts.length, 4))]
+    if (!pick) { setUndo({ label: 'Nothing else fits your gear for this spot.' }); return }
+    const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
+    const order = items.map((x) => x.orig)
+    order.splice(order.indexOf(it.orig) + 1, 0, pick.id)
+    update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), pick.id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== pick.id) }, exOrder: { ...d.exOrder, [today]: order } }))
+    setUndo({ label: `Added ${pick.name} after ${it.ex.name}`, restore: (d) => ({ ...d, ...prev }) })
   }
   const addEx = (id: string) => {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
@@ -461,6 +479,7 @@ export default function Workout() {
     </Sheet>
   )
 
+  const UndoNote = undo && <p className="workout-undo" role="status">{undo.label}{undo.restore && <button type="button" onClick={() => { update(undo.restore!); setUndo(null) }}>Undo</button>}</p>
   const ex = page >= 1 && page <= items.length ? items[page - 1] : null
   const st = ex ? exState[page - 1] : null
   const nextSet = st ? st.completed.findIndex((done) => !done) : -1
@@ -498,14 +517,17 @@ export default function Workout() {
             <section className="card">
               <h3>Today’s lifts</h3>
               <p className="small mute" style={{ margin: '0 0 8px' }}>Built for your goal: <b>{GOALS[p.goal]}</b>{(p.focus?.length ?? 0) > 0 && <> · extra work for <b>{BODY_AREAS.filter((a) => p.focus!.includes(a.id)).map((a) => a.label.toLowerCase()).join(', ')}</b></>}. <Link to="/settings" style={{ textDecoration: 'underline' }}>Change</Link></p>
-              {items.length > 1 && <p className="small mute train-reorder-hint">Press and hold a lift, then drag it up or down to change the order.</p>}
+              {items.length > 0 && <p className="small mute train-reorder-hint">{items.length > 1 ? 'Press and hold a lift, then drag it up or down to change the order. ' : ''}Swipe a lift left to remove it, or right to keep it and add a new one after it.</p>}
               <ReorderList label="Today's lifts" items={items} getKey={(x) => x.ex.id} onReorder={reorderToday}>{(it, i) => (
-                <button className="minirow" onClick={() => go(i + 1)}>
-                  <span className="thumbs"><Thumb id={it.ex.id} /></span>
-                  <span style={{ flex: 1, textAlign: 'left' }}><b>{it.ex.name}</b><br /><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></span>
-                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].done ? <Icon name="check" /> : <Icon name="chevron" />}</span>
-                </button>
+                <SwipeRow className="tile" leftLabel="Remove" rightLabel="Add new" onLeft={() => removeLift(it)} onRight={() => addAfter(it)}>
+                  <button className="minirow" onClick={() => go(i + 1)}>
+                    <span className="thumbs"><Thumb id={it.ex.id} /></span>
+                    <span style={{ flex: 1, textAlign: 'left' }}><b>{it.ex.name}</b><br /><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></span>
+                    <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].done ? <Icon name="check" /> : <Icon name="chevron" />}</span>
+                  </button>
+                </SwipeRow>
               )}</ReorderList>
+              {UndoNote}
               <div className="row wrap">
                 <button className="chip" onClick={() => setSheet({ kind: 'day' })}>Change workout</button>
                 <button className={`chip ${short ? 'on' : ''}`} onClick={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))}>{short && <Icon name="check" />}{short ? 'Short session' : 'Short on time?'}</button>
@@ -564,7 +586,7 @@ export default function Workout() {
               <button className="icon-button" aria-label="Exercise options" onClick={() => setSheet({ kind: 'options', exId: ex.ex.id })}><Icon name="more" /></button>
             </div>
             {validation && <p className="workout-validation" role="alert">{validation}</p>}
-            {undo && <p className="workout-undo" role="status">{undo.label}<button type="button" onClick={() => { update((d) => ({ ...d, drafts: { ...d.drafts, [today]: undo.prev } })); setUndo(null) }}>Undo</button></p>}
+            {UndoNote}
 
             {data.settings.rpeEnabled && st.rows.length > 0 && st.completed[st.rows.length - 1] && (
               <details className="workout-rpe" onToggle={(e) => { const el = e.currentTarget; if (el.open) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }}>
@@ -593,11 +615,14 @@ export default function Workout() {
               <p className="mute">{enteredSets} {enteredSets === 1 ? 'set' : 'sets'} entered · {exState.filter((s) => s.done).length} of {items.length} exercises completed</p>
               {pendingSets > 0 && <p className="banner">{pendingSets} entered {pendingSets === 1 ? 'set has' : 'sets have'} not been checked. These valid sets will also be saved when you finish.</p>}
               <ReorderList label="Exercises in this workout" items={items} getKey={(x) => x.ex.id} onReorder={reorderToday}>{(it, i) => (
-                <button className="minirow" onClick={() => go(i + 1)}>
-                  <span style={{ flex: 1, textAlign: 'left' }}>{it.ex.name}</span>
-                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].counted.filter(Boolean).length} sets{exState[i].done && <Icon name="check" />}</span>
-                </button>
+                <SwipeRow className="tile" leftLabel="Remove" rightLabel="Add new" onLeft={() => removeLift(it)} onRight={() => addAfter(it)}>
+                  <button className="minirow" onClick={() => go(i + 1)}>
+                    <span style={{ flex: 1, textAlign: 'left' }}>{it.ex.name}</span>
+                    <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].counted.filter(Boolean).length} sets{exState[i].done && <Icon name="check" />}</span>
+                  </button>
+                </SwipeRow>
               )}</ReorderList>
+              {UndoNote}
               <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
             </section>
             {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><Link className="btn ghost" to="/log">Log cardio</Link></section>}

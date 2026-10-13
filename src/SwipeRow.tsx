@@ -8,8 +8,8 @@ const GO = 76 // px past which letting go counts as a swipe
  * A row you can swipe: right runs `onRight`, left runs `onLeft`. Up and down still scroll the page, taps still
  * reach the inputs and buttons inside. Pass undefined for a direction to turn it off (the row resists).
  */
-export function SwipeRow({ children, onRight, onLeft, rightLabel, leftLabel }: {
-  children: ReactNode; onRight?: () => void; onLeft?: () => void; rightLabel: string; leftLabel: string
+export function SwipeRow({ children, onRight, onLeft, rightLabel = '', leftLabel = '', className = '' }: {
+  children: ReactNode; onRight?: () => void; onLeft?: () => void; rightLabel?: string; leftLabel?: string; className?: string
 }) {
   const [dx, setDx] = useState(0)
   const [held, setHeld] = useState(false)
@@ -37,6 +37,7 @@ export function SwipeRow({ children, onRight, onLeft, rightLabel, leftLabel }: {
   const move = (e: React.PointerEvent<HTMLDivElement>) => {
     const s = start.current
     if (!s || s.id !== e.pointerId) return
+    if (e.buttons === 0) { start.current = null; return } // a mouse just hovering, not pressed
     const mx = e.clientX - s.x, my = e.clientY - s.y
     if (!locked.current) {
       if (Math.abs(my) > LOCK && Math.abs(my) > Math.abs(mx)) { start.current = null; return } // that is a scroll
@@ -51,10 +52,10 @@ export function SwipeRow({ children, onRight, onLeft, rightLabel, leftLabel }: {
 
   const armed = (dx >= GO && !!onRight) || (dx <= -GO && !!onLeft)
   return (
-    <div className="swipe-row" data-noswipe onPointerDown={down} onPointerMove={move} onPointerUp={(e) => end(e, true)} onPointerCancel={(e) => end(e, false)}
+    <div className={`swipe-row ${className}`} data-noswipe onPointerDown={down} onPointerMove={move} onPointerUp={(e) => end(e, true)} onPointerCancel={(e) => end(e, false)}
       onClickCapture={(e) => { if (Date.now() < suppress.current) { e.preventDefault(); e.stopPropagation() } }}>
-      {dx > 0 && <div className={`swipe-bg right${armed ? ' armed' : ''}`} aria-hidden="true"><Icon name="check" size={20} />{rightLabel}</div>}
-      {dx < 0 && <div className={`swipe-bg left${armed ? ' armed' : ''}`} aria-hidden="true">{leftLabel}<Icon name="trash" size={20} /></div>}
+      {dx > 0 && onRight && <div className={`swipe-bg right${armed ? ' armed' : ''}`} aria-hidden="true"><Icon name="check" size={20} />{rightLabel}</div>}
+      {dx < 0 && onLeft && <div className={`swipe-bg left${armed ? ' armed' : ''}`} aria-hidden="true">{leftLabel}<Icon name="trash" size={20} /></div>}
       <div className={`swipe-front${held ? ' held' : ''}`} style={dx ? { transform: `translateX(${dx}px)` } : undefined}>{children}</div>
     </div>
   )

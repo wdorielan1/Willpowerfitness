@@ -236,9 +236,13 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
   return { day, items: [...base, ...extras] as PlannedExercise[] }
 }
 
+/** A few lifts exist twice under one name (a full-body variant), so never offer a lift that shares a name with one already in the workout. */
+const namesOf = (ids: string[]) => new Set(ids.map((id) => EXERCISES.find((e) => e.id === id)?.name.toLowerCase()))
+
 /** Alternatives for an exercise: same muscle group first, then anything else that fits your equipment. */
 export function swapOptions(ex: Exercise, current: string[], p: Profile) {
-  const ok = (x: Exercise) => x.id !== ex.id && !x.mobility && !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid)
+  const taken = namesOf(current)
+  const ok = (x: Exercise) => x.id !== ex.id && !x.mobility && !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && available(x, p.gear) && !avoided(x, p.avoid)
   const same = EXERCISES.filter((x) => ok(x) && x.muscle.split('/')[0] === ex.muscle.split('/')[0])
   const day = EXERCISES.filter((x) => ok(x) && x.day === ex.day && !same.includes(x))
   return [...same, ...day]
@@ -246,7 +250,8 @@ export function swapOptions(ex: Exercise, current: string[], p: Profile) {
 
 /** Every exercise you could add to today's workout. */
 export function addableExercises(current: string[], p: Profile) {
-  return EXERCISES.filter((x) => !current.includes(x.id) && available(x, p.gear) && !avoided(x, p.avoid))
+  const taken = namesOf(current)
+  return EXERCISES.filter((x) => !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && available(x, p.gear) && !avoided(x, p.avoid))
 }
 
 export function cardioFinisher(p: Profile, day: DayType) {
