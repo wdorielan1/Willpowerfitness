@@ -34,14 +34,19 @@ function useImageAsset(key: string, build: () => Promise<Blob>) {
   return { asset: asset?.key === key ? asset : null, error }
 }
 
-export function DoneSheet({ summary, settings, onPrefs, onClose }: {
+/**
+ * The share screen after a workout. With `crewPost`, the same screen posts the picture to the crew
+ * (a card, or your own photo with a sticker on top) instead of sending it to Instagram.
+ */
+export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost }: {
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
+  crewPost?: { onPost: (blob: Blob) => Promise<string | null> }
 }) {
   const [style, setStyle] = useState<StickerStyle>(settings.shareStickerStyle ?? 'minimal')
   const [color, setColor] = useState<StickerTextColor>(settings.shareStickerTextColor ?? 'white')
-  const [format, setFormat] = useState<CardFormat>(settings.shareFormat ?? 'story')
+  const [format, setFormat] = useState<CardFormat>(crewPost ? 'post' : settings.shareFormat ?? 'story')
   const [placement, setPlacement] = useState<StickerPlacement>(settings.shareStickerPlacement ?? DEFAULT_PLACEMENT)
-  const [mode, setMode] = useState<'sticker' | 'card'>('sticker')
+  const [mode, setMode] = useState<'sticker' | 'card'>(crewPost ? 'card' : 'sticker')
   const [photo, setPhoto] = useState<HTMLCanvasElement | null>(null)
   const [photoLoading, setPhotoLoading] = useState(false)
   const [showPlace, setShowPlace] = useState(!!summary.place)
@@ -112,7 +117,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
     placementRef.current = p; setPlacement(p)
     if (persist) onPrefs({ shareStickerPlacement: p })
   }
-  const pickFormat = (value: CardFormat) => { setFormat(value); onPrefs({ shareFormat: value }); setMessage('') }
+  const pickFormat = (value: CardFormat) => { setFormat(value); if (!crewPost) onPrefs({ shareFormat: value }); setMessage('') }
   const addPhoto = async (file?: File) => {
     if (!file) return
     const version = ++photoVersion.current
@@ -160,12 +165,20 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
     onPrefs({ shareStickerPlacement: placementRef.current })
     autoColor(photo)
   }
-  const output = mode === 'card' ? background?.blob : photo ? composed?.key === compositionKey ? composed.blob : undefined : sticker?.blob
+  // for the crew feed there is no transparent-sticker option: it needs a card or a photo
+  const output = mode === 'card' ? background?.blob : photo ? composed?.key === compositionKey ? composed.blob : undefined : crewPost ? undefined : sticker?.blob
   const shareText = `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`
   const act = async (copy: boolean) => {
     const blob = copy ? sticker?.blob : output
     if (!blob) return
     setBusy(true); setMessage('')
+    if (crewPost && !copy) {
+      if (showPlace) onPrefs({ gymName: place.trim() })
+      const failed = await crewPost.onPost(blob).catch(() => 'Could not post. Please try again.')
+      setBusy(false)
+      if (failed) setMessage(failed); else onClose()
+      return
+    }
     try {
       // Start native operations before any await; both blobs are already generated.
       const pending = copy ? copyWorkoutSticker(blob, shareText) : shareWorkoutImage(blob, shareText)
@@ -180,9 +193,9 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
   if (summary.volumeChangePct !== null && summary.volumeChangePct !== 0) momentum.push([`${summary.volumeChangePct > 0 ? '▲' : '▼'} ${Math.abs(summary.volumeChangePct)}% volume vs your last ${summary.title.toLowerCase()}`, summary.volumeChangePct > 0 ? 'up' : ''])
   if (summary.streak > 1) momentum.push([`${summary.streak}-day streak`, 'streak'])
 
-  return <Sheet title="Workout complete" onClose={onClose}>
+  return <Sheet title={crewPost ? 'Share to your crew' : 'Workout complete'} onClose={onClose}>
     <div className="workout-share">
-      <p className="share-intro"><b>{summary.title}</b> finished at {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>Your work. Your photo. Your people.</span></p>
+      <p className="share-intro"><b>{summary.title}</b> finished at {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture of your workout to your crew.' : 'Your work. Your photo. Your people.'}</span></p>
       <div className="share-recap">
         <div className="share-recap-stats">
           <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>
@@ -197,6 +210,10 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
             </div>
           : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
       </div>
+      {crewPost && <div className="share-segments" role="group" aria-label="Picture type">
+        <button type="button" className={mode === 'card' ? 'on' : ''} aria-pressed={mode === 'card'} onClick={() => { setMode('card'); setMessage('') }}>Card</button>
+        <button type="button" className={mode === 'sticker' ? 'on' : ''} aria-pressed={mode === 'sticker'} onClick={() => { setMode('sticker'); setMessage('') }}>My photo + sticker</button>
+      </div>}
       {mode === 'sticker' && <>
         <div className="share-segments" role="group" aria-label="Sticker style">{STYLES.map(([value, label]) => <button type="button" key={value} className={style === value ? 'on' : ''} aria-pressed={style === value} onClick={() => { setStyle(value); onPrefs({ shareStickerStyle: value }); setMessage('') }}>{label}</button>)}</div>
         <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { manualColor.current = true; setColorNote(''); setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>
@@ -221,16 +238,16 @@ export function DoneSheet({ summary, settings, onPrefs, onClose }: {
       {mode === 'sticker' && <>
         <input ref={input} className="share-file-input" type="file" accept="image/*" aria-label="Choose your photo" onChange={(e) => { void addPhoto(e.target.files?.[0]); e.target.value = '' }} />
         <div className="share-photo-actions"><button type="button" className="ghost" disabled={photoLoading || busy} onClick={() => input.current?.click()}>{photoLoading ? 'Opening photo…' : photo ? 'Change photo' : 'Add your photo'}</button>{photo && <button type="button" className="quiet-button" onClick={() => { photoVersion.current++; setPhoto(null); setComposed(null); setImageError(''); setColorNote('') }}>Remove photo</button>}</div>
-        <p className="share-hint">{photo ? 'Your photo stays on this device.' : 'Transparent PNG. Add a photo, or take it to Instagram.'}</p>
+        <p className="share-hint">{photo ? (crewPost ? 'Your crew sees the finished picture.' : 'Your photo stays on this device.') : crewPost ? 'Add your photo, then post it to your crew.' : 'Transparent PNG. Add a photo, or take it to Instagram.'}</p>
       </>}
       <div className={`share-actions ${mode === 'card' ? 'card-mode' : ''}`}>
-        {mode === 'sticker' && <button type="button" className="ghost" disabled={busy || !sticker} onClick={() => void act(true)}>Copy sticker</button>}
-        <button type="button" className="primary" disabled={busy || photoLoading || !output} onClick={() => void act(false)}>{busy ? 'Sharing…' : 'Share'}</button>
+        {mode === 'sticker' && !crewPost && <button type="button" className="ghost" disabled={busy || !sticker} onClick={() => void act(true)}>Copy sticker</button>}
+        <button type="button" className="primary" disabled={busy || photoLoading || !output} onClick={() => void act(false)}>{crewPost ? (busy ? 'Posting…' : 'Post to crew') : busy ? 'Sharing…' : 'Share'}</button>
       </div>
       {(message || error) && <p className={error ? 'err' : 'share-message'} role="status">{message || error}</p>}
-      {mode === 'sticker' && <p className="share-hint">Sharing a video? Copy the sticker, then paste it over your video in Instagram.</p>}
+      {mode === 'sticker' && !crewPost && <p className="share-hint">Sharing a video? Copy the sticker, then paste it over your video in Instagram.</p>}
       {(mode === 'card' || style !== 'minimal') && <details className="share-place"><summary>Place (optional)</summary><label className="share-place-toggle"><input type="checkbox" checked={showPlace} onChange={(e) => setShowPlace(e.target.checked)} />Include a gym or town</label>{showPlace && <input value={place} onChange={(e) => setPlace(e.target.value)} onBlur={() => onPrefs({ gymName: place.trim() })} placeholder="Type a gym or town" maxLength={40} aria-label="Where you trained" />}</details>}
-      <button type="button" className="share-card-option" onClick={() => { setMode(mode === 'card' ? 'sticker' : 'card'); setMessage('') }}>{mode === 'card' ? 'Back to stickers' : 'No photo? Use a card'}</button>
+      {!crewPost && <button type="button" className="share-card-option" onClick={() => { setMode(mode === 'card' ? 'sticker' : 'card'); setMessage('') }}>{mode === 'card' ? 'Back to stickers' : 'No photo? Use a card'}</button>}
     </div>
   </Sheet>
 }

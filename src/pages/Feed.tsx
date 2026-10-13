@@ -3,6 +3,8 @@ import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox } from '../components'
 import { CommentThread } from '../Comments'
 import { LikersSheet, type LikerRow } from '../Likers'
+import { DoneSheet } from '../WorkoutShare'
+import { summaryFromLog } from '../shareCard'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
 import { Icon } from '../icons'
@@ -64,7 +66,7 @@ export function usePostActions(crewId: string) {
 
 /** The "share something" box. It sits at the top of the crew page; the posts below it live in Feed. */
 export function FeedComposer({ crewId }: { crewId: string }) {
-  const { data } = useApp()
+  const { data, update } = useApp()
   const { post } = usePostActions(crewId)
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
@@ -78,29 +80,44 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const file = useRef<HTMLInputElement>(null)
-  const todaysLog = data.logs.find((l) => l.date === todayISO() && !l.baseline && !l.imported)
+  const today = todayISO()
+  const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.imported)
+  // one workout share per crew per day (the automatic share on finishing uses the main crew's key)
+  const sharedKey = crewId === data.primary ? today : `${today}|${crewId}`
+  const shared = !!data.workoutPosted?.[sharedKey]
+  const [askShare, setAskShare] = useState(false)
+  const [sharedNote, setSharedNote] = useState(false)
 
-  const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown> }) => {
-    if (posting.current) return
-    const selected = override ? [] : photos
+  /** Posts the box's text and photos, or the given post. Returns an error message, or null when it posted. */
+  const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown>; photos?: Blob[] }): Promise<string | null> => {
+    if (posting.current) return 'Already posting. One moment.'
+    const selected = override ? (override.photos ?? []) : photos
     const body = override ?? { kind: (selected.length ? 'photo' : 'post') as PostKind, text: text.trim() }
-    if (!body.text && !selected.length) return
+    if (!body.text && !selected.length) return 'Nothing to post.'
     posting.current = true; setBusy(true); setErr(''); setProgress('Posting…')
     try {
       const error = await post({ ...body, photos: selected, progress: setProgress })
-      if (error) { setErr(error); return }
+      if (error) { setErr(error); return error }
       if (!override) { setText(''); setPhotos([]) }
       announceFeedChanged()
-    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
+      return null
+    } catch (error) { const m = error instanceof Error ? error.message : String(error); setErr(m); return m }
     finally { posting.current = false; setBusy(false) }
   }
 
-  const shareWorkout = () => {
-    if (!todaysLog) return
+  /** Post today's workout, with the picture the person chose, to this crew (once a day). */
+  const shareWorkout = async (blob: Blob): Promise<string | null> => {
+    if (!todaysLog || shared) return 'Today\u2019s workout is already shared with this crew.'
     const sets = todaysLog.entries.reduce((a, e) => a + e.sets.length, 0)
     const vol = todaysLog.entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0)
-    void submit({ kind: 'workout', text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets, volume: Math.round(vol), exercises: todaysLog.entries.length } })
+    const error = await submit({ kind: 'workout', text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets, volume: Math.round(vol), exercises: todaysLog.entries.length }, photos: [blob] })
+    if (!error) {
+      update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, [sharedKey]: true } }))
+      setSharedNote(true); setTimeout(() => setSharedNote(false), 5000)
+    }
+    return error
   }
+  const shareSummary = askShare && todaysLog ? summaryFromLog(data, todaysLog) : null
 
   return (
     <>
@@ -118,14 +135,17 @@ export function FeedComposer({ crewId }: { crewId: string }) {
         }} />
         <div className="row wrap composer-actions">
           <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
-          {todaysLog && <button className="ghost small-btn" onClick={shareWorkout} disabled={busy}><Icon name="weight" size={18} />Share workout</button>}
+          {todaysLog && (shared
+            ? <button className="ghost small-btn" disabled aria-label="Today's workout is already shared with this crew"><Icon name="check" size={18} />Workout shared</button>
+            : <button className="ghost small-btn" onClick={() => setAskShare(true)} disabled={busy}><Icon name="weight" size={18} />Share workout</button>)}
           <span style={{ flex: 1 }} />
           <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
         </div>
         {busy && <p className="small mute" role="status">{progress}</p>}
         {err && <p role="alert" className="err small">{err}</p>}
+        {sharedNote && <p className="small ok-text" role="status">Shared. Your crew can see your workout now.</p>}
       </section>
-
+      {shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setAskShare(false)} crewPost={{ onPost: shareWorkout }} />}
     </>
   )
 }
@@ -160,6 +180,11 @@ export default function Feed({ crewId }: { crewId: string }) {
       if (p.kind === 'qotd') { // deleting the answer brings the question back
         const when = new Date(p.ts), day = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`
         update((d) => ({ ...d, qotd: Object.fromEntries(Object.entries(d.qotd).filter(([k]) => k !== day && !k.endsWith(`|${day}`))) }))
+      }
+      if (p.kind === 'workout' && p.mine) { // deleting it lets you share today's workout again
+        const when = new Date(p.ts), day = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`
+        const key = p.crewId === data.primary ? day : `${day}|${p.crewId}`
+        update((d) => ({ ...d, workoutPosted: Object.fromEntries(Object.entries(d.workoutPosted ?? {}).filter(([k]) => k !== key)) }))
       }
       feed?.refresh(); setDel(null)
     } catch (error) { setDel(null); setErr(error instanceof Error ? error.message : String(error)) }
