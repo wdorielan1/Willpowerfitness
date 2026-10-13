@@ -111,6 +111,8 @@ export interface AppData {
   drafts: Record<string, Draft>
   /** Days whose finished workout was already shared to the crew, so saving changes doesn't post again. */
   workoutPosted?: Record<string, boolean>
+  /** today's exercise order after you drag lifts around (original exercise ids, by date) */
+  exOrder?: Record<string, string[]>
   meals: Record<string, string[]> // date -> checked meal ids
   messages: Message[]
   custom: CustomCommunity[]

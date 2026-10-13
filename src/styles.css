@@ -1163,3 +1163,12 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .export-download-row:hover { border-color: var(--line-strong); background: var(--card2); }
 .export-privacy .quiet-action { justify-self: start; min-height: 44px; }
 @media (max-width:359px) { .export-summary { padding: 16px; } .export-toggle { padding: 9px 7px; gap: 7px; font-size: 11px; } .export-download-row { padding: 13px 10px; gap: 10px; } }
+
+/* Hold and drag to reorder (made workouts) */
+.reorder-list { display: grid; gap: 0; }
+.reorder-row { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.reorder-row img { -webkit-user-drag: none; pointer-events: none; }
+.reorder-row.is-making-room { transition: transform .18s ease; }
+.reorder-row.is-lifted { z-index: 20; border-radius: 14px; background: var(--card2); box-shadow: 0 16px 34px rgba(0, 0, 0, .6), 0 0 0 1px var(--accent); transition: box-shadow .15s ease; opacity: .98; cursor: grabbing; }
+.reorder-row:focus-within { outline: none; }
+.train-reorder-hint { margin: 0; }
