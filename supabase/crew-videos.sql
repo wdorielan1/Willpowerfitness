@@ -7,4 +7,6 @@
 -- This caps one file at 45 MB on the server too, in case someone bypasses the app's own check.
 -- Supabase's project-wide upload limit (Storage > Settings, 50 MB on the free plan) must be at
 -- least this large for videos to upload.
-update storage.buckets set file_size_limit = 47185920 where id = 'crew-photos';
+-- It also clears any file-type restriction on the bucket (a bucket made in the dashboard can be limited to images only,
+-- which would refuse every video). The bucket stays private; access is still controlled by the policies above.
+update storage.buckets set file_size_limit = 47185920, allowed_mime_types = null where id = 'crew-photos';

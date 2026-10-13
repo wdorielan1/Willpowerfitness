@@ -38,14 +38,15 @@ export function usePostActions(crewId: string) {
         if (m) throw new Error(`Couldn’t confirm your crew membership: ${m}`)
       }
       if (p.video) { // the clip goes up first; the still frame below is saved like a photo and becomes the cover
-        p.progress?.('Uploading video…')
+        const size = `${Math.max(1, Math.round(p.video.file.size / 1048576))} MB`
+        p.progress?.(`Uploading video (${size})…`)
         const vid = crypto.randomUUID()
-        const r = await saveVideoBlob(vid, p.video.file, p.video.type, userId, userId ? `${crewId}/${userId}` : '')
+        const r = await saveVideoBlob(vid, p.video.file, p.video.type, userId, userId ? `${crewId}/${userId}` : '', (pct) => p.progress?.(`Uploading video ${pct}% of ${size}`))
         uploaded.push({ id: vid, path: r.path })
         const clip: VideoMeta = { ...(r.path ? { path: r.path } : { id: vid }), type: p.video.type, seconds: p.video.seconds, size: p.video.file.size }
         meta = { ...meta, video: clip }
       }
-      const stills = p.video ? [p.video.poster] : p.photos ?? []
+      const stills = p.video ? (p.video.poster ? [p.video.poster] : []) : p.photos ?? []
       for (const [i, photo] of stills.entries()) {
         p.progress?.(p.video ? 'Finishing…' : `Uploading ${i + 1} of ${stills.length}`)
         const small = await compress(photo)
@@ -88,7 +89,7 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   const [checking, setChecking] = useState(false)
   const videoFile = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    if (!video) { setVideoCover(''); return }
+    if (!video?.poster) { setVideoCover(''); return }
     const u = URL.createObjectURL(video.poster); setVideoCover(u)
     return () => URL.revokeObjectURL(u)
   }, [video])
@@ -151,7 +152,8 @@ export function FeedComposer({ crewId }: { crewId: string }) {
       <section className="card feed-composer">
         <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew..." maxLength={1000} />
         {video && <div className="photo-previews"><div className="video-cover">
-          <img src={videoCover} alt="Cover of your video" /><span className="post-video-time">{clock(video.seconds)}</span>
+          {videoCover ? <img src={videoCover} alt="Cover of your video" /> : <span className="video-cover-blank" role="img" aria-label="Video selected"><Icon name="video" size={26} /></span>}
+          <span className="post-video-time">{video.seconds ? clock(video.seconds) : `${Math.max(1, Math.round(video.file.size / 1048576))} MB`}</span>
           <button disabled={busy} aria-label="Remove video" onClick={() => setVideo(null)}><Icon name="close" size={16} /></button>
         </div></div>}
         {previews.length > 0 && <div className="photo-previews">{previews.map((src, i) => <div key={src}>
@@ -276,6 +278,7 @@ function PostPhotos({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => v
 
 /** A clip in the feed: the cover frame with a play button. The clip itself only loads when it is tapped. */
 function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
+  const length = video.seconds ? clock(video.seconds) : ''
   const [src, setSrc] = useState<string | null>(null)
   const [err, setErr] = useState('')
   const made = useRef<string | null>(null)
@@ -292,10 +295,10 @@ function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
   if (src) return <video className="post-video" src={src} poster={cover} controls autoPlay playsInline preload="auto" onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
   return (
     <>
-      <button className="post-video-cover" aria-label={`Play video, ${clock(video.seconds)}`} onClick={() => void play()}>
+      <button className="post-video-cover" aria-label={length ? `Play video, ${length}` : 'Play video'} onClick={() => void play()}>
         {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
         <span className="post-video-play"><Icon name="play" size={26} /></span>
-        <span className="post-video-time">{clock(video.seconds)}</span>
+        {length && <span className="post-video-time">{length}</span>}
       </button>
       {err && <p className="small err" role="alert">{err}</p>}
     </>

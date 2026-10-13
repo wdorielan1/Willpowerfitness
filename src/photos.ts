@@ -115,13 +115,47 @@ export async function savePhotoBlob(id: string, blob: Blob, userId: string | nul
   return { where: 'device' }
 }
 
-/** Save a crew clip next to the crew's photos (same private bucket and rules). Throws when the upload fails. */
-export async function saveVideoBlob(id: string, file: Blob, type: string, userId: string | null, folder: string): Promise<SaveResult> {
+const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+
+/** Storage's refusal, in words a person can act on (the server's own message stays in brackets for whoever sets this up). */
+function uploadProblem(status: number, body: string): string {
+  let message = ''
+  try { const j = JSON.parse(body) as { message?: string; error?: string }; message = j.message ?? j.error ?? '' } catch { message = body.slice(0, 160) }
+  const m = message.toLowerCase()
+  const detail = message ? ` (${message})` : ` (error ${status})`
+  if (status === 413 || m.includes('maximum allowed size') || m.includes('too large')) return `That video is bigger than this app's storage allows. Try a shorter clip or a lower camera quality.${detail}`
+  if (m.includes('mime') || m.includes('not supported') || status === 415) return `Videos aren't switched on in this app's storage yet.${detail}`
+  if (status === 401 || status === 403 || m.includes('row-level security') || m.includes('jwt')) return `Storage refused the upload. Log out and back in, make sure you are in this crew, and try again.${detail}`
+  return `The video didn't upload.${detail}`
+}
+
+/** One upload with a live percentage (the Supabase client can't report progress, so this speaks to the same storage address directly). */
+function uploadWithProgress(path: string, file: Blob, token: string, onProgress?: (pct: number) => void): Promise<void> {
+  return new Promise((res, rej) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${SB_URL}/storage/v1/object/${CREW_BUCKET}/${encodeURI(path)}`)
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.setRequestHeader('apikey', SB_KEY ?? '')
+    xhr.setRequestHeader('x-upsert', 'false')
+    xhr.timeout = 10 * 60 * 1000
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total) onProgress?.(Math.min(99, Math.round((e.loaded / e.total) * 100))) }
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? res() : rej(new Error(uploadProblem(xhr.status, xhr.responseText))))
+    xhr.onerror = () => rej(new Error('The upload was interrupted. Check your connection and try again.'))
+    xhr.ontimeout = () => rej(new Error('The upload took too long. Try again on Wi-Fi, or with a shorter clip.'))
+    const body = new FormData(); body.append('cacheControl', '3600'); body.append('', file)
+    xhr.send(body)
+  })
+}
+
+/** Save a crew clip next to the crew's photos (same private bucket and rules). Throws, with a readable reason, when the upload fails. */
+export async function saveVideoBlob(id: string, file: Blob, type: string, userId: string | null, folder: string, onProgress?: (pct: number) => void): Promise<SaveResult> {
   if (supabase && userId) {
     const ext = type.includes('quicktime') ? 'mov' : type.includes('webm') ? 'webm' : 'mp4'
     const path = `${folder}/${id}.${ext}`
-    const { error } = await withTimeout(supabase.storage.from(CREW_BUCKET).upload(path, file, { contentType: type, upsert: false }), 180000, 'Video upload')
-    if (error) throw new Error(error.message)
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) throw new Error('You\u2019re signed out. Log in again to post a video.')
+    await uploadWithProgress(path, file, data.session.access_token, onProgress)
     return { path, where: 'cloud' }
   }
   await idb('readwrite', (s) => s.put(file, id))
