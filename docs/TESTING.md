@@ -63,6 +63,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Share with a photo opens the share sheet with the combined picture (Instagram listed)
 - [ ] "No photo? Use a card" still makes the Story/Post card
 - [ ] The sheet shows time, lb moved, sets, volume change, streak and top PRs
+- [ ] During a workout, Change workout lists Build your own; picking exercises and Start lifting switches to a Custom workout with exactly those
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 ## 4. Fuel (nutrition)
 - [ ] Build a meal and calculate portions
