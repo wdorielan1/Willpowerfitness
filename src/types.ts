@@ -61,7 +61,7 @@ export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }
 export type PostKind = 'post' | 'qotd' | 'workout' | 'photo' | 'video'
 /** A short clip on a crew post, kept in the post's meta. Cloud posts have a storage path, on-device ones an id. */
-export interface VideoMeta { path?: string; id?: string; type: string; seconds: number; size: number; expired?: boolean /* the file was deleted after 60 days */ }
+export interface VideoMeta { path?: string; id?: string; type: string; seconds: number; size: number; expired?: boolean /* the file was deleted after 60 days */; cover?: boolean /* the post's first picture is this clip's cover frame (older posts: it is when the post has any picture) */ }
 export interface CrewPost {
   id: string; crewId: string; userId?: string; name: string; kind: PostKind; text: string
   imagePaths: string[]; imageIds?: string[]

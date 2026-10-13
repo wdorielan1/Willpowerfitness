@@ -1301,3 +1301,19 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-video-gone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #fff; font-size: 15px; font-weight: 700; text-align: center; padding: 12px; }
 .post-video-gone small { font-size: 12px; font-weight: 500; opacity: .8; }
 .post-video-left { margin: 6px 0 0; }
+/* A clip as one square in the photo strip */
+.post-strip-video { position: relative; background: #000; }
+.post-video-tile { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--card2); }
+.post-video-tile img, .post-video-tile-video, .post-video-tile-blank { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--card2); }
+.post-video-tile-open { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; min-height: 0; border: 0; background: transparent; }
+.post-video-tile .post-video-play { width: 42px; height: 42px; }
+.post-video-tile .post-video-play svg { width: 20px; height: 20px; }
+.post-video-tile .post-video-time { right: 6px; bottom: 6px; font-size: 10px; padding: 2px 6px; }
+.post-video-soon { position: absolute; left: 6px; top: 6px; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 999px; background: rgba(0, 0, 0, .65); color: #fff; }
+.post-video-dim { filter: brightness(.35) saturate(.6); }
+.post-video-gone-tile { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: 12px; font-weight: 700; }
+/* Full-screen player */
+.video-viewer { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, .96); display: grid; place-items: center; }
+.video-viewer video { max-width: 100vw; max-height: 86dvh; background: #000; }
+.video-viewer-close { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; background: rgba(255, 255, 255, .15); border-radius: 99px; min-height: 44px; width: 44px; padding: 0; }
+.video-viewer-err { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom)); }

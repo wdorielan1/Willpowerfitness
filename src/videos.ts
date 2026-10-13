@@ -1,4 +1,7 @@
 export const MAX_VIDEO_SECONDS = 30
+/** Photos per post, and when the post also has a video. */
+export const MAX_PHOTOS = 10
+export const MAX_PHOTOS_WITH_VIDEO = 5
 /** Clips are deleted this many days after they are posted (the supabase/functions/expire-videos function does the deleting). */
 export const KEEP_VIDEO_DAYS = 60
 /** Whole days a clip posted at `ts` has left before it is deleted; 0 or less once it is gone. */
