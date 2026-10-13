@@ -1,5 +1,5 @@
-import type { LogEntry, WorkoutLog } from './types'
-import { e1rm } from './engine'
+import type { AppData, LogEntry, WorkoutLog } from './types'
+import { e1rm, fromISO, streak, workoutName } from './engine'
 
 export interface PR { name: string; weight: number; reps: number; pct: number; e1: number }
 export interface WorkoutSummary {
@@ -55,6 +55,25 @@ export const summarize = (p: { title: string; date: string; finishedAt: number; 
   streak: p.streak,
   place: p.place?.trim() || undefined,
 })
+
+/** Rebuild the finish summary for a workout that is already saved, so it can be shared any time. */
+export function summaryFromLog(d: AppData, log: WorkoutLog): WorkoutSummary | null {
+  const entries = log.entries.filter((e) => e.sets.length)
+  if (!entries.length || log.skipped || log.baseline) return null
+  const noon = fromISO(log.date); noon.setHours(12, 0, 0, 0)
+  return summarize({
+    title: workoutName(log.dayType, d.workoutFocus?.[log.date]),
+    date: log.date,
+    finishedAt: log.finishedAt ?? noon.getTime(),
+    minutes: log.minutes,
+    entries,
+    // only sessions before that day, so an old workout's PRs match what you saw then
+    history: d.logs.filter((l) => l.date < log.date),
+    dayType: log.dayType,
+    streak: streak(d, log.date),
+    place: d.settings.gymName,
+  })
+}
 
 export const prLine = (pr: PR) => `${pr.name} ${pr.weight} lb × ${pr.reps} (+${pr.pct}%)`
 

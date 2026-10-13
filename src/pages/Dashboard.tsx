@@ -8,6 +8,8 @@ import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
 import { Icon } from '../icons'
 import type { DayType } from '../types'
+import { summaryFromLog } from '../shareCard'
+import { DoneSheet } from '../WorkoutShare'
 
 const sessionDescription: Record<DayType, string> = {
   Push: 'Chest, shoulders & triceps',
@@ -28,7 +30,7 @@ function SessionElapsed({ since }: { since: number }) {
 }
 
 export default function Dashboard() {
-  const { data, userId, avatarUrl } = useApp()
+  const { data, update, userId, avatarUrl } = useApp()
   const p = data.profile!
   const ci = useCheckin()
   const crew = useCrew()
@@ -37,6 +39,8 @@ export default function Dashboard() {
   const day = dayFor(today, data)
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.skipped)
   // the time you actually finished, not the time you planned to train
+  const shareSummary = todaysLog ? summaryFromLog(data, todaysLog) : null
+  const [sharing, setSharing] = useState(false)
   const finishedLabel = todaysLog?.finishedAt ? new Date(todaysLog.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const rest = day === 'Rest/Cardio'
   const plan = generateWorkout(today, data, !!data.short[today])
@@ -104,6 +108,8 @@ export default function Dashboard() {
             ? <Link to="/workout" className="btn primary session-primary">See recovery plan<Icon name="arrow" /></Link>
             : <button className="primary session-primary" onClick={start}>{ci.started ? 'Resume workout' : 'Start workout'}<Icon name="arrow" /></button>}
 
+        {ci.done && shareSummary && <button className="ghost" onClick={() => setSharing(true)}>Share this workout</button>}
+
         <div className="session-secondary">
           {!ci.done && <Link to="/workout?change=1" className="quiet-action">Change workout</Link>}
           {ci.done && todaysLog && <Link to="/workout" className="quiet-action">Edit logged sets</Link>}
@@ -148,6 +154,7 @@ export default function Dashboard() {
         </div>
         <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
       </section>
+      {sharing && shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setSharing(false)} />}
       {peek && (() => {
         const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
         const rest = peek.planned === 'Rest/Cardio'

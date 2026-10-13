@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { prLine, summarize, type WorkoutSummary } from '../shareCard'
+import { prLine, summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
 import { DoneSheet } from '../WorkoutShare'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
@@ -231,6 +231,7 @@ export default function Workout() {
   const touch = useRef<{ x: number; y: number } | null>(null)
   const [saved, setSaved] = useState(false)
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
+  const [resharing, setResharing] = useState(false)
   const [validation, setValidation] = useState('')
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
@@ -420,6 +421,7 @@ export default function Workout() {
 
   return (
     <div className="workout-session">
+      {resharing && todaysLog && (() => { const s = summaryFromLog(data, todaysLog); return s ? <DoneSheet summary={s} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setResharing(false)} /> : null })()}
       {summary && <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => nav('/')} />}
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
@@ -545,6 +547,7 @@ export default function Workout() {
               <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
             </section>
             {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><Link className="btn ghost" to="/log">Log cardio</Link></section>}
+            {todaysLog && todaysLog.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => setResharing(true)}>Share this workout</button>}
             <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? 'Delete this workout' : 'Discard this workout'}</button>
           </>
         )}

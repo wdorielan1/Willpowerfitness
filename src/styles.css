@@ -961,3 +961,4 @@ button.week-day:active { background: var(--card2); }
 .share-recap-line { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; font-weight: 700; color: var(--mute); }
 .share-recap-line .up { color: #34c759; }
 .share-recap-line .streak { color: var(--accent); }
+.session-primary + .ghost { margin-top: 10px; }
