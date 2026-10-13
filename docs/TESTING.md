@@ -133,6 +133,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Importing adds the weigh-ins and keeps your own number on days you had already logged; the result links to Progress
 - [ ] Progress body weight is a line graph with daily readings and a 7-day average line; the change line says (7-day averages) with lots of data
 - [ ] Share on the body weight (and strength) graph opens Share your progress: a transparent graph sticker you can copy into Instagram, or lay over your own photo (drag, pinch, size slider, white or dark text) and share
+- [ ] Sharing the body weight graph: Hide my weight is on by default and the sticker shows only the line, the change (like -12.5 lb) and the dates; turning it off adds the starting and current weight; the choice is remembered
 
 ## 6. Crews
 - [ ] Join and leave a crew
