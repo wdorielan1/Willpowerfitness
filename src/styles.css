@@ -1051,3 +1051,10 @@ button.post-like-count:active { color: var(--text); }
 .progress-cardio-row > span { flex: none; font-variant-numeric: tabular-nums; color: var(--mute); }
 @media (max-width:359px) { .progress-summary { padding: 16px; } .progress-metrics { gap: 10px; } .progress-metric strong { font-size: 30px; } .progress-tools a { gap: 5px; font-size: 11px; } .progress-week-chart { gap: 7px; } }
 .crew-post-button.is-posted { background: var(--card2); color: var(--mute); border: 1px solid var(--line); opacity: 1; }
+
+/* Progress: time range filter */
+.progress-range { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.progress-range button { min-height: 40px; padding: 8px 0; border-radius: 8px; background: transparent; color: var(--mute); font-size: 13px; font-weight: 700; }
+.progress-range button.on { background: var(--text); color: #101114; }
+.progress-week-chart.is-dense { gap: 2px; }
+.progress-more { justify-self: center; min-height: 44px; padding: 10px 18px; background: transparent; border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 13px; font-weight: 700; }
