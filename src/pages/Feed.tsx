@@ -135,9 +135,7 @@ export function FeedComposer({ crewId }: { crewId: string }) {
         }} />
         <div className="row wrap composer-actions">
           <button className="ghost small-btn" disabled={busy || photos.length >= 10} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
-          {todaysLog && (shared
-            ? <button className="ghost small-btn" disabled aria-label="Today's workout is already shared with this crew"><Icon name="check" size={18} />Workout shared</button>
-            : <button className="ghost small-btn" onClick={() => setAskShare(true)} disabled={busy}><Icon name="weight" size={18} />Share workout</button>)}
+          {todaysLog && <button className="ghost small-btn" onClick={() => setAskShare(true)} disabled={busy}><Icon name={shared ? 'check' : 'weight'} size={18} />Share workout</button>}
           <span style={{ flex: 1 }} />
           <button className="primary small-btn" onClick={() => void submit()} disabled={busy || (!text.trim() && !photos.length)}>{busy ? progress : 'Post'}</button>
         </div>
@@ -145,7 +143,7 @@ export function FeedComposer({ crewId }: { crewId: string }) {
         {err && <p role="alert" className="err small">{err}</p>}
         {sharedNote && <p className="small ok-text" role="status">Shared. Your crew can see your workout now.</p>}
       </section>
-      {shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setAskShare(false)} crewPost={{ onPost: shareWorkout }} />}
+      {shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setAskShare(false)} crewPost={{ onPost: shareWorkout, alreadyPosted: shared }} />}
     </>
   )
 }

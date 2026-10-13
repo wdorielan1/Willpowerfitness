@@ -1050,3 +1050,4 @@ button.post-like-count:active { color: var(--text); }
 .progress-cardio-row time { color: var(--mute); font-size: 11px; }
 .progress-cardio-row > span { flex: none; font-variant-numeric: tabular-nums; color: var(--mute); }
 @media (max-width:359px) { .progress-summary { padding: 16px; } .progress-metrics { gap: 10px; } .progress-metric strong { font-size: 30px; } .progress-tools a { gap: 5px; font-size: 11px; } .progress-week-chart { gap: 7px; } }
+.crew-post-button.is-posted { background: var(--card2); color: var(--mute); border: 1px solid var(--line); opacity: 1; }
