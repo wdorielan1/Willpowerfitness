@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox } from '../components'
 import { CommentThread } from '../Comments'
@@ -276,31 +276,86 @@ function PostPhotos({ srcs, onOpen }: { srcs: string[]; onOpen: (i: number) => v
   </div>
 }
 
-/** A clip in the feed: the cover frame with a play button. The clip itself only loads when it is tapped. */
+let nowPlaying: HTMLVideoElement | null = null // only one clip in the feed plays at a time
+
+/**
+ * A clip in the feed. It starts by itself, without sound, once more than half of it is on screen, loops, and pauses when
+ * you scroll away. Tap it for sound and controls. The clip only downloads when it first comes into view. If the phone
+ * won't start it alone (Low Power Mode, data saver, reduced motion) the cover shows a play button instead.
+ */
 function PostVideo({ video, cover }: { video: VideoMeta; cover?: string }) {
   const length = video.seconds ? clock(video.seconds) : ''
+  const box = useRef<HTMLDivElement>(null)
+  const el = useRef<HTMLVideoElement>(null)
+  const visible = useRef(false)
+  const loading = useRef(false)
+  const made = useRef<string | null>(null)
   const [src, setSrc] = useState<string | null>(null)
   const [err, setErr] = useState('')
-  const made = useRef<string | null>(null)
-  useEffect(() => () => { if (made.current) URL.revokeObjectURL(made.current) }, [])
-  const play = async () => {
-    setErr('')
+  const [blocked, setBlocked] = useState(false) // the phone wouldn't start it without a tap
+  const [engaged, setEngaged] = useState(false) // they tapped: sound on
+  const [controls, setControls] = useState(false) // native controls, shown just after the tap so that same tap doesn't also hit their pause button
+  const auto = useMemo(() => {
+    const saver = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData
+    return typeof IntersectionObserver !== 'undefined' && !saver && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  }, [])
+  useEffect(() => () => { if (made.current) URL.revokeObjectURL(made.current); if (el.current && nowPlaying === el.current) nowPlaying = null }, [])
+
+  const load = async () => {
+    if (loading.current || src) return
+    loading.current = true; setErr('')
     try {
       const url = await videoUrl(video)
       if (!url) throw new Error('This video isn\u2019t available right now.')
       if (url.startsWith('blob:')) made.current = url
       setSrc(url)
-    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
+    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) } finally { loading.current = false }
   }
-  if (src) return <video className="post-video" src={src} poster={cover} controls autoPlay playsInline preload="auto" onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
+  const start = async () => {
+    const v = el.current
+    if (!v) return
+    if (nowPlaying && nowPlaying !== v) nowPlaying.pause()
+    nowPlaying = v
+    try { await v.play(); setBlocked(false) } catch {
+      if (!v.muted) { v.muted = true; setEngaged(false); try { await v.play(); setBlocked(false); return } catch { /* still not allowed */ } }
+      setBlocked(true)
+    }
+  }
+  // play when it scrolls into view, pause when it leaves
+  useEffect(() => {
+    const box_ = box.current
+    if (!auto || !box_) return
+    const io = new IntersectionObserver(([e]) => {
+      if (e.intersectionRatio >= 0.6) { visible.current = true; if (!src) void load(); else void start() }
+      else if (e.intersectionRatio < 0.25) { visible.current = false; el.current?.pause() }
+    }, { threshold: [0, 0.25, 0.6, 1] })
+    io.observe(box_)
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, src])
+
+  const tapCover = () => { setEngaged(true); setControls(true); visible.current = true; void load() }
+  const tapVideo = () => { const v = el.current; if (!v) return; if (blocked) { void start(); return } if (!engaged) { v.muted = false; setEngaged(true); void start(); window.setTimeout(() => setControls(true), 200) } }
+
+  if (!src) {
+    return (
+      <div ref={box}>
+        <button className="post-video-cover" aria-label={length ? `Play video, ${length}` : 'Play video'} onClick={tapCover}>
+          {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
+          <span className="post-video-play"><Icon name="play" size={26} /></span>
+          {length && <span className="post-video-time">{length}</span>}
+        </button>
+        {err && <p className="small err" role="alert">{err}</p>}
+      </div>
+    )
+  }
   return (
-    <>
-      <button className="post-video-cover" aria-label={length ? `Play video, ${length}` : 'Play video'} onClick={() => void play()}>
-        {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
-        <span className="post-video-play"><Icon name="play" size={26} /></span>
-        {length && <span className="post-video-time">{length}</span>}
-      </button>
-      {err && <p className="small err" role="alert">{err}</p>}
-    </>
+    <div ref={box} className="post-video-wrap">
+      <video ref={el} className="post-video" src={src} poster={cover} muted={!engaged} loop playsInline preload="auto" controls={controls && !blocked}
+        onCanPlay={() => { if (visible.current || engaged) void start() }} onClick={tapVideo}
+        onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
+      {blocked && <button className="post-video-play post-video-play-over" aria-label="Play video" onClick={() => void start()}><Icon name="play" size={26} /></button>}
+      {!engaged && !blocked && <span className="post-video-hint" aria-hidden="true">Tap for sound</span>}
+    </div>
   )
 }

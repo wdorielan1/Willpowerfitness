@@ -1293,3 +1293,6 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-video-time { position: absolute; right: 10px; bottom: 10px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(0, 0, 0, .65); color: #fff; font-variant-numeric: tabular-nums; }
 .post-video { display: block; width: 100%; max-height: 520px; border-radius: 12px; background: #000; }
 .video-cover-blank { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; border-radius: 12px; background: var(--card2); color: var(--mute); }
+.post-video-wrap { position: relative; }
+.post-video-play-over { z-index: 2; border: 0; padding: 0; min-height: 0; cursor: pointer; }
+.post-video-hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: rgba(0, 0, 0, .6); color: #fff; pointer-events: none; }
