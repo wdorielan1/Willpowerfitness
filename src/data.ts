@@ -192,7 +192,7 @@ export const ENCOURAGEMENTS = [
 
 export const DEFAULT_SETTINGS: Settings = {
   nutrition: { meals: 4, proteinPerLb: 1, fatPerLb: 0.35, calorieAdjust: 0 },
-  rest: { small: 45, medium: 75, large: 120, keyBonus: 30 },
+  rest: { small: 60, medium: 60, large: 60, keyBonus: 0 },
   rotation: 'biweekly',
   autoShare: false,
   rpeEnabled: true,
@@ -202,7 +202,8 @@ export const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 }
 export const REST_PRESETS: { id: string; label: string; hint: string; rest: Settings['rest'] }[] = [
+  { id: 'one', label: '1 minute', hint: 'Default. The same rest for every lift', rest: { small: 60, medium: 60, large: 60, keyBonus: 0 } },
   { id: 'quick', label: 'Quick', hint: '30–60 s, short on time', rest: { small: 30, medium: 45, large: 60, keyBonus: 0 } },
-  { id: 'balanced', label: 'Balanced', hint: 'Recommended', rest: { small: 45, medium: 75, large: 120, keyBonus: 30 } },
+  { id: 'balanced', label: 'Balanced', hint: 'Shorter for small muscles, longer for big lifts', rest: { small: 45, medium: 75, large: 120, keyBonus: 30 } },
   { id: 'strength', label: 'Strength', hint: 'Longer rests for heavy lifting', rest: { small: 60, medium: 105, large: 150, keyBonus: 60 } },
 ]

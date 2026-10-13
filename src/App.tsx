@@ -54,7 +54,7 @@ export default function App() {
   const loc = useLocation()
   const [accountMenu, setAccountMenu] = useState(false)
   const today = todayISO()
-  const hasSession = !!data.started[today] || data.logs.some((l) => l.date === today && !l.baseline) || Object.values(data.drafts[today]?.sets ?? {}).some((rows) => rows.some((r) => r.reps))
+  const hasSession = !!data.started[today] || data.logs.some((l) => l.date === today && !l.baseline) || [data.drafts[today]?.completed, data.drafts[today]?.touched].some((m) => Object.values(m ?? {}).some((a) => a.some(Boolean)))
   const training = loc.pathname === '/workout' && !!data.profile && hasSession && dayFor(today, data) !== 'Rest/Cardio'
   useEffect(() => { setAccountMenu(false) }, [loc.pathname])
   useEffect(() => {

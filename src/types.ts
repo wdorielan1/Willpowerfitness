@@ -55,7 +55,7 @@ export interface LogEntry { exId: string; name: string; sets: { weight: number; 
 export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number; finishedAt?: number; rotationDay?: DayType }
 export interface CardioLog { date: string; kind: string; minutes: number; note: string }
 export interface WeightLog { date: string; lbs: number }
-export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]> }
+export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]>; touched?: Record<string, boolean[]> /* sets whose reps the user typed */ }
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
 export type Pose = 'front' | 'side' | 'back' | 'other'
 export interface Photo { id: string; date: string; pose: Pose; path?: string }

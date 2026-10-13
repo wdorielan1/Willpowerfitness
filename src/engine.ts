@@ -290,8 +290,9 @@ export function recommend(ex: Exercise, logs: WorkoutLog[], before?: string): Re
   return { last, action: 'add_reps', weight: top, text: `Stay at ${top} lb and push for ${ex.reps[1]} reps on every set before adding weight.` }
 }
 
-export const emptySets = (n: number, weight: number | null): SetEntry[] =>
-  Array.from({ length: n }, () => ({ weight: weight == null ? '' : String(weight), reps: '', rpe: '' }))
+/** Fresh sets for an exercise: the same weight on every set and the top of the rep range, ready to be logged. */
+export const emptySets = (n: number, weight: number | null, reps = ''): SetEntry[] =>
+  Array.from({ length: n }, () => ({ weight: weight == null ? '' : String(weight), reps, rpe: '' }))
 
 export const e1rm = (w: number, r: number) => Math.round(w * (1 + r / 30))
 

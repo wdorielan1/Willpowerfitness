@@ -13,6 +13,8 @@ import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
+import { SwipeRow } from '../SwipeRow'
+import { SwipeDemo } from '../SwipeDemo'
 import type { AppData, DayType, Draft, LogEntry, SetEntry, WorkoutFocus } from '../types'
 
 const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
@@ -231,7 +233,7 @@ export default function Workout() {
   const draft: Draft = data.drafts[today] ?? { sets: {}, notes: {} }
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline)
   const started = data.started[today]
-  const hasEntered = Object.values(draft.sets).some((rows) => rows.some((r) => r.reps))
+  const hasEntered = [draft.completed, draft.touched].some((m) => Object.values(m ?? {}).some((a) => a.some(Boolean)))
   const active = (!!started || !!todaysLog || hasEntered) && plan.day !== 'Rest/Cardio'
   const items = applyOrder(plan.items, data.exOrder?.[today])
   const reorderToday = (next: typeof items) => update((d) => ({ ...d, exOrder: { ...d.exOrder, [today]: next.map((x) => x.orig) } }))
@@ -245,6 +247,11 @@ export default function Workout() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
   const [resharing, setResharing] = useState(false)
   const [validation, setValidation] = useState('')
+  const [undo, setUndo] = useState<null | { label: string; prev: Draft }>(null)
+  // the little swipe demo plays until they swipe a set or tap Got it, then never comes back
+  const [swipeSeen, setSwipeSeen] = useState(() => { try { return localStorage.getItem('wpf.swipeSeen') === '1' } catch { return false } })
+  const seeSwipe = () => { setSwipeSeen(true); try { localStorage.setItem('wpf.swipeSeen', '1') } catch { /* private mode: it just shows again next time */ } }
+  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 7000); return () => clearTimeout(t) }, [undo])
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
@@ -257,7 +264,7 @@ export default function Workout() {
     const t = Math.max(0, Math.min(pageCount - 1, n))
     dir.current = t >= page ? 1 : -1
     setIdx(t)
-    setValidation('')
+    setValidation(''); setUndo(null)
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }
 
@@ -272,20 +279,39 @@ export default function Workout() {
     const previous = todaysLog?.entries.find((e) => e.exId === exId)?.sets[i]
     return !!previous && validSet(row) && Number(row.weight) === previous.weight && Number(row.reps) === previous.reps
   })
+  const defReps = (e: Exercise) => String(e.reps[1])
+  const touchedFor = (dr: Draft, exId: string, n: number) => Array.from({ length: n }, (_, j) => !!dr.touched?.[exId]?.[j])
   const edit = (exId: string, base: SetEntry[], i: number, k: keyof SetEntry, v: string) => {
-    setValidation('')
+    setValidation(''); setUndo(null)
     setDraft((dr) => {
       const rows = dr.sets[exId] ?? base
-      return { ...dr, sets: { ...dr.sets, [exId]: rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)) }, completed: { ...dr.completed, [exId]: completionFor(dr, exId, rows).map((done, j) => j === i ? false : done) } }
+      const done = completionFor(dr, exId, rows), was = rows[i]?.weight ?? ''
+      // a new weight carries down to the sets after it, unless those are already logged or were set on their own
+      const next = rows.map((r, j) => (j === i ? { ...r, [k]: v } : k === 'weight' && j > i && !done[j] && (r.weight === was || r.weight.trim() === '') ? { ...r, weight: v } : r))
+      const touched = touchedFor(dr, exId, rows.length)
+      if (k === 'reps') touched[i] = true
+      return { ...dr, sets: { ...dr.sets, [exId]: next }, completed: { ...dr.completed, [exId]: done.map((d, j) => (j === i ? false : d)) }, touched: { ...dr.touched, [exId]: touched } }
     })
   }
-  const addSet = (exId: string, base: SetEntry[]) =>
-    setDraft((dr) => { const rows = dr.sets[exId] ?? base; return { ...dr, sets: { ...dr.sets, [exId]: [...rows, { weight: rows[rows.length - 1]?.weight ?? '', reps: '', rpe: '' }] }, completed: { ...dr.completed, [exId]: [...completionFor(dr, exId, rows), false] } } })
-  const dropSet = (exId: string, base: SetEntry[], i: number) =>
+  const addSet = (exId: string, base: SetEntry[], reps: string) =>
+    setDraft((dr) => {
+      const rows = dr.sets[exId] ?? base
+      return { ...dr, sets: { ...dr.sets, [exId]: [...rows, { weight: rows[rows.length - 1]?.weight ?? '', reps: rows[rows.length - 1]?.reps || reps, rpe: '' }] }, completed: { ...dr.completed, [exId]: [...completionFor(dr, exId, rows), false] }, touched: { ...dr.touched, [exId]: [...touchedFor(dr, exId, rows.length), false] } }
+    })
+  const dropSet = (exId: string, base: SetEntry[], i: number, reps: string) =>
     setDraft((dr) => {
       const current = dr.sets[exId] ?? base, rows = current.filter((_, j) => j !== i)
-      return { ...dr, sets: { ...dr.sets, [exId]: rows.length ? rows : [{ weight: current[0]?.weight ?? '', reps: '', rpe: '' }] }, completed: { ...dr.completed, [exId]: rows.length ? completionFor(dr, exId, current).filter((_, j) => j !== i) : [false] } }
+      return {
+        ...dr, sets: { ...dr.sets, [exId]: rows.length ? rows : [{ weight: current[0]?.weight ?? '', reps, rpe: '' }] },
+        completed: { ...dr.completed, [exId]: rows.length ? completionFor(dr, exId, current).filter((_, j) => j !== i) : [false] },
+        touched: { ...dr.touched, [exId]: rows.length ? touchedFor(dr, exId, current.length).filter((_, j) => j !== i) : [false] },
+      }
     })
+  /** Swipe-to-delete: gone straight away, with a few seconds to take it back. */
+  const removeSet = (exId: string, base: SetEntry[], i: number, reps: string) => {
+    setUndo({ label: `Set ${i + 1} deleted`, prev: draft }); setValidation('')
+    dropSet(exId, base, i, reps)
+  }
   const logSet = (exId: string, base: SetEntry[], i: number, rest: number, name: string) => {
     const rows = draft.sets[exId] ?? base
     if (!rows[i] || !validSet(rows[i])) {
@@ -294,21 +320,31 @@ export default function Workout() {
       return
     }
     if (completionFor(draft, exId, rows)[i]) return
-    setValidation('')
-    setDraft((dr) => ({ ...dr, sets: { ...dr.sets, [exId]: dr.sets[exId] ?? base }, completed: { ...dr.completed, [exId]: completionFor(dr, exId, dr.sets[exId] ?? base).map((done, j) => j === i || done) } }))
+    setValidation(''); setUndo(null)
+    setDraft((dr) => {
+      const cur = dr.sets[exId] ?? base, done = completionFor(dr, exId, cur), at = cur[i]
+      // logging a later set means the ones before it were done too: log them with it, borrowing any blank weight or reps
+      const filled = cur.map((r, j) => (j < i && !done[j] ? { ...r, weight: r.weight.trim() ? r.weight : at.weight, reps: r.reps.trim() ? r.reps : at.reps } : r))
+      return { ...dr, sets: { ...dr.sets, [exId]: filled }, completed: { ...dr.completed, [exId]: done.map((d, j) => d || j <= i) } }
+    })
     if (data.settings.autoTimer) timer.start(rest, name)
   }
 
-  const baseFor = (exId: string, nSets: number, weight: number | null): SetEntry[] => {
+  const baseFor = (exId: string, nSets: number, weight: number | null, reps: string): SetEntry[] => {
     const logged = todaysLog?.entries.find((e) => e.exId === exId)
-    return logged ? logged.sets.map((s) => ({ weight: String(s.weight), reps: String(s.reps), rpe: s.rpe ? String(s.rpe) : '' })) : emptySets(nSets, weight)
+    return logged ? logged.sets.map((s) => ({ weight: String(s.weight), reps: String(s.reps), rpe: s.rpe ? String(s.rpe) : '' })) : emptySets(nSets, weight, reps)
   }
   const exState = items.map((it) => {
     const rec = recommend(it.ex, data.logs.filter((l) => l.date !== today), today)
-    const base = baseFor(it.ex.id, it.sets, rec.weight)
+    const base = baseFor(it.ex.id, it.sets, rec.weight, defReps(it.ex))
     const rows = draft.sets[it.ex.id] ?? base
     const completed = completionFor(draft, it.ex.id, rows)
-    return { rec, base, rows, completed, done: rows.length > 0 && completed.every(Boolean) }
+    const loggedLen = todaysLog?.entries.find((e) => e.exId === it.ex.id)?.sets.length ?? 0
+    // sets start filled in, so one only counts once it is logged, its reps were typed, or it was already in the saved workout
+    const mine = rows.map((_, j) => completed[j] || !!draft.touched?.[it.ex.id]?.[j] || j < loggedLen)
+    const counted = rows.map((r, j) => mine[j] && validSet(r))
+    const bad = rows.map((r, j) => mine[j] && r.reps.trim() !== '' && !validSet(r))
+    return { rec, base, rows, completed, counted, bad, done: rows.length > 0 && completed.every(Boolean) }
   })
 
   const selectSession = (d: AppData, day: DayType, focus?: WorkoutFocus, ids?: string[], tweaks?: { removed: string[]; extras: string[]; order?: string[] }): AppData => ({
@@ -329,7 +365,7 @@ export default function Workout() {
   const swapTo = (orig: string, cur: string, next: string) => {
     const isExtra = (data.extras[today] ?? []).includes(cur)
     update((d) => {
-      const drafts = { ...d.drafts, [today]: { ...(d.drafts[today] ?? { sets: {}, notes: {} }), sets: Object.fromEntries(Object.entries(d.drafts[today]?.sets ?? {}).filter(([k]) => k !== cur)), completed: Object.fromEntries(Object.entries(d.drafts[today]?.completed ?? {}).filter(([k]) => k !== cur)) } }
+      const drafts = { ...d.drafts, [today]: { ...(d.drafts[today] ?? { sets: {}, notes: {} }), sets: Object.fromEntries(Object.entries(d.drafts[today]?.sets ?? {}).filter(([k]) => k !== cur)), completed: Object.fromEntries(Object.entries(d.drafts[today]?.completed ?? {}).filter(([k]) => k !== cur)), touched: Object.fromEntries(Object.entries(d.drafts[today]?.touched ?? {}).filter(([k]) => k !== cur)) } }
       if (isExtra) return { ...d, extras: { ...d.extras, [today]: (d.extras[today] ?? []).map((x) => (x === cur ? next : x)) }, drafts }
       return { ...d, swaps: { ...d.swaps, [`${today}|${orig}`]: next }, drafts }
     })
@@ -350,7 +386,7 @@ export default function Workout() {
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
   const finish = () => {
-    const invalid = exState.findIndex((s) => s.rows.some((r) => r.reps.trim() !== '' && !validSet(r)))
+    const invalid = exState.findIndex((s) => s.bad.some(Boolean))
     if (invalid >= 0) {
       go(invalid + 1)
       setValidation('Check the entered sets before finishing. Each needs a weight of 0 or more and reps greater than 0.')
@@ -359,8 +395,8 @@ export default function Workout() {
     const entries: LogEntry[] = items.map(({ ex }) => {
       const logged = todaysLog?.entries.find((e) => e.exId === ex.id)
       const rpeStr = draft.rpe?.[ex.id] ?? (logged ? String(logged.sets[logged.sets.length - 1]?.rpe ?? '') : '')
-      const sets = (draft.sets[ex.id] ?? exState[items.findIndex((i) => i.ex.id === ex.id)].rows)
-        .filter(validSet)
+      const s = exState[items.findIndex((i) => i.ex.id === ex.id)]
+      const sets = s.rows.filter((_, j) => s.counted[j])
         .map((r) => ({ weight: Number(r.weight), reps: Number(r.reps), rpe: undefined as number | undefined }))
       if (data.settings.rpeEnabled && rpeStr && sets.length) sets[sets.length - 1].rpe = Number(rpeStr)
       return { exId: ex.id, name: ex.name, sets, note: draft.notes[ex.id] ?? logged?.note ?? '' }
@@ -404,7 +440,7 @@ export default function Workout() {
   }
 
   // ---------- guided workout ----------
-  const onTouchStart = (e: React.TouchEvent) => { touch.current = (e.target as HTMLElement).closest('input, button, textarea, select, details') ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY } }
+  const onTouchStart = (e: React.TouchEvent) => { touch.current = (e.target as HTMLElement).closest('input, button, textarea, select, details, [data-noswipe]') ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY } }
   const onTouchEnd = (e: React.TouchEvent) => {
     const t = touch.current; touch.current = null
     if (!t) return
@@ -428,8 +464,8 @@ export default function Workout() {
   const ex = page >= 1 && page <= items.length ? items[page - 1] : null
   const st = ex ? exState[page - 1] : null
   const nextSet = st ? st.completed.findIndex((done) => !done) : -1
-  const enteredSets = exState.reduce((sum, s) => sum + s.rows.filter(validSet).length, 0)
-  const pendingSets = exState.reduce((sum, s) => sum + s.rows.filter((row, i) => validSet(row) && !s.completed[i]).length, 0)
+  const enteredSets = exState.reduce((sum, s) => sum + s.counted.filter(Boolean).length, 0)
+  const pendingSets = exState.reduce((sum, s) => sum + s.counted.filter((c, i) => c && !s.completed[i]).length, 0)
 
   return (
     <div className="workout-session">
@@ -509,23 +545,28 @@ export default function Workout() {
 
             <div className="workout-set-table">
               <p className="workout-ask"><b>Your goal:</b> {st.rows.length} sets of {ex.ex.reps[0]}–{ex.ex.reps[1]} reps{st.rec.weight ? <> at about <b>{st.rec.weight} lb</b></> : null}. Stop each set 1–2 reps before you can’t do another.</p>
+              {!swipeSeen && <SwipeDemo onDismiss={seeSwipe} />}
               <div className="workout-set-head"><span>Set</span><span>Weight / lb</span><span>Reps ({ex.ex.reps[0]}–{ex.ex.reps[1]})</span><span /></div>
               {st.rows.map((r, i) => (
-                <div className={`workout-set-row ${i === nextSet ? 'current' : ''} ${st.completed[i] ? 'completed' : ''}`} key={i}>
+                <SwipeRow key={i} rightLabel="Log set" leftLabel="Delete" onRight={st.completed[i] ? undefined : () => { seeSwipe(); logSet(ex.ex.id, st.base, i, restFor(ex.ex, data.settings.rest), ex.ex.name) }} onLeft={() => { seeSwipe(); removeSet(ex.ex.id, st.base, i, defReps(ex.ex)) }}>
+                <div className={`workout-set-row ${i === nextSet ? 'current' : ''} ${st.completed[i] ? 'completed' : ''}`}>
                   <span className="n">{i + 1}</span>
                   <input id={`set-${ex.ex.id}-${i}-weight`} type="number" min="0" step="any" inputMode="decimal" aria-label={`Set ${i + 1} weight`} value={r.weight} onChange={(e) => edit(ex.ex.id, st.base, i, 'weight', e.target.value)} placeholder="—" />
                   <input id={`set-${ex.ex.id}-${i}-reps`} type="number" min="1" inputMode="numeric" aria-label={`Set ${i + 1} reps`} value={r.reps} onChange={(e) => edit(ex.ex.id, st.base, i, 'reps', e.target.value)} placeholder={`${ex.ex.reps[0]}–${ex.ex.reps[1]}`} />
                   <button className={`set-check ${st.completed[i] ? 'done' : ''}`} aria-label={st.completed[i] ? `Set ${i + 1} logged` : `Log set ${i + 1}`} aria-pressed={st.completed[i]} onClick={() => logSet(ex.ex.id, st.base, i, restFor(ex.ex, data.settings.rest), ex.ex.name)}><Icon name="check" /></button>
                 </div>
+                </SwipeRow>
               ))}
+              {swipeSeen && <p className="small mute workout-swipe-hint">Swipe a set right to log it, left to delete it.</p>}
             </div>
             <div className="workout-set-tools">
-              <button className="quiet-button" onClick={() => addSet(ex.ex.id, st.base)}><Icon name="plus" />Add set</button>
+              <button className="quiet-button" onClick={() => addSet(ex.ex.id, st.base, defReps(ex.ex))}><Icon name="plus" />Add set</button>
               <button className="icon-button" aria-label="Exercise options" onClick={() => setSheet({ kind: 'options', exId: ex.ex.id })}><Icon name="more" /></button>
             </div>
             {validation && <p className="workout-validation" role="alert">{validation}</p>}
+            {undo && <p className="workout-undo" role="status">{undo.label}<button type="button" onClick={() => { update((d) => ({ ...d, drafts: { ...d.drafts, [today]: undo.prev } })); setUndo(null) }}>Undo</button></p>}
 
-            {data.settings.rpeEnabled && st.rows.length > 0 && st.rows[st.rows.length - 1].reps && (
+            {data.settings.rpeEnabled && st.rows.length > 0 && st.completed[st.rows.length - 1] && (
               <details className="workout-rpe" onToggle={(e) => { const el = e.currentTarget; if (el.open) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }}>
                 <summary>How hard was your last set?<Icon name="chevron" /></summary>
                 <button className="quiet-button" onClick={() => setSheet({ kind: 'rpe' })}>What’s RPE?</button>
@@ -554,7 +595,7 @@ export default function Workout() {
               <ReorderList label="Exercises in this workout" items={items} getKey={(x) => x.ex.id} onReorder={reorderToday}>{(it, i) => (
                 <button className="minirow" onClick={() => go(i + 1)}>
                   <span style={{ flex: 1, textAlign: 'left' }}>{it.ex.name}</span>
-                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].rows.filter(validSet).length} sets{exState[i].done && <Icon name="check" />}</span>
+                  <span className={`tag ${exState[i].done ? 'ok' : ''}`}>{exState[i].counted.filter(Boolean).length} sets{exState[i].done && <Icon name="check" />}</span>
                 </button>
               )}</ReorderList>
               <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
@@ -597,7 +638,7 @@ export default function Workout() {
             <button className="ghost" onClick={() => { removeEx(item.orig, item.ex.id); setSheet(null) }}>Remove exercise</button>
             <div className="workout-options">
               <h3>Manage sets</h3>
-              {state.rows.map((row, i) => <div className="row" key={i}><span>Set {i + 1}{validSet(row) ? ` · ${row.weight} lb × ${row.reps}` : ''}</span><button className="icon-button" aria-label={`Delete set ${i + 1}`} onClick={() => dropSet(item.ex.id, state.base, i)}><Icon name="close" /></button></div>)}
+              {state.rows.map((row, i) => <div className="row" key={i}><span>Set {i + 1}{state.counted[i] || state.completed[i] ? ` · ${row.weight} lb × ${row.reps}` : validSet(row) ? ` · ${row.weight} lb × ${row.reps} (not logged)` : ''}</span><button className="icon-button" aria-label={`Delete set ${i + 1}`} onClick={() => dropSet(item.ex.id, state.base, i, defReps(item.ex))}><Icon name="close" /></button></div>)}
             </div>
           </Sheet>
         )

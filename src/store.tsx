@@ -17,11 +17,15 @@ export const blankData = (name: string): AppData => ({
   dayOverride: {}, extras: {}, removed: {}, started: {}, photos: [], qotd: {}, extendHours: {}, posts: [], steps: [], challengesJoined: [], foodLog: {}, customFoods: [], carbOverride: {}, customChallenges: [], mealPlan: {}, settings: DEFAULT_SETTINGS,
 })
 
+/** The rest times every new account used to start with. Anyone still on exactly these never picked them, so they move to the 1 minute default. */
+const OLD_DEFAULT_REST = { small: 45, medium: 75, large: 120, keyBonus: 30 }
+const sameRest = (a?: Partial<AppData['settings']['rest']>) => !!a && (Object.keys(OLD_DEFAULT_REST) as (keyof typeof OLD_DEFAULT_REST)[]).every((k) => a[k] === OLD_DEFAULT_REST[k])
+
 /** Saved data wins, but any setting added in a newer version falls back to its default. */
 const withDefaults = (base: AppData, saved: Partial<AppData>): AppData => ({
   ...base, ...saved,
   posts: (saved.posts ?? []).map((p) => ({ ...p, imagePaths: p.imagePaths ?? (p.imagePath ? [p.imagePath] : []), imageIds: p.imageIds ?? (p.imageId ? [p.imageId] : []) })),
-  settings: { ...base.settings, ...(saved.settings ?? {}), rest: { ...base.settings.rest, ...(saved.settings?.rest ?? {}) }, nutrition: { ...base.settings.nutrition, ...(saved.settings?.nutrition ?? {}) } },
+  settings: { ...base.settings, ...(saved.settings ?? {}), rest: sameRest(saved.settings?.rest) ? base.settings.rest : { ...base.settings.rest, ...(saved.settings?.rest ?? {}) }, nutrition: { ...base.settings.nutrition, ...(saved.settings?.nutrition ?? {}) } },
 })
 
 const read = <T,>(k: string, fallback: T): T => {
