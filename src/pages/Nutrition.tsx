@@ -188,12 +188,12 @@ export default function Nutrition() {
       <div className="nutrition-meals">
         {names.map((name, i) => {
           const list = inMeal(i)
-          const sum = list.reduce((a, e) => ({ cal: a.cal + e.cal, p: a.p + e.p }), { cal: 0, p: 0 })
+          const sum = list.reduce((a, e) => ({ cal: a.cal + e.cal, p: a.p + e.p, c: a.c + e.c, f: a.f + e.f }), { cal: 0, p: 0, c: 0, f: 0 })
           return <section className="card nutrition-meal" key={name + i}>
-            <div className="nutrition-meal-heading"><h3>{name}</h3><p className="nutrition-help">Target {r0(m.cal * share[i])} kcal · {r0(m.p * share[i])}g protein</p></div>
+            <div className="nutrition-meal-heading"><h3>{name}</h3><p className="nutrition-help">Target {r0(m.cal * share[i])} kcal · {macroText(target(i))}</p></div>
             {list.length === 0 && <p className="nutrition-empty">No food logged yet.</p>}
             {list.map((e) => <div key={e.id} className="nutrition-food-entry"><div className="nutrition-food-info"><b>{e.name}</b><span>{e.qty} × {e.serving}</span><span>{r0(e.cal)} kcal · {macroText(e)}</span></div><PortionControls name={e.name} qty={e.qty} onMinus={() => setQty(e, Math.round((e.qty - 0.5) * 2) / 2)} onPlus={() => setQty(e, Math.round((e.qty + 0.5) * 2) / 2)} /></div>)}
-            {list.length > 0 && <p className="nutrition-meal-total">Logged: <b>{r0(sum.cal)} kcal · {r0(sum.p)}g protein</b></p>}
+            {list.length > 0 && <p className="nutrition-meal-total">Logged: <b>{r0(sum.cal)} kcal · {macroText(sum)}</b></p>}
             <div className="nutrition-meal-actions"><button type="button" className="primary" onClick={() => { setPicker(i); setQ('') }}>Add food</button><button type="button" className="ghost" onClick={() => openGen(i)}>Build meal</button></div>
             {data.mealPlan[planKey(i)]?.length ? <button type="button" className="ghost nutrition-saved-meal" onClick={() => logPlan(i, data.mealPlan[planKey(i)])}>Log saved meal{list.length > 0 && <span>Replaces this meal’s logged foods</span>}</button> : null}
             <details className="nutrition-meal-ideas"><summary>Meal ideas</summary><p>{MEALS[sel][Math.min(i, MEALS[sel].length - 1)].example}</p></details>
