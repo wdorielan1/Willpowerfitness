@@ -119,6 +119,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Charts and personal records update
 - [ ] Add a progress photo; it uploads; tap to open the lightbox; delete it
 - [ ] Import history (CSV/AI text) previews before saving
+- [ ] A 7D / 30D / 90D / 6M / 1Y / All selector at the top of Progress changes the summary, weekly chart, strength and weight trends, workout history and cardio list together
+- [ ] Longer ranges show About N workouts a week; the weekly chart gets more bars; history and cardio have Show more
+- [ ] The chosen range is remembered the next time you open Progress
+- [ ] A range with nothing in it says so and suggests a longer range
 
 ## 6. Crews
 - [ ] Join and leave a crew
