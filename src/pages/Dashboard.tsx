@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { carbPlanFor, dayFor, fmtTime, fromISO, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
-import { Avatar, Sheet, fmtClock } from '../components'
+import { Avatar, ConfirmSheet, Sheet, fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
 import { Icon } from '../icons'
@@ -41,6 +41,7 @@ export default function Dashboard() {
   // the time you actually finished, not the time you planned to train
   const shareSummary = todaysLog ? summaryFromLog(data, todaysLog) : null
   const [sharing, setSharing] = useState(false)
+  const [askUndo, setAskUndo] = useState(false)
   const finishedLabel = todaysLog?.finishedAt ? new Date(todaysLog.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const rest = day === 'Rest/Cardio'
   const plan = generateWorkout(today, data, !!data.short[today])
@@ -113,7 +114,7 @@ export default function Dashboard() {
         <div className="session-secondary">
           {!ci.done && <Link to="/workout?change=1" className="quiet-action">Change workout</Link>}
           {ci.done && todaysLog && <Link to="/workout" className="quiet-action">Edit logged sets</Link>}
-          {ci.done && <button className="quiet-action" onClick={ci.undo}>Undo completion</button>}
+          {ci.done && <button className="quiet-action" onClick={() => setAskUndo(true)}>Undo completion</button>}
         </div>
 
       </section>
@@ -154,6 +155,7 @@ export default function Dashboard() {
         </div>
         <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
       </section>
+      {askUndo && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAskUndo(false); ci.undo() }} onCancel={() => setAskUndo(false)} />}
       {sharing && shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setSharing(false)} />}
       {peek && (() => {
         const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
