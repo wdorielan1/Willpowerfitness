@@ -74,6 +74,11 @@ export interface FoodItem { id: string; name: string; serving: string; cal: numb
 export interface FoodEntry { id: string; meal: number; name: string; serving: string; qty: number; cal: number; p: number; c: number; f: number }
 export interface CustomChallenge { id: string; name: string; emoji: string; metric: Metric; unit: string; start: string; end: string; mine?: boolean }
 
+export type StickerStyle = 'minimal' | 'performance' | 'full'
+export type StickerTextColor = 'white' | 'dark'
+/** Sticker center and width as fractions of the output frame. Photos are never stored. */
+export interface StickerPlacement { x: number; y: number; scale: number }
+
 export interface Settings {
   nutrition: { meals: number; proteinPerLb: number; fatPerLb: number; calorieAdjust: number }
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
@@ -81,6 +86,9 @@ export interface Settings {
   autoShare: boolean // post finished workouts to my crew
   gymName?: string // optional place shown on share pictures (never live location)
   shareFormat?: 'story' | 'post' // last share picture size
+  shareStickerStyle?: StickerStyle
+  shareStickerTextColor?: StickerTextColor
+  shareStickerPlacement?: StickerPlacement
   rpeEnabled: boolean // ask how hard the last set felt, once per exercise
   maxWorkoutHours: number // ask "still working out?" after this long, auto-end 30 min later
   autoTimer: boolean // start the rest timer when you log a set

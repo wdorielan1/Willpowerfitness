@@ -902,3 +902,53 @@ button.week-day:active { background: var(--card2); }
 .seg { display: inline-flex; background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
 .seg > button { min-height: 0; padding: 7px 16px; border-radius: 999px; background: transparent; font-size: 14px; font-weight: 700; color: var(--mute); border: 0; }
 .seg > button.on { background: var(--text); color: #101114; }
+
+/* Workout stickers: local photo composition and the completion sheet. */
+.workout-share { display: grid; gap: 12px; min-width: 0; }
+.workout-share > * { min-width: 0; }
+.share-intro { font-size: 13px; color: var(--mute); line-height: 1.5; }
+.share-intro b { color: var(--text); }
+.share-intro span { display: block; }
+.share-segments { display: flex; padding: 4px; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.share-segments button { flex: 1; min-width: 0; min-height: 40px; padding: 8px 5px; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 650; color: var(--mute); }
+.share-segments button.on { background: var(--card2); color: var(--text); box-shadow: 0 1px 4px #0005; }
+.share-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.share-colors { display: flex; gap: 4px; }
+.share-colors button { min-height: 40px; padding: 8px 10px; border: 1px solid transparent; font-size: 12px; border-radius: 9px; background: transparent; color: var(--mute); }
+.share-colors button.on { border-color: var(--line); background: var(--card2); color: var(--text); }
+.share-colors i { width: 13px; height: 13px; border-radius: 50%; border: 1px solid #777; }
+.share-colors .white { background: #fff; }
+.share-colors .dark { background: #101114; }
+.share-preview-wrap { display: grid; justify-items: center; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg); }
+.share-checkerboard { display: grid; place-items: center; width: 100%; min-height: 185px; padding: 18px; background-color: #73767b; background-image: conic-gradient(#909398 25%, transparent 0 50%, #909398 0 75%, transparent 0); background-size: 20px 20px; }
+.share-checkerboard img { display: block; max-width: 100%; max-height: 245px; object-fit: contain; }
+.share-loading { padding: 35px 12px; font-size: 13px; color: white; }
+.share-photo-stage { position: relative; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; width: min(100%, 190px); aspect-ratio: 9 / 16; }
+.share-photo-stage.post { width: min(100%, 260px); aspect-ratio: 4 / 5; }
+.share-photo-stage:active { cursor: grabbing; }
+.share-photo-stage canvas { display: block; width: 100%; height: 100%; }
+.share-sticker-handle { position: absolute; border: 1px dashed #ffffff80; border-radius: 4px; outline: none; min-width: 0; }
+.share-sticker-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.share-sticker-handle::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; border: 1px solid #333; border-radius: 50%; background: #fff; }
+.share-size { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.share-size input { flex: 1; width: 0; padding: 0; min-height: 32px; accent-color: var(--accent); background: transparent; border: 0; }
+.share-size output { width: 32px; text-align: right; }
+.share-format { width: 180px; }
+.share-hint { font-size: 12px; line-height: 1.5; color: var(--mute); }
+.share-file-input { display: none; }
+.share-photo-actions { display: flex; gap: 8px; }
+.share-photo-actions > .ghost { flex: 1; }
+.share-photo-actions button { min-height: 44px; font-size: 13px; padding: 10px; }
+.share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.share-actions button { min-height: 48px; font-size: 14px; padding: 12px; }
+.share-actions.card-mode { grid-template-columns: 1fr; }
+.share-message { color: var(--text); font-size: 13px; line-height: 1.5; }
+.share-card-option { min-height: 44px; padding: 8px; background: transparent; color: var(--mute); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.share-card-preview { width: 190px; max-width: 100%; aspect-ratio: 9 / 16; }
+.share-card-preview.post { width: 260px; aspect-ratio: 4 / 5; }
+.share-card-preview img { display: block; width: 100%; }
+.share-place { font-size: 12px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+.share-place summary { cursor: pointer; padding: 5px 0; }
+.share-place-toggle { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.share-place-toggle input { width: 18px; min-height: 18px; accent-color: var(--accent); }
+.workout-share button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
