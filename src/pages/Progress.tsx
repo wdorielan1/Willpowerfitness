@@ -19,8 +19,8 @@ function Line({ pts, unit, label, empty }: { pts: { x: string; y: number }[]; un
       <path d={`M${pad} ${H / 2}H${W - pad}M${pad} ${H - pad}H${W - pad}`} fill="none" stroke="var(--line)" strokeWidth="1" />
       <polyline fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={pts.map((p, i) => `${x(i)},${y(p.y)}`).join(' ')} />
       {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.y)} r="3.5" fill="var(--accent)" />)}
-      <text x={pad} y={H - 4}>{pts[0].x.slice(5)}</text>
-      <text x={W - pad} y={H - 4} textAnchor="end">{pts[pts.length - 1].x.slice(5)}</text>
+      <text x={pad} y={H - 4}>{dateLabel(pts[0].x)}</text>
+      <text x={W - pad} y={H - 4} textAnchor="end">{dateLabel(pts[pts.length - 1].x)}</text>
       <text x={pad} y={12}>{hi} {unit}</text>
     </svg>
   )
