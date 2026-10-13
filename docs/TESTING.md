@@ -38,7 +38,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] After finishing, Today says "COMPLETE" with the real finish time (not the planned time)
 - [ ] With auto-share on: finishing posts "Finished ..." to the crew once; reopening the workout and tapping Save changes does not post again
 - [ ] Deleting the day's workout and finishing a new one posts again
-- [ ] Each exercise says "Your goal: N sets of A–B reps", the Reps column header shows the range, and empty rep boxes show the range (e.g. 6–8)
+- [ ] Each exercise says "Your goal: N sets of A–B reps", the Reps column header shows the range, and every set's reps start filled with the top of the range (e.g. 8 for 6–8)
 - [ ] With the rest timer showing, open "How hard was your last set?": the RPE buttons scroll up clear of the timer and are easy to tap
 - [ ] Week schedule: days before sign-up are not marked missed
 - [ ] Sign-up asks for sex (Male, Female, Prefer not to say) on the "Your numbers" step; Next is disabled until one is picked
@@ -69,6 +69,17 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Reopening a finished workout shows Share this workout near the bottom of the review page
 - [ ] Re-opening a finished workout and tapping Save changes keeps the original duration, even if the timer kept running
 - [ ] Undo completion on Today asks first (Yes, undo it / Cancel); Cancel keeps the workout complete; confirming keeps your logged sets
+- [ ] Train: pick a made workout (not Build your own), press and hold a lift for a moment: it lifts off the list; drag up or down and the others make room; let go and the order sticks
+- [ ] The same press-and-hold drag works on Today's lifts (warm-up page) and the lifts list on the review page; a quick tap still opens the exercise and a normal scroll still scrolls
+- [ ] The new order is remembered for the day and Start lifting uses it; Build your own still has its up and down arrows only
+- [ ] Rest timer starts at 1:00 for every lift, big or small (new account); an account still on the old default also moves to 1:00; a custom time you set earlier is left alone; Settings > Rest timer has a "1 minute" preset
+- [ ] Type a weight on set 1: the sets after it fill with the same weight; change set 3 on its own and set 4 follows it but set 2 stays
+- [ ] Every set's reps start at the top of the range; none of the prefilled sets are saved unless you log them (finish with one exercise logged: only those sets appear in the review and history)
+- [ ] Swipe a set right to log it (green "Log set" shows, the check mark still works, rest timer starts); a short nudge or an up/down scroll does nothing
+- [ ] Swipe a set left to delete it (red "Delete" shows); a "Set N deleted · Undo" line appears for a few seconds and Undo brings it back; Manage sets in the options menu still deletes too
+- [ ] Logging the last set (swipe, check or footer button) logs the sets before it too, filling any blank weight or reps from it
+- [ ] The first time you reach the sets, a looping demo shows a row swiping right (green) then left (red); it goes away after you swipe a set or tap Got it, and a one-line hint stays
+- [ ] Swiping a set never flips to another exercise
 
 ## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
@@ -102,6 +113,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Save a meal; it appears in the plan
 - [ ] Daily totals and the Fuel goal update
 - [ ] AI export gives a usable text/file
+- [ ] Export page (Progress > Export): pick a time period and tick or untick sections, and the Preview summary text changes to match
+- [ ] Copy summary shows "Summary copied."; turning on Coaching questions adds the coaching prompt before the summary and the message says so; Download text saves the same text
+- [ ] Download files: Workout sets (CSV) and App data (JSON) both download; the note says they cover all dates, not just the chosen period
+- [ ] "Before sharing" says the JSON can include your profile photo, saved area and notes, and it is right (check the file); the page fits a small phone with no sideways scroll
 - [ ] Add food: type a food, tap "Search online": results appear with calories and macros
 - [ ] Add an online result: it is logged with the right numbers
 - [ ] Build meal: online results can be selected and portioned
