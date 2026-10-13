@@ -146,6 +146,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Share workout (crew page) opens the share screen: Card, or My photo + sticker (add a photo, drag and resize the sticker); Post to crew posts the picture with the workout line
 - [ ] After posting, the Share workout button stays pressable; inside, Post to crew is grayed out (Posted to your crew today) while Copy sticker and Share to Instagram still work; a message confirms the post
 - [ ] Deleting that workout post makes Post to crew available again
+- [ ] Post photos sit side by side like Strava: 1 photo fills the post, 2 share it, 3 fit across, 4 or more scroll sideways with the next one peeking; tapping a photo opens it full screen
 
 ## 7. Crew map
 - [ ] Map tiles load
@@ -194,6 +195,10 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A new account's handle is the first part of their email (letters and numbers), and a name/handle search finds them by default
 - [ ] Two people with the same email start get different handles (the second gets digits added)
 - [ ] The Friends tab toggle shows On for new accounts, and turning it off hides them from search
+- [ ] A magnifier icon sits next to the bell in the header and opens search with the keyboard ready
+- [ ] Typing a friend's name or @handle finds them: people you follow or who follow you (even with discovery off), crew mates, and anyone discoverable; tapping opens their profile
+- [ ] Search also finds pages and actions (e.g. weight, macros, settings), crews, challenges, foods (including My foods), exercises (tap for a photo and steps) and your past workouts; each group shows 5 with Show all
+- [ ] A search with no matches says so; Clear and the back arrow work; search links like #/search?q=crew prefill the box
 
 ## Profiles (public pages)
 - [ ] (Re-run supabase/schema.sql first. Add the Amplify rewrite rule from docs/SOP.md.) Open https://wilpow.com/u/<your handle> in a private window while signed out: your public profile loads
