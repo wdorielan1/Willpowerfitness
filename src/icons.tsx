@@ -23,6 +23,8 @@ const paths = {
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></>,
   check: <path d="m5 12 4 4L19 6" />,
   photo: <><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8" cy="8" r="1.5" /><path d="m3 17 5-5 4 4 4-6 5 7" /></>,
+  camera: <><path d="M3 7h4l2-3h6l2 3h4v13H3Z" /><circle cx="12" cy="13" r="4" /></>,
+  flip: <path d="M4 8a8 8 0 0 1 14-3l3 3m-6 0h6V2M20 16a8 8 0 0 1-14 3l-3-3m6 0H3v6" />,
   more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 2v6M17 2v6M3 11h18" /></>,
   settings: <><path d="M3 6h18M3 12h18M3 18h18" /><circle cx="8" cy="6" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="9" cy="18" r="2" /></>,

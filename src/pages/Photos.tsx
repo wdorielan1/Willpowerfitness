@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../store'
-import { Lightbox } from '../components'
+import { Icon } from '../icons'
+import { ConfirmSheet, Lightbox } from '../components'
 import { cloudEnabled } from '../cloud'
-import { compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls } from '../photos'
+import { compress, deletePhotoBlob, savePhotoBlob, usePhotoUrls, withTimeout } from '../photos'
 import { fromISO, todayISO } from '../engine'
 import type { Photo, Pose } from '../types'
 
@@ -13,6 +15,7 @@ const POSES: { id: Pose; label: string; tip: string }[] = [
   { id: 'other', label: 'Other', tip: 'Any extra angle, like a flex or relaxed pose.' },
 ]
 const label = (p: Pose) => POSES.find((x) => x.id === p)!.label
+const photoDate = (date: string) => fromISO(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 
 /** Outline you line your body up with. Arms are raised, as in the pose guide. */
 export function Silhouette({ pose, style }: { pose: Pose; style?: React.CSSProperties }) {
@@ -40,64 +43,130 @@ export function Silhouette({ pose, style }: { pose: Pose; style?: React.CSSPrope
 }
 
 function Camera({ pose, onShot, onClose }: { pose: Pose; onShot: (b: Blob) => void; onClose: () => void }) {
+  const dialog = useRef<HTMLDivElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
   const video = useRef<HTMLVideoElement>(null)
   const stream = useRef<MediaStream | null>(null)
+  const countdown = useRef<number | null>(null)
+  const active = useRef(false)
+  const close = useRef(onClose)
+  close.current = onClose
   const [facing, setFacing] = useState<'user' | 'environment'>('user')
   const [timer, setTimer] = useState(10)
   const [count, setCount] = useState<number | null>(null)
   const [err, setErr] = useState('')
   const [ready, setReady] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [guide, setGuide] = useState(pose !== 'other')
+
+  useEffect(() => {
+    active.current = true
+    const previousFocus = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButton.current?.focus()
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); close.current() }
+      if (event.key !== 'Tab') return
+      const buttons = Array.from(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
+      const first = buttons[0], last = buttons[buttons.length - 1]
+      if (event.shiftKey && (document.activeElement === first || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && (document.activeElement === last || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); first?.focus() }
+    }
+    document.addEventListener('keydown', key)
+    return () => {
+      active.current = false
+      if (countdown.current !== null) window.clearInterval(countdown.current)
+      document.removeEventListener('keydown', key)
+      document.body.style.overflow = overflow
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true })
+    }
+  }, [])
 
   useEffect(() => {
     let off = false
-    setReady(false)
-    stream.current?.getTracks().forEach((t) => t.stop())
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1920 } }, audio: false })
-      .then((s) => {
-        if (off) { s.getTracks().forEach((t) => t.stop()); return }
-        stream.current = s
-        if (video.current) { video.current.srcObject = s; void video.current.play() }
-      })
-      .catch(() => setErr('Camera is not available. Allow camera access in your browser, or choose a photo from your library instead.'))
-    return () => { off = true; stream.current?.getTracks().forEach((t) => t.stop()) }
+    setReady(false); setErr('')
+    stream.current?.getTracks().forEach((track) => track.stop())
+    stream.current = null
+    if (video.current) video.current.srcObject = null
+    const start = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera unavailable')
+        const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1920 } }, audio: false })
+        if (off) { media.getTracks().forEach((track) => track.stop()); return }
+        stream.current = media
+        if (video.current) { video.current.srcObject = media; await video.current.play() }
+      } catch {
+        if (!off) { setReady(false); setErr('Camera is not available. Allow camera access in your browser, or choose a photo from your library.') }
+      }
+    }
+    void start()
+    return () => { off = true; stream.current?.getTracks().forEach((track) => track.stop()) }
   }, [facing])
 
-  const snap = () => {
-    const v = video.current
-    if (!v || !v.videoWidth) return
-    const c = document.createElement('canvas')
-    c.width = v.videoWidth; c.height = v.videoHeight
-    c.getContext('2d')!.drawImage(v, 0, 0)
-    c.toBlob((b) => b && onShot(b), 'image/jpeg', 0.9)
+  const snap = async () => {
+    const frame = video.current
+    if (!frame?.videoWidth || capturing || !active.current) return
+    setCapturing(true); setErr('')
+    const canvas = document.createElement('canvas')
+    const scale = Math.min(1, 1280 / Math.max(frame.videoWidth, frame.videoHeight))
+    canvas.width = Math.max(1, Math.round(frame.videoWidth * scale))
+    canvas.height = Math.max(1, Math.round(frame.videoHeight * scale))
+    try {
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('Could not take the photo. Try choosing one from your library.')
+      context.drawImage(frame, 0, 0, canvas.width, canvas.height)
+      const blob = await withTimeout(new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Could not take the photo. Please try again.')), 'image/jpeg', 0.9)), 15000, 'Taking photo')
+      if (active.current) onShot(blob)
+    } catch (error) {
+      if (active.current) setErr(error instanceof Error ? error.message : 'Could not take the photo. Please try again.')
+    } finally {
+      canvas.width = canvas.height = 0
+      if (active.current) setCapturing(false)
+    }
   }
-  const go = () => {
-    if (!timer) return snap()
-    let n = timer
-    setCount(n)
-    const id = setInterval(() => {
-      n -= 1
-      if (n <= 0) { clearInterval(id); setCount(null); snap() } else setCount(n)
+  const capture = () => {
+    if (count !== null) {
+      if (countdown.current !== null) window.clearInterval(countdown.current)
+      countdown.current = null; setCount(null)
+      return
+    }
+    if (!timer) { void snap(); return }
+    let remaining = timer
+    setCount(remaining)
+    countdown.current = window.setInterval(() => {
+      remaining -= 1
+      if (remaining <= 0) {
+        if (countdown.current !== null) window.clearInterval(countdown.current)
+        countdown.current = null; setCount(null); void snap()
+      } else setCount(remaining)
     }, 1000)
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 50, display: 'grid', gridTemplateRows: '1fr auto' }}>
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <video ref={video} playsInline muted onLoadedData={() => setReady(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: facing === 'user' ? 'scaleX(-1)' : 'none' }} />
-        <Silhouette pose={pose} style={{ position: 'absolute', inset: '4% 0', margin: 'auto', height: '92%', opacity: 0.9 }} />
-        {count !== null && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 120, fontWeight: 900, textShadow: '0 4px 20px #000' }}>{count}</div>}
-        {err && <div className="banner" style={{ position: 'absolute', top: 70, left: 16, right: 16 }}>{err}</div>}
-        <div className="tag" style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top))', left: 14 }}>{label(pose)} · line up with the outline</div>
+    <div ref={dialog} className="photo-camera" role="dialog" aria-modal="true" aria-label={`${label(pose)} photo camera`}>
+      <div className="photo-camera-view">
+        <video ref={video} playsInline muted onLoadedData={() => setReady(true)} className={facing === 'user' ? 'is-mirrored' : ''} />
+        {guide && <Silhouette pose={pose} style={{ position: 'absolute', inset: '8% 0', margin: 'auto', height: '84%', opacity: 0.85 }} />}
+        <header className="photo-camera-header">
+          <button ref={closeButton} className="photo-camera-icon" aria-label="Close camera" onClick={onClose}><Icon name="close" size={20} /></button>
+          <span>{label(pose)} photo</span>
+          <button className="photo-camera-icon" aria-label="Flip camera" disabled={count !== null || capturing} onClick={() => setFacing((current) => current === 'user' ? 'environment' : 'user')}><Icon name="flip" size={21} /></button>
+        </header>
+        {count !== null && <output className="photo-camera-count" aria-live="polite" aria-label="Countdown">{count}</output>}
+        {err && <p className="photo-camera-error" role="alert">{err}</p>}
       </div>
-      <div style={{ padding: '14px 16px calc(14px + env(safe-area-inset-bottom))', display: 'grid', gap: 10, background: '#0b0b0d' }}>
-        <div className="chips" style={{ justifyContent: 'center' }}>
-          {[0, 5, 10].map((t) => <button key={t} className={`chip ${timer === t ? 'on' : ''}`} onClick={() => setTimer(t)}>{t ? `${t}s timer` : 'No timer'}</button>)}
+      <div className="photo-camera-controls">
+        <div className="photo-camera-tools">
+          <div className="photo-camera-timers" role="group" aria-label="Camera timer">
+            {[0, 5, 10].map((seconds) => <button key={seconds} aria-pressed={timer === seconds} disabled={count !== null || capturing} onClick={() => setTimer(seconds)}>{seconds ? `${seconds}s` : 'Off'}</button>)}
+          </div>
+          <button className="quiet-action" aria-pressed={guide} onClick={() => setGuide((current) => !current)}>{guide ? 'Hide guide' : 'Show guide'}</button>
         </div>
-        <div className="grid3">
-          <button className="ghost" onClick={onClose}>Close</button>
-          <button className="primary" onClick={go} disabled={count !== null || !!err || !ready}>{count !== null ? '…' : !ready && !err ? 'Starting…' : timer ? 'Start timer' : 'Take photo'}</button>
-          <button className="ghost" onClick={() => setFacing(facing === 'user' ? 'environment' : 'user')}>Flip</button>
-        </div>
+        <button className="primary photo-camera-capture" onClick={capture} disabled={capturing || (count === null && !ready)}>
+          <Icon name={count !== null ? 'close' : 'camera'} size={20} />
+          {capturing ? 'Taking photo…' : count !== null ? 'Cancel timer' : !ready && !err ? 'Starting camera…' : timer ? `Start ${timer}s timer` : 'Take photo'}
+        </button>
       </div>
     </div>
   )
@@ -105,110 +174,126 @@ function Camera({ pose, onShot, onClose }: { pose: Pose; onShot: (b: Blob) => vo
 
 export default function Photos() {
   const { data, update, userId } = useApp()
-  const [tab, setTab] = useState<'add' | 'compare' | 'all'>('add')
+  const [tab, setTab] = useState<'add' | 'compare' | 'all'>(() => data.photos.length ? 'all' : 'add')
   const [pose, setPose] = useState<Pose>('front')
   const [cam, setCam] = useState(false)
   const [date, setDate] = useState(todayISO())
-  const [msg, setMsg] = useState('')
+  const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
+  const pending = useRef(false)
+  const [deleting, setDeleting] = useState<Photo | null>(null)
+  const [removing, setRemoving] = useState(false)
+  const deletionPending = useRef(false)
   const [view, setView] = useState<{ srcs: string[]; start: number; caption: string[] } | null>(null)
   const urls = usePhotoUrls(data.photos)
   const file = useRef<HTMLInputElement>(null)
+  const validDate = !!date && date <= todayISO()
 
-  const store = async (blob: Blob, when: string) => {
-    setBusy(true)
+  const store = async (blob: Blob, when: string, selectedPose: Pose) => {
+    if (pending.current) return
+    if (!when || when > todayISO()) { setFeedback({ text: 'Choose today or an earlier photo date.', error: true }); return }
+    pending.current = true; setBusy(true); setFeedback(null)
     try {
       const small = await compress(blob)
-      const id = `${Date.now()}-${pose}`
-      const r = await savePhotoBlob(id, small, userId)
-      const photo: Photo = { id, date: when, pose, path: r.path }
-      update((d) => ({ ...d, photos: [...d.photos, photo] }))
-      setMsg(r.where === 'cloud' ? 'Saved to your private account.' : cloudEnabled ? 'Saved on this device only: cloud photo storage is not set up yet.' : 'Saved on this device.')
-    } catch { setMsg('Could not save that photo. Try again.') }
-    setBusy(false)
+      const id = `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}-${selectedPose}`
+      const result = await savePhotoBlob(id, small, userId)
+      const photo: Photo = { id, date: when, pose: selectedPose, path: result.path }
+      update((current) => ({ ...current, photos: [...current.photos, photo] }))
+      setFeedback({ text: result.where === 'cloud' ? 'Saved to your private account.' : result.error ? `Saved on this device. Cloud upload failed: ${result.error}` : 'Saved on this device.', error: false })
+      setTab('all')
+    } catch (error) {
+      setFeedback({ text: error instanceof Error ? error.message : 'Could not save that photo. Please try again.', error: true })
+    } finally {
+      pending.current = false; setBusy(false)
+    }
+  }
+  const remove = async (photo: Photo) => {
+    if (deletionPending.current) return
+    deletionPending.current = true; setRemoving(true); setFeedback(null)
+    try {
+      await deletePhotoBlob(photo)
+      update((current) => ({ ...current, photos: current.photos.filter((item) => item.id !== photo.id) }))
+      setDeleting(null); setA(''); setB('')
+      setFeedback({ text: 'Photo deleted.', error: false })
+    } catch (error) {
+      setFeedback({ text: error instanceof Error ? error.message : 'Could not delete that photo. Please try again.', error: true })
+      setDeleting(null)
+    } finally {
+      deletionPending.current = false; setRemoving(false)
+    }
   }
 
-  const remove = async (p: Photo) => {
-    if (!confirm('Delete this photo?')) return
-    await deletePhotoBlob(p)
-    update((d) => ({ ...d, photos: d.photos.filter((x) => x.id !== p.id) }))
-  }
-
-  const ofPose = data.photos.filter((p) => p.pose === pose).sort((a, b) => a.date.localeCompare(b.date))
+  const ofPose = data.photos.filter((photo) => photo.pose === pose).sort((left, right) => left.date.localeCompare(right.date))
   const [a, setA] = useState('')
   const [b, setB] = useState('')
-  const pa = ofPose.find((p) => p.id === a) ?? ofPose[0]
-  const pb = ofPose.find((p) => p.id === b) ?? ofPose[ofPose.length - 1]
-  const days = pa && pb ? Math.round((fromISO(pb.date).getTime() - fromISO(pa.date).getTime()) / 86400000) : 0
-  const wAt = (d: string) => [...data.weights].filter((w) => w.date <= d).sort((x, y) => y.date.localeCompare(x.date))[0]?.lbs
-  const opt = (p: Photo) => <option key={p.id} value={p.id}>{p.date}</option>
+  const pa = ofPose.find((photo) => photo.id === a) ?? ofPose[0]
+  const selectedAfter = ofPose.find((photo) => photo.id === b) ?? ofPose[ofPose.length - 1]
+  const pb = selectedAfter?.id === pa?.id ? [...ofPose].reverse().find((photo) => photo.id !== pa?.id) ?? selectedAfter : selectedAfter
+  const days = pa && pb ? Math.abs(Math.round((fromISO(pb.date).getTime() - fromISO(pa.date).getTime()) / 86400000)) : 0
+  const wAt = (when: string) => [...data.weights].filter((weight) => weight.date <= when).sort((left, right) => right.date.localeCompare(left.date))[0]?.lbs
+  const library = [...data.photos].sort((left, right) => right.date.localeCompare(left.date))
+  const openPhoto = (photo: Photo, list: Photo[]) => {
+    const available = list.filter((item) => urls[item.id])
+    const index = available.findIndex((item) => item.id === photo.id)
+    if (index >= 0) setView({ srcs: available.map((item) => urls[item.id]), start: index, caption: available.map((item) => `${label(item.pose)} · ${photoDate(item.date)}`) })
+  }
+  const image = (photo: Photo, list: Photo[]) => urls[photo.id]
+    ? <button className="progress-photo-image" aria-label={`Open ${label(photo.pose).toLowerCase()} photo from ${photo.date}`} onClick={() => openPhoto(photo, list)}><img src={urls[photo.id]} alt={`${label(photo.pose)} pose, ${photoDate(photo.date)}`} /></button>
+    : <div className="progress-photo-placeholder" role="img" aria-label={`${label(photo.pose)} photo preview, ${photoDate(photo.date)}`}><Icon name="photo" size={24} /></div>
 
   return (
-    <>
-      <div><h1>Progress photos</h1><p className="mute">Same pose, same lighting, every time. Only you can see these.</p></div>
-      <div className="tabs">
-        {(['add', 'compare', 'all'] as const).map((t) => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{{ add: 'Add', compare: 'Compare', all: 'All' }[t]}</button>)}
+    <div className="progress-photos-page">
+      <header className="progress-photos-heading">
+        <Link to="/progress" className="quiet-action"><Icon name="back" size={16} />Progress</Link>
+        <h1>Progress photos</h1>
+        <p>Compare the same pose over time.</p>
+      </header>
+      <div className="progress-photos-tabs" role="group" aria-label="Photo views">
+        {(['add', 'compare', 'all'] as const).map((value) => <button key={value} aria-pressed={tab === value} disabled={busy || removing} onClick={() => setTab(value)}>{{ add: 'Add', compare: 'Compare', all: 'Library' }[value]}</button>)}
       </div>
+      {tab !== 'all' && <div className="progress-photos-poses" role="group" aria-label="Photo pose">
+        {POSES.map((item) => <button key={item.id} aria-pressed={pose === item.id} disabled={busy} onClick={() => setPose(item.id)}>{item.label}</button>)}
+      </div>}
+      {busy && <p className="progress-photos-feedback" role="status">Saving photo…</p>}
+      {feedback && <p className={`progress-photos-feedback${feedback.error ? ' err' : ''}`} role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}
 
-      <div className="chips">
-        {POSES.map((p) => <button key={p.id} className={`chip ${pose === p.id ? 'on' : ''}`} onClick={() => setPose(p.id)}>{p.label}</button>)}
-      </div>
+      {tab === 'add' && <section className="progress-photos-add" aria-labelledby="photo-add-title">
+        <div className="progress-photos-add-heading"><Icon name="photo" size={26} /><h2 id="photo-add-title">Add a {label(pose).toLowerCase()} photo</h2><p>Use similar lighting and camera distance each time.</p></div>
+        <label className="progress-photos-date">Date for selected photo<input type="date" value={date} max={todayISO()} disabled={busy} onChange={(event) => setDate(event.target.value)} /></label>
+        <input ref={file} type="file" accept="image/*" hidden onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void store(selected, date, pose); event.target.value = '' }} />
+        <div className="progress-photos-add-actions">
+          <button className="primary" onClick={() => file.current?.click()} disabled={busy || !validDate}><Icon name="upload" size={18} />Choose photo</button>
+          <button className="ghost" onClick={() => setCam(true)} disabled={busy}><Icon name="camera" size={19} />Take photo today</button>
+        </div>
+        <details className="progress-photos-guide">
+          <summary>Pose guide<Icon name="chevron" size={16} /></summary>
+          <div>{pose !== 'other' && <Silhouette pose={pose} style={{ width: 70, height: 140, flex: 'none' }} />}<p>{POSES.find((item) => item.id === pose)!.tip}</p></div>
+        </details>
+      </section>}
 
-      {tab === 'add' && (
-        <section className="card">
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 14, alignItems: 'center' }}>
-            <div style={{ background: '#000', borderRadius: 14, padding: 8 }}><Silhouette pose={pose} style={{ width: '100%', height: 150 }} /></div>
-            <div><h3>{label(pose)} pose</h3><p className="small mute">{POSES.find((x) => x.id === pose)!.tip}</p></div>
+      {tab === 'compare' && (ofPose.length < 2
+        ? <section className="progress-photos-empty"><Icon name="photo" size={30} /><h2>{ofPose.length ? 'Add one more photo' : 'Choose two photos'}</h2><p>{ofPose.length ? 'Add another' : 'Add two'} {label(pose).toLowerCase()} {ofPose.length ? 'photo' : 'photos'} to compare side by side.</p><button className="ghost" onClick={() => setTab('add')}><Icon name="plus" size={18} />Add photo</button></section>
+        : <section className="progress-photos-comparison" aria-label={`${label(pose)} photo comparison`}>
+          <div className="progress-photos-selectors">
+            <label>Before<select aria-label="Before photo" value={pa?.id} onChange={(event) => setA(event.target.value)}>{ofPose.map((photo, index) => <option key={photo.id} value={photo.id} disabled={photo.id === pb?.id || (!!pb && photo.date > pb.date)}>{photoDate(photo.date)}{ofPose.filter((item) => item.date === photo.date).length > 1 ? ` (${index + 1})` : ''}</option>)}</select></label>
+            <label>After<select aria-label="After photo" value={pb?.id} onChange={(event) => setB(event.target.value)}>{ofPose.map((photo, index) => <option key={photo.id} value={photo.id} disabled={photo.id === pa?.id || (!!pa && photo.date < pa.date)}>{photoDate(photo.date)}{ofPose.filter((item) => item.date === photo.date).length > 1 ? ` (${index + 1})` : ''}</option>)}</select></label>
           </div>
-          <button className="primary" onClick={() => setCam(true)} disabled={busy}>📷 Open camera with guide</button>
-          <label>Or choose from your photos (any date)
-            <input type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void store(f, date); e.target.value = '' }} />
-          <button className="ghost" onClick={() => file.current?.click()} disabled={busy}>Choose photo</button>
-          {busy && <p className="small mute">Saving…</p>}
-          {msg && <p className="small ok-text">{msg}</p>}
-        </section>
-      )}
+          <div className="progress-photos-pair">{[pa, pb].map((photo, index) => photo && <div key={index}>{image(photo, [pa, pb].filter((item): item is Photo => !!item))}<div className="progress-photos-caption"><time dateTime={photo.date}>{photoDate(photo.date)}</time>{wAt(photo.date) !== undefined && <span>{wAt(photo.date)} lb</span>}</div></div>)}</div>
+          <p className="progress-photos-comparison-note">{days ? `${days} days apart` : 'Same date'}{pa && pb && wAt(pa.date) !== undefined && wAt(pb.date) !== undefined ? ` · ${Math.round((wAt(pb.date)! - wAt(pa.date)!) * 10) / 10} lb change` : ''}</p>
+        </section>)}
 
-      {tab === 'compare' && (
-        ofPose.length < 2 ? (
-          <section className="card"><p className="mute">Add at least two {label(pose).toLowerCase()} photos on different dates to compare them side by side.</p></section>
-        ) : (
-          <section className="card">
-            <div className="grid2">
-              <label>Before<select value={pa?.id} onChange={(e) => setA(e.target.value)}>{ofPose.map(opt)}</select></label>
-              <label>After<select value={pb?.id} onChange={(e) => setB(e.target.value)}>{ofPose.map(opt)}</select></label>
-            </div>
-            <div className="grid2">
-              {[pa, pb].map((p, i) => p && (
-                <div key={i} style={{ display: 'grid', gap: 6 }}>
-                  {urls[p.id] ? <img src={urls[p.id]} alt={`${label(pose)} ${p.date}`} onClick={() => { const both = [pa, pb].filter((x): x is Photo => !!x && !!urls[x.id]); setView({ srcs: both.map((x) => urls[x.id]), start: Math.max(0, both.findIndex((x) => x.id === p.id)), caption: both.map((x) => `${label(pose)} · ${x.date}`) }) }} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 12, cursor: 'zoom-in' }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
-                  <div className="small"><b>{p.date}</b>{wAt(p.date) ? <span className="mute"> · {wAt(p.date)} lb</span> : null}</div>
-                </div>
-              ))}
-            </div>
-            <p className="small mute">{days} days apart{pa && pb && wAt(pa.date) && wAt(pb.date) ? ` · ${Math.round((wAt(pb.date)! - wAt(pa.date)!) * 10) / 10} lb change` : ''}</p>
-          </section>
-        )
-      )}
-
-      {tab === 'all' && (
-        data.photos.length === 0 ? <section className="card"><p className="mute">No photos yet. Take your first set today. Future you will thank you.</p></section> : (
-          <div className="grid3">
-            {[...data.photos].sort((x, y) => y.date.localeCompare(x.date)).map((p) => (
-              <div key={p.id} style={{ display: 'grid', gap: 4 }}>
-                {urls[p.id] ? <img src={urls[p.id]} alt="" onClick={() => { const list = [...data.photos].sort((x, y) => y.date.localeCompare(x.date)).filter((x) => urls[x.id]); setView({ srcs: list.map((x) => urls[x.id]), start: list.findIndex((x) => x.id === p.id), caption: list.map((x) => `${label(x.pose)} · ${x.date}`) }) }} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 10, cursor: 'zoom-in' }} /> : <div className="stat" style={{ aspectRatio: '3/4' }} />}
-                <div className="small mute">{p.date.slice(5)} · {label(p.pose)}</div>
-                <button className="ghost small-btn" onClick={() => void remove(p)}>Delete</button>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
+      {tab === 'all' && <>
+        <div className="progress-photos-library-heading"><h2>Library</h2><span>{data.photos.length} {data.photos.length === 1 ? 'photo' : 'photos'}</span><button className="quiet-action" onClick={() => setTab('add')} disabled={busy || removing}><Icon name="plus" size={16} />Add</button></div>
+        {library.length === 0 ? <section className="progress-photos-empty"><Icon name="photo" size={30} /><h2>No photos yet</h2><p>Add a photo to start your collection.</p><button className="ghost" onClick={() => setTab('add')}><Icon name="plus" size={18} />Add photo</button></section>
+          : <div className="progress-photos-library">{library.map((photo) => <article key={photo.id} className="progress-photo-tile">
+            {image(photo, library)}
+            <div className="progress-photo-tile-footer"><div><time dateTime={photo.date}>{photoDate(photo.date)}</time><span>{label(photo.pose)}</span></div><button className="progress-photo-delete" aria-label={`Delete ${label(photo.pose).toLowerCase()} photo from ${photo.date}`} disabled={busy || removing} onClick={() => { setFeedback(null); setDeleting(photo) }}><Icon name="trash" size={17} /></button></div>
+          </article>)}</div>}
+      </>}
+      <p className="progress-photos-storage">{cloudEnabled ? 'Photos are private and are not posted to your crew. Device-only photos stay on the device where you saved them.' : 'Photos are saved on this device and are not posted to your crew.'}</p>
       {view && <Lightbox srcs={view.srcs} start={view.start} caption={view.caption} onClose={() => setView(null)} />}
-      {cam && <Camera pose={pose} onClose={() => setCam(false)} onShot={(blob) => { setCam(false); void store(blob, todayISO()) }} />}
-    </>
+      {cam && <Camera pose={pose} onClose={() => setCam(false)} onShot={(blob) => { setCam(false); void store(blob, todayISO(), pose) }} />}
+      {deleting && <ConfirmSheet title="Delete this photo?" message="This removes the photo from your library and photo storage. This can’t be undone." confirmLabel={removing ? 'Deleting…' : 'Delete photo'} onConfirm={() => void remove(deleting)} onCancel={() => { if (!deletionPending.current) setDeleting(null) }} />}
+    </div>
   )
 }

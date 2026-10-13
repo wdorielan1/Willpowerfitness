@@ -1207,3 +1207,77 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 /* A swipeable tile (a lift in the lifts list): the colour sits behind the rounded tile */
 .swipe-row.tile { border-radius: 14px; }
 .swipe-row.tile .swipe-front { background: transparent; }
+
+/* Progress photos: simple capture, larger images, and clear comparisons. */
+.progress-photos-page { display: grid; gap: 22px; min-width: 0; }
+.progress-photos-heading { display: grid; gap: 9px; }
+.progress-photos-heading .quiet-action { justify-self: start; margin-top: -6px; }
+.progress-photos-heading > p { font-size: 14px; line-height: 1.65; color: var(--mute); }
+.progress-photos-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border-bottom: 1px solid var(--line); }
+.progress-photos-tabs button { min-height: 44px; padding: 10px; font-size: 13px; background: transparent; border-radius: 0; border-bottom: 2px solid transparent; color: var(--mute); }
+.progress-photos-tabs button[aria-pressed=true] { border-color: var(--accent); color: var(--text); }
+.progress-photos-poses { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; }
+.progress-photos-poses button { min-height: 44px; padding: 10px 5px; border: 1px solid var(--line); border-radius: 9px; background: transparent; font-size: 12px; }
+.progress-photos-poses button[aria-pressed=true] { background: var(--card2); border-color: var(--accent); color: var(--accent2); }
+.progress-photos-add { display: grid; gap: 20px; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+.progress-photos-add-heading { display: grid; gap: 10px; }
+.progress-photos-add-heading > svg { color: var(--mute); margin-bottom: 2px; }
+.shell .progress-photos-page h2 { font-size: 19px; line-height: 1.3; font-weight: 550; letter-spacing: -.4px; }
+.progress-photos-add-heading p { font-size: 13px; line-height: 1.65; color: var(--mute); }
+.progress-photos-date { font-size: 12px; font-weight: 500; gap: 8px; min-width: 0; }
+.progress-photos-date input { min-width: 0; font-size: 16px; color-scheme: dark; }
+.progress-photos-add-actions { display: grid; gap: 9px; }
+.progress-photos-add-actions button { min-height: 48px; font-size: 13px; padding: 12px; border-radius: 10px; }
+.progress-photos-guide { border-top: 1px solid var(--line); padding-top: 5px; }
+.progress-photos-guide summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; cursor: pointer; font-size: 12px; color: var(--mute); list-style: none; }
+.progress-photos-guide summary::-webkit-details-marker { display: none; }
+.progress-photos-guide[open] summary svg { transform: rotate(90deg); }
+.progress-photos-guide > div { display: flex; align-items: center; gap: 18px; padding-top: 12px; }
+.progress-photos-guide p { color: var(--mute); font-size: 13px; line-height: 1.7; }
+.progress-photos-feedback { font-size: 13px; line-height: 1.6; color: var(--mute); }
+.progress-photos-feedback.err { color: #ff8a80; }
+.progress-photos-empty { display: grid; justify-items: start; gap: 13px; padding: 24px 0; border-top: 1px solid var(--line); }
+.progress-photos-empty > svg { color: var(--mute); margin-bottom: 3px; }
+.progress-photos-empty p { color: var(--mute); font-size: 13px; line-height: 1.7; }
+.progress-photos-empty button { font-size: 13px; min-height: 46px; padding: 11px 14px; border-radius: 10px; }
+.progress-photos-comparison { display: grid; gap: 18px; min-width: 0; }
+.progress-photos-selectors { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.progress-photos-selectors label { min-width: 0; gap: 8px; font-size: 12px; font-weight: 500; }
+.progress-photos-selectors select { min-width: 0; padding: 12px 10px; font-size: 16px; color-scheme: dark; }
+.progress-photos-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.progress-photos-pair > div { display: grid; gap: 10px; min-width: 0; }
+.progress-photo-image { display: block; width: 100%; min-width: 0; padding: 0; min-height: 0; aspect-ratio: 3 / 4; border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; cursor: zoom-in; }
+.progress-photo-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.progress-photo-placeholder { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; border: 1px solid var(--line); border-radius: 12px; color: var(--mute); background: var(--card); }
+.progress-photos-caption { display: grid; gap: 4px; font-size: 12px; }
+.progress-photos-caption span { color: var(--mute); font-size: 11px; }
+.progress-photos-comparison-note { font-size: 13px; color: var(--mute); line-height: 1.65; border-top: 1px solid var(--line); padding-top: 14px; }
+.progress-photos-library-heading { display: flex; align-items: center; gap: 12px; }
+.progress-photos-library-heading > span { font-size: 12px; color: var(--mute); }
+.progress-photos-library-heading button { margin-left: auto; min-height: 44px; }
+.progress-photos-library { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px 12px; }
+.progress-photo-tile { min-width: 0; display: grid; gap: 9px; align-content: start; }
+.progress-photo-tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.progress-photo-tile-footer > div { display: grid; gap: 5px; min-width: 0; }
+.progress-photo-tile-footer time { font-size: 11px; }
+.progress-photo-tile-footer span { font-size: 11px; color: var(--mute); }
+.progress-photo-delete { flex: none; width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--mute); }
+.progress-photo-delete:hover { color: #ff8a80; }
+.progress-photos-storage { padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.7; color: var(--mute); }
+.photo-camera { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: minmax(0,1fr) auto; background: #000; }
+.photo-camera-view { position: relative; min-height: 0; overflow: hidden; }
+.photo-camera-view video { width: 100%; height: 100%; object-fit: cover; }
+.photo-camera-view video.is-mirrored { transform: scaleX(-1); }
+.photo-camera-header { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.photo-camera-header > span { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: #0009; }
+.photo-camera-icon { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: #0009; color: #fff; }
+.photo-camera-count { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 110px; font-weight: 600; font-variant-numeric: tabular-nums; text-shadow: 0 2px 16px #0009; pointer-events: none; }
+.photo-camera-error { position: absolute; top: calc(75px + env(safe-area-inset-top)); left: 20px; right: 20px; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; line-height: 1.7; color: #ff8a80; }
+.photo-camera-controls { display: grid; gap: 14px; padding: 16px 20px calc(20px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); }
+.photo-camera-tools { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.photo-camera-timers { display: flex; gap: 6px; }
+.photo-camera-timers button { min-width: 44px; min-height: 44px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: 12px; }
+.photo-camera-timers button[aria-pressed=true] { color: var(--accent2); border-color: var(--accent); }
+.photo-camera-tools .quiet-action { min-height: 44px; white-space: nowrap; }
+.photo-camera-capture { min-height: 50px; font-size: 14px; border-radius: 10px; }
+@media (max-width:359px) { .progress-photos-add { padding: 16px; } .progress-photos-pair { gap: 8px; } .progress-photos-selectors { gap: 8px; } .progress-photos-caption, .progress-photo-tile-footer time { font-size: 10px; } .photo-camera-controls { padding-left: 16px; padding-right: 16px; } }
