@@ -2,17 +2,21 @@ import { useMemo, useState } from 'react'
 import { ConfirmSheet } from '../components'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
-import { addDays, e1rm, streak, todayISO, weekCounts } from '../engine'
+import { addDays, e1rm, fromISO, streak, todayISO, weekCounts } from '../engine'
+import { Icon } from '../icons'
 
-function Line({ pts, unit }: { pts: { x: string; y: number }[]; unit: string }) {
-  if (pts.length < 2) return <p className="small mute">Log at least two sessions to see a trend.</p>
+const dateLabel = (date: string) => fromISO(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
+function Line({ pts, unit, label, empty }: { pts: { x: string; y: number }[]; unit: string; label: string; empty: string }) {
+  if (pts.length < 2) return <p className="progress-empty">{empty}</p>
   const W = 320, H = 120, pad = 22
   const ys = pts.map((p) => p.y)
   const lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1
   const x = (i: number) => pad + (i * (W - pad * 2)) / (pts.length - 1)
   const y = (v: number) => H - pad - ((v - lo) / span) * (H - pad * 2)
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Trend in ${unit}`}>
+    <svg className="progress-line" viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={label}>
+      <path d={`M${pad} ${H / 2}H${W - pad}M${pad} ${H - pad}H${W - pad}`} fill="none" stroke="var(--line)" strokeWidth="1" />
       <polyline fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={pts.map((p, i) => `${x(i)},${y(p.y)}`).join(' ')} />
       {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.y)} r="3.5" fill="var(--accent)" />)}
       <text x={pad} y={H - 4}>{pts[0].x.slice(5)}</text>
@@ -56,68 +60,76 @@ export default function Progress() {
   const wDelta = wPts.length > 1 ? Math.round((wPts[wPts.length - 1].y - wPts[0].y) * 10) / 10 : 0
   const best = Math.max(0, ...Object.keys(data.checkins).sort().reduce<number[]>((acc, d) => { acc.push(data.checkins[d].done ? (acc.at(-1) ?? 0) + 1 : 0); return acc }, []))
 
+  const weeklyTarget = data.profile?.days.length ?? 3
+  const remaining = Math.max(0, weeklyTarget - wkWorkouts)
+
   return (
-    <>
+    <div className="progress-page">
       <h1>Progress</h1>
-      <div className="grid2">
-        <Link to="/photos" className="stat"><b>📸</b><span>Progress photos &amp; side-by-sides</span></Link>
-        <Link to="/import" className="stat"><b>⬆️</b><span>Import lifting history</span></Link>
-      </div>
-      <Link to="/export" className="stat" style={{ gridTemplateColumns: 'auto 1fr', alignItems: 'center', display: 'grid', gap: 10 }}><b>🤖</b><span>Export for an AI coach or spreadsheet</span></Link>
-      <section className="card hero">
-        <h3>Last 7 days</h3>
-        <div className="grid3">
-          <div className="stat"><b>{wkWorkouts}</b><span>workouts</span></div>
-          <div className="stat"><b>{wkMin}</b><span>cardio min</span></div>
-          <div className="stat"><b>🔥 {streak(data)}</b><span>streak (best {best})</span></div>
+
+      <section className="progress-summary" aria-labelledby="progress-summary-title">
+        <div className="progress-section-head"><h2 id="progress-summary-title">Last 7 days</h2><span>{dateLabel(wkStart)} – {dateLabel(today)}</span></div>
+        <div className="progress-metrics">
+          <div className="progress-metric"><Icon name="weight" size={18} /><strong>{wkWorkouts}</strong><span>Workouts</span></div>
+          <div className="progress-metric"><Icon name="clock" size={18} /><strong>{wkMin}</strong><span>Cardio min</span></div>
+          <div className="progress-metric"><Icon name="check" size={18} /><strong>{streak(data)}</strong><span>Day streak</span></div>
         </div>
-        <p className="small mute">{wkWorkouts >= (data.profile?.days.length ?? 3) ? 'You hit your weekly target. Keep stacking.' : `${(data.profile?.days.length ?? 3) - wkWorkouts} more session(s) to hit your weekly target.`}</p>
+        <div className="progress-summary-footer"><p>{remaining === 0 ? 'Weekly target reached.' : `${remaining} ${remaining === 1 ? 'session' : 'sessions'} to reach your weekly target.`}</p><span>Best streak: {best}</span></div>
       </section>
 
-      <section className="card">
-        <h3>Consistency · workouts per week</h3>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 90 }}>
+      <nav className="progress-tools" aria-label="Progress tools">
+        <Link to="/photos" aria-label="Progress photos" title="Progress photos and comparisons"><Icon name="photo" size={20} /><span>Photos</span></Link>
+        <Link to="/import" aria-label="Import lifting history" title="Import lifting history"><Icon name="upload" size={20} /><span>Import</span></Link>
+        <Link to="/export" aria-label="Export training data" title="Export training data"><Icon name="download" size={20} /><span>Export</span></Link>
+      </nav>
+
+      <section className="progress-section" aria-labelledby="progress-consistency-title">
+        <div className="progress-section-head"><h2 id="progress-consistency-title">Consistency</h2><span>Workouts per week</span></div>
+        <div className="progress-week-chart" role="img" aria-label={`Last ${weeks.length} weeks, oldest to newest: ${weeks.map((w) => `${w.label}: ${w.count} workouts`).join('; ')}`}>
           {weeks.map((w) => (
-            <div key={w.label} style={{ flex: 1, display: 'grid', gap: 4, justifyItems: 'center' }}>
-              <div style={{ width: '100%', height: Math.max(4, (w.count / maxW) * 64), background: 'var(--accent)', borderRadius: 6 }} />
-              <span className="small mute" style={{ fontSize: 10 }}>{w.count}</span>
+            <div className="progress-week-column" key={w.label} aria-hidden="true">
+              <span className="progress-week-count">{w.count}</span>
+              <div className="progress-week-bar-area"><div className={`progress-week-bar${w.count === 0 ? ' is-empty' : ''}`} style={{ height: Math.max(3, (w.count / maxW) * 72) }} /></div>
+            </div>
+          ))}
+        </div>
+        <div className="progress-chart-dates" aria-hidden="true"><span>{dateLabel(addDays(today, -fromISO(today).getDay() - 49))}</span><span>This week</span></div>
+      </section>
+
+      <section className="progress-section" aria-labelledby="progress-strength-title">
+        <div className="progress-section-head"><h2 id="progress-strength-title">Strength</h2><span>Estimated one-rep max</span></div>
+        {lifts.length ? (
+          <>
+            <label className="progress-lift-picker">Exercise<select value={exId} onChange={(e) => setSel(e.target.value)}>{lifts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></label>
+            <Line pts={strengthPts} unit="lb" label={`${lifts.find(([id]) => id === exId)?.[1] ?? 'Strength'} estimated one-rep max trend`} empty="Log this lift in two sessions to see a trend." />
+          </>
+        ) : <p className="progress-empty">Log sets in a workout to see your strength trend.</p>}
+      </section>
+
+      <section className="progress-section" aria-labelledby="progress-weight-title">
+        <div className="progress-section-head"><h2 id="progress-weight-title">Body weight</h2><Link to="/log?t=weight" className="progress-log" aria-label="Log body weight"><Icon name="plus" size={16} />Log</Link></div>
+        <Line pts={wPts} unit="lb" label="Body weight trend" empty="Log your weight twice to see a trend." />
+        {wPts.length > 1 && <p className="progress-note">{wDelta > 0 ? '+' : ''}{wDelta} lb since your first entry · target {data.profile?.target} lb</p>}
+      </section>
+
+      <section className="progress-section" aria-labelledby="progress-history-title">
+        <div className="progress-section-head"><h2 id="progress-history-title">Workout history</h2>{history.length > 0 && <span>Latest {history.length}</span>}</div>
+        {history.length === 0 && <p className="progress-empty">No workouts logged yet.</p>}
+        <div className="progress-history">
+          {history.map((l) => (
+            <div className="progress-history-row" key={l.date + (l.baseline ? 'b' : '')}>
+              <div className="progress-history-entry"><div className="progress-history-title"><b>{l.baseline ? 'Starting weights' : l.dayType}</b><time dateTime={l.date}>{dateLabel(l.date)}</time></div><p>{l.skipped ? 'Marked as skipped' : `${l.entries.length} exercises · ${l.entries.reduce((a, e) => a + e.sets.length, 0)} sets${l.minutes ? ` · ${l.minutes} min` : ''}`}</p>{l.imported && <span className="progress-history-tag">Imported</span>}</div>
+              <button className="progress-delete" aria-label={`Delete ${l.baseline ? 'starting weights' : `${l.dayType} workout`} from ${l.date}`} title="Delete workout" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}><Icon name="trash" size={18} /></button>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="card">
-        <h3>Strength · estimated 1RM</h3>
-        {lifts.length ? (
-          <>
-            <select value={exId} onChange={(e) => setSel(e.target.value)}>{lifts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
-            <Line pts={strengthPts} unit="lb" />
-          </>
-        ) : <p className="small mute">Finish a workout and log sets to see strength trends.</p>}
-      </section>
-
-      <section className="card">
-        <div className="row"><h3>Body weight</h3><Link to="/log?t=weight" className="small-btn btn ghost">Log</Link></div>
-        <Line pts={wPts} unit="lb" />
-        {wPts.length > 1 && <p className="small mute">{wDelta > 0 ? '+' : ''}{wDelta} lb since you started · target {data.profile?.target} lb</p>}
-      </section>
-
-      <section className="card">
-        <h3>Workout history</h3>
-        {history.length === 0 && <p className="small mute">No workouts logged yet.</p>}
-        {history.map((l) => (
-          <div className="row small" key={l.date + (l.baseline ? 'b' : '')}>
-            <span><b>{l.baseline ? 'Starting weights' : l.dayType}</b> · {l.date.slice(5)}{l.imported ? ' · imported' : ''}{l.skipped ? ' · skipped' : ''}<br /><span className="mute">{l.skipped ? 'Marked as skipped' : `${l.entries.length} exercises · ${l.entries.reduce((a, e) => a + e.sets.length, 0)} sets${l.minutes ? ` · ${l.minutes} min` : ''}`}</span></span>
-            <button className="ghost small-btn" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}>Delete</button>
-          </div>
-        ))}
-      </section>
-
-      <section className="card">
-        <div className="row"><h3>Cardio</h3><Link to="/log?t=cardio" className="small-btn btn ghost">Log</Link></div>
-        {wkCardio.length ? wkCardio.map((c, i) => <div key={i} className="row small"><span>{c.date.slice(5)} · {c.kind}</span><b>{c.minutes} min</b></div>) : <p className="small mute">No cardio logged this week.</p>}
+      <section className="progress-section" aria-labelledby="progress-cardio-title">
+        <div className="progress-section-head"><h2 id="progress-cardio-title">Cardio</h2><Link to="/log?t=cardio" className="progress-log" aria-label="Log cardio"><Icon name="plus" size={16} />Log</Link></div>
+        {wkCardio.length ? <div className="progress-cardio-list">{wkCardio.map((c, i) => <div key={i} className="progress-cardio-row"><div><b>{c.kind}</b><time dateTime={c.date}>{dateLabel(c.date)}</time></div><span>{c.minutes} min</span></div>)}</div> : <p className="progress-empty">No cardio logged in the last 7 days.</p>}
       </section>
       {del && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => { const [dt, b] = del.split('|'); removeLog(dt, !!b); setDel(null) }} onCancel={() => setDel(null)} />}
-    </>
+    </div>
   )
 }
