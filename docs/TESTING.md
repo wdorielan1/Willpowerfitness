@@ -129,8 +129,8 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Report a crew
 - [ ] The crew page has the Share something with your crew... box right under the Feed / Challenges / Friends tabs, styled like an input; posting there shows the post in the feed below and the box clears
 - [ ] Share workout (crew page) opens the share screen: Card, or My photo + sticker (add a photo, drag and resize the sticker); Post to crew posts the picture with the workout line
-- [ ] After sharing, the button reads Workout shared and cannot be tapped again that day; a message confirms it posted
-- [ ] Deleting that workout post brings Share workout back
+- [ ] After posting, the Share workout button stays pressable; inside, Post to crew is grayed out (Posted to your crew today) while Copy sticker and Share to Instagram still work; a message confirms the post
+- [ ] Deleting that workout post makes Post to crew available again
 
 ## 7. Crew map
 - [ ] Map tiles load
