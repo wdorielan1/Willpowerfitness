@@ -174,7 +174,12 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Tap the playing clip: sound comes on, the controls appear (pause, scrub, full screen) and it keeps playing; a "Tap for sound" pill shows before that
 - [ ] iPhone Low Power Mode (or Settings > Accessibility > Motion > Reduce Motion): clips don't autoplay and show a play button instead; tapping it plays with sound
 - [ ] A clip longer than 30 seconds, a file over 45 MB and a non-video each show a clear message and nothing is posted
-- [ ] A video and photos can't be mixed in one post (Add photos / Add video grey out once the other is chosen)
+- [ ] A video can go with photos: add photos and a video in either order; the composer shows one row with the video first and the photos after it; up to 5 photos with a video (a 6th shows "Choose up to 5 photos with a video"), up to 10 without one
+- [ ] Post a video with 3 photos: the feed shows them side by side in one row like Strava (video first, then the photos; with 4 or more tiles it scrolls sideways), never one at a time; with 1 photo the two share the row, with 2 photos three fit across
+- [ ] In that row the video square plays by itself, muted and looping, when you scroll to it; tapping it opens the clip full screen with sound and controls (close with the cross, tap outside or Escape) and the small one waits meanwhile; tapping a photo opens the photo viewer with only the photos
+- [ ] With two or more video posts on screen only one plays, the one nearest the middle; scroll and the next one takes over; scroll the playing one away and the other starts
+- [ ] A post with only a video still shows it full width; older video posts (made before this change) look the same as before
+- [ ] An expired video with photos shows a dimmed "Expired" square and the photos stay; the last 7 days show "3d left" on the square
 - [ ] Another crew member sees and plays the video; someone outside the crew can't; likes and comments work on it
 - [ ] Deleting a video post removes it for everyone and the file is gone from Supabase Storage (crew-photos); a failed post leaves nothing behind in Storage
 - [ ] iPhone clips (HEVC) play for you and for a friend on a different phone or computer; note any that don't
