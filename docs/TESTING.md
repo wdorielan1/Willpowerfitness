@@ -97,6 +97,17 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The equipment filter in Swap and Add is remembered the next time you open the list (and the chosen chip is visible, not scrolled out of sight)
 - [ ] Swipe right to add twice on the same lift: each adds the next best same-muscle lift (not a random one), with no duplicates
 - [ ] Export (Settings > Your data): the profile summary has an "Equipment use" line matching your choices
+- [ ] Thumbs-down: every exercise page has a thumbs-down button next to the options button. It opens "Not for me?" with Not today and Never show me this, and closing it changes nothing
+- [ ] Not today removes the lift for this workout only (with Undo); tomorrow's plan can still include it
+- [ ] Never show me this removes it now, shows "Hidden ... You can bring it back in Settings" with Undo, and the other lifts in today's workout do not move or change. It no longer shows in Swap, Add or Search (also its same-name twin, e.g. Incline Dumbbell Press), and it is gone from planned workouts from tomorrow
+- [ ] Settings > Training > Hidden exercises lists what you hid, Show again brings one back (it shows in Swap, Add, Search and plans again); "None yet." when empty
+- [ ] Remove or swap away the same suggested lift on 3 different days: the next time you pick that kind of session on the Train page, one card asks "Stop suggesting ...?" ("You've skipped it on 3 different days"). Stop suggesting it hides it; Keep it closes the card and it never asks about that lift again. Nothing is hidden unless you tap
+- [ ] Finish a planned workout (at least 2 lifts logged): under the recap the finish screen asks "Save this as your Push Day?" (name matches the day: Push Day, Pull Day, Leg Day, Shoulders + Abs Day, Full Body Day). Save it confirms "Saved as your ..."; Not now just closes the card. Nothing saves without a tap
+- [ ] It saves only the lifts you logged, in the order you did them; the saved workout also shows as a session button on the Train page (and can be deleted there)
+- [ ] Next time you pick that session on the Train page, a card asks "Use your saved Push Day?"; Use it shows exactly those lifts, Not now hides the card for that visit
+- [ ] Finish a different workout of the same kind: it asks "Update your Push Day?" instead of making a second copy, and does not ask at all if it matches what is already saved. Not asked for Build your own or saved workouts, or for edits to an already-finished workout
+- [ ] Don't ask again turns the save offer off; Settings > Workout > "Offer to save my workout when I finish" turns it back on
+- [ ] Swap/Add order: lifts from a saved workout come first, lifts you finish often next, and lifts you keep removing sink. Settings and Privacy say plainly that Will Power quietly learns from what you do, on your own account only
 
 ## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
