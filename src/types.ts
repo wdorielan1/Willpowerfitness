@@ -1,6 +1,9 @@
 export type Goal = 'fat_loss' | 'muscle_gain' | 'maintenance' | 'strength' | 'conditioning'
 export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Gear = 'gym' | 'db' | 'bw'
+/** The kinds of equipment a person can say how often they use. */
+export type EquipKind = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'ezbar' | 'kettlebells' | 'bands'
+export type EquipUse = 'often' | 'sometimes' | 'never'
 export type DayType = 'Push' | 'Pull' | 'Legs' | 'Shoulders/Abs' | 'Full Body' | 'Rest/Cardio'
 export type WorkoutFocus = 'chest-triceps' | 'back-biceps' | 'custom'
 export type CarbDay = 'low' | 'medium' | 'high'
@@ -15,6 +18,8 @@ export interface Profile {
   days: number[] // 0=Sun..6=Sat
   style: 'hypertrophy' | 'strength' | 'mixed'
   gear: Gear
+  /** How often they use each kind of equipment. Anything they haven't picked follows the recommended default for their gear. */
+  equip?: Partial<Record<EquipKind, EquipUse>>
   weight: number
   target: number
   time: string // HH:MM
@@ -86,6 +91,7 @@ export interface Settings {
   rest: { small: number; medium: number; large: number; keyBonus: number } // seconds
   rotation: 'weekly' | 'biweekly' | 'monthly' | 'never' // how often accessory exercises change (main lifts change every 4 weeks)
   autoShare: boolean // post finished workouts to my crew
+  equipAsked?: number // when we first asked what equipment they use (so it only pops up once)
   gymName?: string // optional place shown on share pictures (never live location)
   shareFormat?: 'story' | 'post' // last share picture size
   shareHideWeight?: boolean // body weight graph sticker: leave out the actual weights (default on)

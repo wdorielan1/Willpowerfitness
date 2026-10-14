@@ -1,6 +1,13 @@
 import { DAY_NAMES, GOALS, LEVELS } from './data'
 import { addDays, e1rm, macroPlan, streak, todayISO } from './engine'
-import type { AppData } from './types'
+import { EQUIP_KINDS, beyondGear, kindUse } from './equipment'
+import type { AppData, EquipUse, Profile } from './types'
+
+/** "Uses often: barbells, dumbbells · Sometimes: bodyweight · Never: kettlebells" for the kinds of equipment in reach of their setup. */
+const equipmentLine = (p: Profile) => {
+  const by = (u: EquipUse) => EQUIP_KINDS.filter((k) => !beyondGear(p, k.id) && kindUse(p, k.id) === u).map((k) => k.label.toLowerCase())
+  return [['Uses often', by('often')], ['Sometimes', by('sometimes')], ['Never', by('never')]].filter(([, l]) => l.length).map(([t, l]) => `${t}: ${(l as string[]).join(', ')}`).join(' · ')
+}
 
 export interface ExportOpts { profile: boolean; workouts: boolean; strength: boolean; body: boolean; cardio: boolean; nutrition: boolean; weeks: number }
 export const DEFAULT_EXPORT: ExportOpts = { profile: true, workouts: true, strength: true, body: true, cardio: true, nutrition: true, weeks: 8 }
@@ -27,7 +34,7 @@ export function buildSummary(d: AppData, o: ExportOpts, today = todayISO()): str
   const out: string[] = [`# Training summary (last ${o.weeks} weeks, to ${today})`]
 
   if (o.profile && p) {
-    out.push('\n## Profile', `- Goal: ${GOALS[p.goal]} · Experience: ${LEVELS[p.level]} · Style: ${p.style}`, `- Training days: ${p.days.map((x) => DAY_NAMES[x]).join(', ')} · Equipment: ${{ gym: 'full gym', db: 'dumbbells', bw: 'bodyweight' }[p.gear]}`,
+    out.push('\n## Profile', `- Goal: ${GOALS[p.goal]} · Experience: ${LEVELS[p.level]} · Style: ${p.style}`, `- Training days: ${p.days.map((x) => DAY_NAMES[x]).join(', ')} · Equipment: ${{ gym: 'full gym', db: 'dumbbells', bw: 'bodyweight' }[p.gear]}`, `- Equipment use: ${equipmentLine(p)}`,
       `- Body weight: ${p.weight} lb → target ${p.target} lb`, p.avoid ? `- Avoiding: ${p.avoid}` : '', p.age ? `- Age group: ${p.age}` : '')
   }
 

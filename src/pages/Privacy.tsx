@@ -20,7 +20,7 @@ export default function Privacy() {
       <h2>Information we collect</h2>
       <ul>
         <li><b>Account information:</b> your name and email address, and your password (stored securely by our authentication provider, never in plain text). If you sign in with Google, we receive your name and email from Google.</li>
-        <li><b>Fitness profile:</b> goal, experience level, training days and time, equipment, current and target weight, cardio preference, and any injuries or exercises you ask us to avoid.</li>
+        <li><b>Fitness profile:</b> goal, experience level, training days and time, equipment and how often you use each kind, current and target weight, cardio preference, and any injuries or exercises you ask us to avoid.</li>
         <li><b>Activity you log:</b> workouts (weights, reps, sets, RPE, notes), cardio sessions, body weight, nutrition check-ins, and your streaks.</li>
         <li><b>Community activity:</b> the crews you join, your daily “I’m going” and “Workout complete” check-ins, and messages you post.</li>
         <li><b>Technical data:</b> basic information our hosting provider records when you visit, such as IP address and browser type.</li>

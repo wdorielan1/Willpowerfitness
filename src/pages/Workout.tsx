@@ -7,7 +7,9 @@ import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, recommend, restFor, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, recommend, restFor, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { EQUIP_KINDS, equipKind } from '../equipment'
+import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { usePostActions } from './Feed'
@@ -135,29 +137,52 @@ const sessionChoices = (suggested: DayType, saved: { id: string; name: string; i
   { id: 'build', day: 'Full Body', focus: 'custom', label: 'Build your own' },
 ]
 
-/** Search, muscle and equipment filters over a list of exercises. Used by Build your own, Add an exercise and Swap. */
-function ExerciseFinder({ pool: rawPool, onPick, picked = [], prefer }: { pool: Exercise[]; onPick: (x: Exercise) => void; picked?: string[]; prefer?: DayType }) {
-  // exercises that belong to today's session come first
-  const pool = prefer ? [...rawPool.filter((x) => x.day === prefer), ...rawPool.filter((x) => x.day !== prefer)] : rawPool
-  const [muscle, setMuscle] = useState('All')
-  const [gear, setGear] = useState('All')
-  const [shown, setShown] = useState(40)
-  const [q, setQ] = useState('')
-  const equipOf = (x: Exercise) => x.equip ?? (x.gear === 'db' ? 'dumbbell' : x.gear === 'bw' ? 'body only' : '')
+const FINDER_GEAR = 'wpf.finder.gear'
+const readFinderGear = () => { try { return localStorage.getItem(FINDER_GEAR) || 'All' } catch { return 'All' } }
+const saveFinderGear = (g: string) => { try { localStorage.setItem(FINDER_GEAR, g) } catch { /* storage unavailable */ } }
+const DAY_LIFTS: Partial<Record<DayType, string>> = { Push: 'Push lifts', Pull: 'Pull lifts', Legs: 'Leg lifts', 'Shoulders/Abs': 'Shoulder + ab lifts' }
+const TODAY_CHIP = '__today'
+const BEST_COUNT = 6
+
+/**
+ * Search, muscle and equipment filters over a list of exercises. Used by Build your own, Add an exercise and Swap.
+ * With `best`, the list is already best-first: it opens on the few best matches (for Swap, the same muscle; for Add,
+ * today's session) with a See more button, and the equipment filter is remembered between visits.
+ */
+function ExerciseFinder({ pool: rawPool, onPick, picked = [], prefer, like, best = false }: { pool: Exercise[]; onPick: (x: Exercise) => void; picked?: string[]; prefer?: DayType; like?: Exercise; best?: boolean }) {
+  // Build your own lists the session's exercises first; the best-first lists are already in order
+  const pool = prefer && !best ? [...rawPool.filter((x) => x.day === prefer), ...rawPool.filter((x) => x.day !== prefer)] : rawPool
   const group = (x: Exercise) => x.muscle.split('/')[0]
-  const muscles = ['All', ...Array.from(new Set(pool.filter((x) => !x.mobility).map(group))).sort(), ...(pool.some((x) => x.mobility) ? ['Stretching'] : [])]
-  const gears = ['All', ...Array.from(new Set(pool.filter((x) => !x.mobility).map(equipOf).filter(Boolean))).sort()]
-  const label = (g: string) => (g === 'body only' ? 'Bodyweight' : g === 'e-z curl bar' ? 'EZ bar' : g.replace(/^./, (c) => c.toUpperCase()))
+  const todayChip = best && prefer && pool.some((x) => x.day === prefer && !x.mobility) ? DAY_LIFTS[prefer] : undefined
+  const [muscleSel, setMuscle] = useState(() => (like ? group(like) : todayChip ? TODAY_CHIP : 'All'))
+  const [gearSel, setGear] = useState(readFinderGear)
+  const [shown, setShown] = useState(40)
+  const [more, setMore] = useState(false)
+  const [q, setQ] = useState('')
+  const groups = Array.from(new Set(pool.filter((x) => !x.mobility).map(group))).sort()
+  const lead = like && groups.includes(group(like)) ? group(like) : undefined // Swap opens on the lift's own muscle, so it goes first where it can be seen
+  const muscles = [...(todayChip ? [TODAY_CHIP] : []), ...(lead ? [lead] : []), 'All', ...groups.filter((g) => g !== lead), ...(pool.some((x) => x.mobility) ? ['Stretching'] : [])]
+  const muscle = muscles.includes(muscleSel) ? muscleSel : 'All'
+  const kinds = EQUIP_KINDS.filter((k) => pool.some((x) => !x.mobility && equipKind(x) === k.id))
+  const gear = kinds.some((k) => k.id === gearSel) ? gearSel : 'All'
+  const kindName = (x: Exercise) => EQUIP_KINDS.find((k) => k.id === equipKind(x))?.label ?? ''
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  const matching = pool.filter((x) => (muscle === 'Stretching' ? !!x.mobility : !x.mobility && (muscle === 'All' || group(x) === muscle)) && (gear === 'All' || equipOf(x) === gear)
-    && words.every((w) => `${x.name} ${x.muscle} ${equipOf(x)}`.toLowerCase().includes(w)))
-  const list = matching.slice(0, shown)
-  return <div className="train-finder">
+  const inMuscle = (x: Exercise) => (muscle === 'Stretching' ? !!x.mobility : !x.mobility && (muscle === 'All' || (muscle === TODAY_CHIP ? x.day === prefer : group(x) === muscle)))
+  const matching = pool.filter((x) => inMuscle(x) && (gear === 'All' || equipKind(x) === gear)
+    && words.every((w) => `${x.name} ${x.muscle} ${kindName(x)}`.toLowerCase().includes(w)))
+  const collapsed = best && !more && words.length === 0
+  const list = matching.slice(0, collapsed ? BEST_COUNT : shown)
+  const rootRef = useRef<HTMLDivElement>(null)
+  // a remembered filter further along a scrolling row of chips still needs to be seen
+  useEffect(() => { rootRef.current?.querySelectorAll<HTMLElement>('.train-build-muscles .chip.on').forEach((el) => el.scrollIntoView({ block: 'nearest', inline: 'nearest' })) }, [muscle, gear])
+  const choose = (m: string) => { setMuscle(m); setShown(40); setMore(false) }
+  const chooseGear = (g: string) => { setGear(g); saveFinderGear(g); setShown(40); setMore(false) }
+  return <div className="train-finder" ref={rootRef}>
     <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setShown(40) }} placeholder="Search exercises" aria-label="Search exercises" />
-    <div className="train-build-muscles">{muscles.map((m) => <button key={m} className={`chip ${muscle === m ? 'on' : ''}`} aria-pressed={muscle === m} onClick={() => { setMuscle(m); setShown(40) }}>{m}</button>)}</div>
-    {muscle !== 'Stretching' && gears.length > 2 && <div className="train-build-muscles" aria-label="Equipment">{gears.map((g) => <button key={g} className={`chip ${gear === g ? 'on' : ''}`} aria-pressed={gear === g} onClick={() => { setGear(g); setShown(40) }}>{g === 'All' ? 'Any equipment' : label(g)}</button>)}</div>}
-    <p className="small mute">{matching.length} exercise{matching.length === 1 ? '' : 's'}</p>
-    <div className="train-build-list">{list.map((x) => <button key={x.id} className="minirow" aria-pressed={picked.includes(x.id)} onClick={() => onPick(x)}><span className="thumbs"><Thumb id={x.id} /></span><span style={{ flex: 1, textAlign: 'left' }}><b>{x.name}</b><br /><span className="small mute">{x.muscle} · {x.sets} sets · {x.reps[0]}–{x.reps[1]} reps</span></span><span className={`tag ${picked.includes(x.id) ? 'accent' : ''}`}>{picked.includes(x.id) ? 'Added' : 'Add'}</span></button>)}{list.length === 0 && <p className="small mute">No exercises match. Try another word or muscle group.</p>}{matching.length > shown && <button className="ghost" onClick={() => setShown(shown + 40)}>Show more ({matching.length - shown} left)</button>}</div>
+    <div className="train-build-muscles">{muscles.map((m) => <button key={m} className={`chip ${muscle === m ? 'on' : ''}`} aria-pressed={muscle === m} onClick={() => choose(m)}>{m === TODAY_CHIP ? todayChip : m}</button>)}</div>
+    {muscle !== 'Stretching' && kinds.length > 1 && <div className="train-build-muscles" aria-label="Equipment">{['All', ...kinds.map((k) => k.id)].map((g) => <button key={g} className={`chip ${gear === g ? 'on' : ''}`} aria-pressed={gear === g} onClick={() => chooseGear(g)}>{g === 'All' ? 'Any equipment' : kinds.find((k) => k.id === g)!.label}</button>)}</div>}
+    <p className="small mute">{collapsed ? `Best matches first · ${matching.length} fit` : `${matching.length} exercise${matching.length === 1 ? '' : 's'}`}</p>
+    <div className="train-build-list">{list.map((x) => <button key={x.id} className="minirow" aria-pressed={picked.includes(x.id)} onClick={() => onPick(x)}><span className="thumbs"><Thumb id={x.id} /></span><span style={{ flex: 1, textAlign: 'left' }}><b>{x.name}</b><br /><span className="small mute">{x.muscle} · {x.sets} sets · {x.reps[0]}–{x.reps[1]} reps</span></span><span className={`tag ${picked.includes(x.id) ? 'accent' : ''}`}>{picked.includes(x.id) ? 'Added' : 'Add'}</span></button>)}{list.length === 0 && <p className="small mute">No exercises match. Try another word or muscle group.</p>}{collapsed && matching.length > list.length && <button className="ghost" onClick={() => setMore(true)}>See more ({matching.length - list.length} more)</button>}{!collapsed && matching.length > shown && <button className="ghost" onClick={() => setShown(shown + 40)}>Show more ({matching.length - shown} left)</button>}</div>
   </div>
 }
 
@@ -190,6 +215,10 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const [addedIds, setAdded] = useState<string[]>([])
   const [orderIds, setOrderIds] = useState<string[]>([])
   const [adding, setAdding] = useState(false)
+  const { update } = useApp()
+  const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
+  const [equipNote, setEquipNote] = useState(false)
+  const asked = () => update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } }))
   const pickSession = (id: string) => { setSelected(id); setRemoved([]); setAdded([]); setOrderIds([]) }
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
   const isBuild = choice.id === 'build'
@@ -207,9 +236,17 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
         {preview.items.length > 1 && <p className="small mute train-reorder-hint">Press and hold a lift, then drag it up or down to change the order.</p>}
         <ReorderList label="Exercises in this workout" items={preview.items} getKey={(x) => x.ex.id} onReorder={(next) => setOrderIds(next.map((x) => x.orig))}>{({ ex, sets, orig }) => <div className={`train-preview-lift${isSaved ? '' : ' has-remove'}`}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span></div>{!isSaved && <button className="quiet-action train-remove" aria-label={`Remove ${ex.name}`} onClick={() => (addedIds.includes(ex.id) ? setAdded(addedIds.filter((x) => x !== ex.id)) : setRemoved([...removedIds, orig]))}>✕</button>}</div>}</ReorderList>
         {!isSaved && <button className="ghost" onClick={() => setAdding(true)}><Icon name="plus" />Add an exercise</button>}
-        {adding && <Sheet title="Add an exercise" onClose={() => setAdding(false)}><ExerciseFinder prefer={choice.day} pool={addableExercises(preview.items.map((i) => i.ex.id), data.profile!)} onPick={(x) => { setAdded([...addedIds, x.id]); setRemoved(removedIds.filter((id) => id !== x.id)); setAdding(false) }} /></Sheet>}
-        {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session or adjust your profile.</p>}
-        <button className="primary" disabled={!preview.items.length} onClick={() => onStart(choice.day, choice.focus, isSaved ? preview.items.map((x) => x.orig) : choice.ids, isSaved ? undefined : { removed: removedIds, extras: addedIds, order: orderIds })}>Start lifting<Icon name="arrow" /></button>
+        {adding && <Sheet title="Add an exercise" onClose={() => setAdding(false)}><ExerciseFinder best prefer={choice.day} pool={addableExercises(preview.items.map((i) => i.ex.id), data.profile!, historyOf(data), choice.day)} onPick={(x) => { setAdded([...addedIds, x.id]); setRemoved(removedIds.filter((id) => id !== x.id)); setAdding(false) }} /></Sheet>}
+        {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session, or turn more equipment on in Settings.</p>}
+        {equipNote && <p className="small ok-text" role="status">Your plan now follows the equipment you use. Tap Start lifting when you're ready.</p>}
+        <button className="primary" disabled={!preview.items.length} onClick={() => {
+          const go = () => onStart(choice.day, choice.focus, isSaved ? preview.items.map((x) => x.orig) : choice.ids, isSaved ? undefined : { removed: removedIds, extras: addedIds, order: orderIds })
+          if (!isSaved && !data.settings.equipAsked) setAskEquip(() => go); else go()
+        }}>Start lifting<Icon name="arrow" /></button>
+        {askEquip && <EquipmentSheet gear={data.profile!.gear} equip={data.profile!.equip}
+          onClose={() => { asked(); setAskEquip(null) }}
+          onSkip={() => { asked(); askEquip(); setAskEquip(null) }}
+          onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
         {isSaved && <button className="quiet-action" onClick={() => { if (window.confirm(`Delete the saved workout "${choice.label}"?`)) { onDeleteSaved(choice.id.slice(3)); pickSession('usual') } }}>Delete this saved workout</button>}
       </> : <><p className="small mute">Choose an easy walk, bike ride, or your own cardio session. Log the time when you finish.</p><button className="primary" onClick={() => onStart(choice.day)}>Log cardio<Icon name="arrow" /></button></>}
     </section>
@@ -386,8 +423,7 @@ export default function Workout() {
   }
   /** Swipe right on a lift: keep it and add a new one right after it that works the same muscle and fits their gear. */
   const addAfter = (it: (typeof items)[number]) => {
-    const opts = swapOptions(it.ex, planIds, p)
-    const pick = opts[Math.floor(Math.random() * Math.min(opts.length, 4))]
+    const pick = swapOptions(it.ex, planIds, p, historyOf(data))[0]
     if (!pick) { setUndo({ label: 'Nothing else fits your gear for this spot.' }); return }
     const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
     const order = items.map((x) => x.orig)
@@ -681,16 +717,16 @@ export default function Workout() {
       )}
       {sheet?.kind === 'swap' && (() => {
         const cur = items.find((i) => i.ex.id === sheet.cur)?.ex
-        const opts = cur ? swapOptions(cur, planIds, p) : []
+        const opts = cur ? swapOptions(cur, planIds, p, historyOf(data)) : []
         return (
           <Sheet title={`Swap ${cur?.name ?? ''}`} onClose={() => setSheet(null)}>
-            <ExerciseFinder pool={opts} onPick={(o) => swapTo(sheet.orig, sheet.cur, o.id)} />
+            <ExerciseFinder best like={cur} pool={opts} onPick={(o) => swapTo(sheet.orig, sheet.cur, o.id)} />
           </Sheet>
         )
       })()}
       {sheet?.kind === 'add' && (
         <Sheet title="Add an exercise" onClose={() => setSheet(null)}>
-          <ExerciseFinder prefer={plan.day} pool={addableExercises(planIds, p)} onPick={(o) => addEx(o.id)} />
+          <ExerciseFinder best prefer={plan.day} pool={addableExercises(planIds, p, historyOf(data), plan.day)} onPick={(o) => addEx(o.id)} />
         </Sheet>
       )}
     </div>

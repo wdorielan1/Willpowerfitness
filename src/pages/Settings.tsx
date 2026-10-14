@@ -6,6 +6,7 @@ import { fmtRest, macroPlan, restFor } from '../engine'
 import MatchQuestions from '../MatchQuestions'
 import ProfileSettings from '../ProfileSettings'
 import { FocusPicker, SexPicker } from '../ProfilePickers'
+import { EquipmentPicker } from '../EquipmentPicker'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -89,6 +90,9 @@ export default function Settings() {
         <label>Workout time<input type="time" value={p.time} onChange={(e) => setP('time', e.target.value)} /></label>
         <h3>Equipment</h3>
         <div className="chips">{([['gym', 'Full gym'], ['db', 'Dumbbells only'], ['bw', 'Bodyweight']] as [Gear, string][]).map(([k, l]) => <button key={k} className={`chip ${p.gear === k ? 'on' : ''}`} onClick={() => setP('gear', k)}>{l}</button>)}</div>
+        <h4>Equipment you use</h4>
+        <p className="small mute">Pick how often you use each kind. Your plan, swaps and the Add list stay on what you use.</p>
+        <EquipmentPicker gear={p.gear} equip={p.equip} onChange={(equip) => setP('equip', equip)} />
         <label>Injuries or exercises to avoid<input value={p.avoid} onChange={(e) => setP('avoid', e.target.value)} placeholder="e.g. shoulder, lunge" /></label>
         <Toggle label="Include cardio" on={p.cardio} onClick={() => setP('cardio', !p.cardio)} />
         <h3>Switch up my exercises</h3>

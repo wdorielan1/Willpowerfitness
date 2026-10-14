@@ -1,5 +1,6 @@
 import { EXERCISES, SPLIT } from './data'
-import type { BodyArea, AppData, CarbDay, DayType, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
+import { equipUse, gearRank } from './equipment'
+import type { BodyArea, AppData, CarbDay, DayType, EquipUse, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -33,8 +34,9 @@ export function hash(str: string) {
 }
 
 // ---------- workout selection ----------
-const gearRank: Record<Gear, number> = { gym: 2, db: 1, bw: 0 }
 const available = (ex: Exercise, gear: Gear) => gearRank[ex.gear] <= gearRank[gear]
+/** Within their gear and not on a kind of equipment they said they never use (stretches don't need equipment). */
+const allowed = (ex: Exercise, p: Profile) => available(ex, p.gear) && (!!ex.mobility || equipUse(p, ex) !== 'never')
 const avoided = (ex: Exercise, avoid: string) => {
   const words = avoid.toLowerCase().split(/[,;\n]/).map((w) => w.trim()).filter((w) => w.length > 2)
   const hay = `${ex.name} ${ex.muscle}`.toLowerCase()
@@ -77,15 +79,47 @@ function affinity(x: Exercise, p: Profile): number {
   return s
 }
 
-/** Exercises that fit this day, your equipment, your level and your exclusions. Hand-tuned ones come first, then the library. */
-function candidates(day: DayType, p: Profile): Exercise[] {
-  const fits = (x: Exercise) => !x.mobility && available(x, p.gear) && !avoided(x, p.avoid)
+/** Exercises that fit this day, your equipment (of the given kinds of use), your level and your exclusions. Hand-tuned ones come first, then the library. */
+function dayPool(day: DayType, p: Profile, uses: EquipUse[]): Exercise[] {
+  const fits = (x: Exercise) => !x.mobility && allowed(x, p) && uses.includes(equipUse(p, x)) && !avoided(x, p.avoid)
   const core = EXERCISES.filter((x) => !x.lib && x.day === day && fits(x))
   const lib = EXERCISES.filter((x) => x.lib && fits(x) && levelOk(x, p) && (day === 'Full Body' ? x.compound && x.day !== 'Shoulders/Abs' && x.day !== 'Full Body' : x.day === day))
     .sort((a, b) => affinity(b, p) - affinity(a, p) || hash(a.id) - hash(b.id))
-  const out = [...core, ...lib]
-  if (out.length >= 3) return out
-  return EXERCISES.filter((x) => !x.mobility && x.day === day && available(x, p.gear))
+  return [...core, ...lib]
+}
+
+/** What a workout is built from: the equipment they use often. Only when that leaves too little does equipment marked "sometimes" fill in. */
+function candidates(day: DayType, p: Profile): Exercise[] {
+  const often = dayPool(day, p, ['often'])
+  if (often.length >= 3) return often
+  const more = dayPool(day, p, ['often', 'sometimes'])
+  if (more.length >= 3) return more
+  return EXERCISES.filter((x) => !x.mobility && x.day === day && allowed(x, p))
+}
+
+/**
+ * Equipment marked "sometimes" fills about one lift in five: here and there one accessory is swapped for a lift on
+ * that equipment that trains the same muscle, and which one rotates with the accessory schedule.
+ */
+function withSometimes(keys: Exercise[], accessories: Exercise[], day: DayType, p: Profile, period: number, muscles: string[] | null): Exercise[] {
+  const total = keys.length + accessories.length
+  const room = Math.round(total / 5) - [...keys, ...accessories].filter((x) => equipUse(p, x) === 'sometimes').length
+  if (room <= 0 || !accessories.length) return accessories
+  const chosen = new Set([...keys, ...accessories].map((x) => x.id))
+  const taken = namesOf([...chosen])
+  const pool = dayPool(day, p, ['sometimes']).filter((x) => !chosen.has(x.id) && !taken.has(x.name.toLowerCase()) && (!muscles || muscles.includes(x.muscle)))
+  const out = [...accessories]
+  for (let n = 0; n < room; n++) {
+    const slots = out.map((a, i) => i).filter((i) => equipUse(p, out[i]) !== 'sometimes' && pool.some((x) => x.muscle === out[i].muscle))
+    if (!slots.length) break
+    const slot = slots[(period + n + hash(day)) % slots.length]
+    const same = pool.filter((x) => x.muscle === out[slot].muscle)
+    const lighter = same.filter((x) => !x.compound)
+    const pick = (lighter.length ? lighter : same)[(period + n) % (lighter.length ? lighter : same).length]
+    out[slot] = pick
+    pool.splice(pool.indexOf(pick), 1)
+  }
+  return out
 }
 
 /** Week number since you started training, turned into rotation steps. Key lifts change every 4 weeks; accessories on your setting. */
@@ -204,15 +238,16 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
   // accessories prefer single-joint and bodyweight work, so they add to the main lifts instead of repeating them
   const leftover = all.filter((x) => !keys.includes(x) && !x.key)
   const lighter = leftover.filter((x) => !x.lib || !x.compound)
-  const accessories = pickAccessories(lighter.length > nAcc ? lighter : leftover, mustHave, period, nAcc)
+  const accessories = withSometimes(keys, pickAccessories(lighter.length > nAcc ? lighter : leftover, mustHave, period, nAcc), day, p, period, focusedMuscles)
   // a focus body part that today's session doesn't train yet gets one add-on exercise (rotating by week), e.g. abs or glutes on a push day
   if (wantsFocus && !short && !focusedMuscles && day !== 'Full Body') {
     const chosen = [...keys, ...accessories]
     const unmet = focusAreas(p).filter((a) => !chosen.some((x) => a.match.test(x.muscle)))
     if (unmet.length) {
       const area = unmet[(period + hash(day)) % unmet.length]
-      const fits = (x: Exercise) => !x.mobility && available(x, p.gear) && !avoided(x, p.avoid) && levelOk(x, p) && x.day !== 'Full Body' && area.match.test(x.muscle) && !chosen.includes(x)
-      const pool = EXERCISES.filter(fits).sort((a2, b2) => Number(!!a2.compound) - Number(!!b2.compound) || affinity(b2, p) - affinity(a2, p) || hash(a2.id) - hash(b2.id))
+      const fits = (x: Exercise) => !x.mobility && allowed(x, p) && !avoided(x, p.avoid) && levelOk(x, p) && x.day !== 'Full Body' && area.match.test(x.muscle) && !chosen.includes(x)
+      const often = (x: Exercise) => Number(equipUse(p, x) !== 'often')
+      const pool = EXERCISES.filter(fits).sort((a2, b2) => often(a2) - often(b2) || Number(!!a2.compound) - Number(!!b2.compound) || affinity(b2, p) - affinity(a2, p) || hash(a2.id) - hash(b2.id))
       const pickOne = pool.length ? pool[(period + hash(day)) % Math.min(pool.length, 8)] : undefined
       if (pickOne) accessories.push(pickOne)
     }
@@ -239,19 +274,62 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
 /** A few lifts exist twice under one name (a full-body variant), so never offer a lift that shares a name with one already in the workout. */
 const namesOf = (ids: string[]) => new Set(ids.map((id) => EXERCISES.find((e) => e.id === id)?.name.toLowerCase()))
 
-/** Alternatives for an exercise: same muscle group first, then anything else that fits your equipment. */
-export function swapOptions(ex: Exercise, current: string[], p: Profile) {
-  const taken = namesOf(current)
-  const ok = (x: Exercise) => x.id !== ex.id && !x.mobility && !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && available(x, p.gear) && !avoided(x, p.avoid)
-  const same = EXERCISES.filter((x) => ok(x) && x.muscle.split('/')[0] === ex.muscle.split('/')[0])
-  const day = EXERCISES.filter((x) => ok(x) && x.day === ex.day && !same.includes(x))
-  return [...same, ...day]
+/** What someone has done and saved before, so lists can put familiar lifts first. */
+export interface History { logs: WorkoutLog[]; saved?: { ids: string[] }[]; today?: string }
+export const historyOf = (d: AppData): History => ({ logs: d.logs, saved: d.myWorkouts })
+
+/** How often and how long ago each lift was logged, and which are in a saved workout. */
+function usage(h: History) {
+  const today = h.today ?? todayISO()
+  const done = new Map<string, number>() // lift -> whole days since it was last logged
+  for (const l of h.logs) {
+    if (l.skipped) continue
+    const ago = Math.max(0, Math.round((fromISO(today).getTime() - fromISO(l.date).getTime()) / 86400000))
+    for (const e of l.entries) if (e.sets.length && ago < (done.get(e.exId) ?? Infinity)) done.set(e.exId, ago)
+  }
+  const saved = new Set((h.saved ?? []).flatMap((w) => w.ids))
+  return { done, saved }
 }
 
-/** Every exercise you could add to today's workout. */
-export function addableExercises(current: string[], p: Profile) {
+/**
+ * Best first. In order of weight: the lift fits what you are doing (the muscle you are swapping, or today's session),
+ * then equipment you use often (sometimes counts a little), then the hand-tuned basics, then lifts you have done or
+ * saved before, and last the ones you have not done lately. Lifts above your level and ones that suit your goal
+ * nudge the order. `fit` is how well a lift matches the spot, worth the most.
+ */
+function ranked(list: Exercise[], p: Profile, h: History, fit: (x: Exercise) => number): Exercise[] {
+  const { done, saved } = usage(h)
+  const score = (x: Exercise) => {
+    let s = fit(x)
+    s += equipUse(p, x) === 'often' ? 200 : 50
+    if (!x.lib) s += 60
+    const ago = done.get(x.id)
+    s += ago === undefined ? 12 : 40 + Math.min(ago, 30) / 30 * 20
+    if (saved.has(x.id)) s += 30
+    if (x.lib && (x.lvl ?? 0) > LEVEL_NUM[p.level]) s -= 150
+    return s + affinity(x, p) * 5
+  }
+  const scores = new Map(list.map((x) => [x.id, score(x)]))
+  return [...list].sort((a, b) => scores.get(b.id)! - scores.get(a.id)! || a.name.localeCompare(b.name))
+}
+
+/** Alternatives for an exercise, best first: the same muscle, then anything else from the same day, all within your equipment. */
+export function swapOptions(ex: Exercise, current: string[], p: Profile, h: History = { logs: [] }) {
   const taken = namesOf(current)
-  return EXERCISES.filter((x) => !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && available(x, p.gear) && !avoided(x, p.avoid))
+  const ok = (x: Exercise) => x.id !== ex.id && !x.mobility && !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && allowed(x, p) && !avoided(x, p.avoid)
+  const muscle = ex.muscle.split('/')[0]
+  const pool = EXERCISES.filter((x) => ok(x) && (x.muscle.split('/')[0] === muscle || x.day === ex.day))
+  const heavy = (x: Exercise) => x.compound ?? !!x.key // hand-tuned lifts mark their main lifts with key instead
+  return ranked(pool, p, h, (x) => (x.muscle.split('/')[0] === muscle ? 1000 : 400) + (heavy(x) === heavy(ex) ? 30 : 0))
+}
+
+/** Every exercise you could add to today's workout. Give it your history and the session's day to get the best fits first. */
+export function addableExercises(current: string[], p: Profile, h?: History, day?: DayType) {
+  const taken = namesOf(current)
+  const list = EXERCISES.filter((x) => !current.includes(x.id) && !taken.has(x.name.toLowerCase()) && allowed(x, p) && !avoided(x, p.avoid))
+  if (!h) return list
+  const fit = (x: Exercise) => (!day || day === 'Rest/Cardio' ? 0 : day === 'Full Body' ? (x.compound && !x.mobility ? 600 : 0) : x.day === day ? 1000 : 0) + (x.mobility ? -2000 : 0)
+  return ranked(list, p, h, fit)
 }
 
 export function cardioFinisher(p: Profile, day: DayType) {
