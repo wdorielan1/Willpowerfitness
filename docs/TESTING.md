@@ -15,13 +15,11 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The confirmation email arrives with the Will Power layout and subject "Confirm your email to join Will Power"
 - [ ] "Send it again" is disabled for about 45 seconds, then sends a new email
 - [ ] Tapping the email's button signs you in and starts onboarding
-- [ ] Sign up page: a "Date of birth" field sits above Continue with Google and the email form, with "You must be 13 or older. We use this once to check your age and don't keep it."
-- [ ] Join free or Continue with Google with no date: it asks for the date and creates nothing
-- [ ] A date that makes you under 13 (try a birthday tomorrow, 13 years ago): "Will Power is for people 13 and older, so we can't create an account for you." The forms are gone, no account is created, and reloading still shows the message (try a different date: still blocked for a day)
-- [ ] "I already have an account" from that message goes to Log in, which has no date of birth
-- [ ] 13 or older (try a birthday today, 13 years ago): sign up goes straight on to onboarding with no second age screen; the same with Continue with Google (real Google: after it sends you back you land in onboarding, not on an age screen)
-- [ ] Email sign up that needs the confirmation email: after you confirm and log in on the same phone you go straight to onboarding (no age screen). On a different phone or browser you get the one-time "One quick thing" screen instead
-- [ ] An account that was never checked (everyone who signed up before this): the next open shows "One quick thing" before anything else; blank date asks for it; 13 or older continues and never asks again; under 13 can only log out and stays blocked after a reload. Terms and Privacy open from that screen
+- [ ] The home sign up page (Google and email) has no date of birth and no age wording. Right after Join free (or Google) a short second page shows only "Date of birth" with one line under it, "You must be 13 or older. We use this once to check your age and don't keep it.", plus Continue, Log out, Terms and Privacy. No heading, and the age wording shows only once
+- [ ] Continue with a blank date asks for it. 13 or older (try a birthday today, 13 years ago) goes on to onboarding and never asks again
+- [ ] A date that makes you under 13 (try a birthday tomorrow, 13 years ago): "Will Power is for people 13 and older, so we can't let you use it." Only Log out is left, and reloading still shows it. After logging out, the sign up page on that phone says it can't create an account for a day, and "I already have an account" goes to Log in
+- [ ] Same second page after real Google sign in (you land on it after Google sends you back). If you sign up by email and have to confirm by email, you see it after you confirm and log in
+- [ ] An account that was never checked (everyone who signed up before this): the next open shows the same second page before anything else; Terms and Privacy open from it; once passed it never comes back
 - [ ] After the check, look in your account data (Settings > Export my data JSON): it has an ageConfirmed day and no date of birth anywhere
 
 ## 2. Onboarding
