@@ -85,6 +85,18 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A new lift never has the same name as one already in the workout; Swap and Add exercise lists don't show same-named lifts either
 - [ ] The same swipes work on the lifts list on the review page; press-and-hold drag and a quick tap still work on those rows, and a swipe never flips the page
 - [ ] Removed or added lifts carry into the exercise pages (progress bar segments match the list) and the finished log
+- [ ] Equipment (Settings > Training > Equipment you use): eight kinds, each Often / Sometimes / Never. A full-gym account starts with barbells, dumbbells, machines and cables on Often, bodyweight and EZ bar on Sometimes, kettlebells and bands on Never, and a line says kettlebells and bands start off
+- [ ] Set machines to Never: no machine lifts show in the plan preview, Swap, Add or Search; the equipment filter chips no longer list Machines. Back to recommended brings them back
+- [ ] Switch the setup to Dumbbells only: barbells, machines, cables and EZ bar grey out with a note; switch back to Full gym and they work again
+- [ ] Set everything to Never: the screen warns there would be no exercises, and the Train preview says to turn more equipment on in Settings
+- [ ] Sometimes equipment (bodyweight, EZ bar) shows up about one lift in five: roughly one such accessory in a normal workout, never a whole workout of push-ups. Kettlebell and band moves never show up for a full-gym account until you switch them on
+- [ ] The first time you tap Start lifting on a planned workout, a "What do you use?" sheet appears (not at sign-up). Save and update my plan closes it, keeps you on the Train page with a note, and the preview now follows your picks; Skip for now starts the workout; closing it with Close does not start. It never appears again after that
+- [ ] The sheet does not appear for saved or build-your-own workouts, and the Save and Skip buttons stay visible at the bottom without scrolling
+- [ ] Swap: the list opens on the lift's own muscle, shows 6 best matches first (Best matches first) with a See more button, and nothing off-muscle or on Never equipment comes first. Search shows everything that matches, not just six
+- [ ] Add an exercise (warm-up page, review page and the Train preview): opens on the session's own lifts ("Leg lifts" on a legs day, "Push lifts" on a push day) with the best 6 and See more; tapping All still shows the best first
+- [ ] The equipment filter in Swap and Add is remembered the next time you open the list (and the chosen chip is visible, not scrolled out of sight)
+- [ ] Swipe right to add twice on the same lift: each adds the next best same-muscle lift (not a random one), with no duplicates
+- [ ] Export (Settings > Your data): the profile summary has an "Equipment use" line matching your choices
 
 ## Comments (needs supabase/comments.sql run first)
 - [ ] Under each crew post there is a Comment button; tapping it opens the thread, typing and Send adds a comment with your first name
