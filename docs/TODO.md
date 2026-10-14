@@ -25,6 +25,26 @@ This is the owner's checklist of rules to deal with, written up with where the a
 8. [ ] **Lawyer review of paid cash challenges and the prepaid wallet**: skill contest against gambling rules by state, and money-transmitter licensing for holding players' money. Nothing like this is built and no money is held today. Same as the "Paid challenges (after legal review)" item under Bigger projects; do not build payments before this is done.
 9. [ ] **Opt-in consent for wearable and Apple Health data**: for Washington's My Health My Data Act and the FTC Health Breach Notification Rule (as listed by the owner). Not built yet; it belongs with the iPhone app item under Bigger projects. Ask for separate, clear consent before reading any Health or wearable data, say what is read and why, let people turn it off and delete it, and never share it.
 
+## Google APIs and services (to review later, owner Oct 2026)
+Nothing here is built. Rule of thumb: each extra Google permission can trigger Google's review for the whole app, so add them one at a time, only when a feature needs one.
+**Worth doing now in Google Cloud**
+- [ ] **Verify the domain in Google Search Console** (`wilpow.com`). Free, and Google wants it for the consent screen review anyway (the same review the Google birthday permission in Legal and compliance, item 1, may trigger).
+- [ ] **Fill in the consent screen**: app name, logo, and privacy and terms links on `wilpow.com`. Same as the Setup item "Google Cloud consent screen" above; do them together.
+
+**Good fits later**
+- [ ] **Push notifications (Firebase Cloud Messaging)**: free, and the usual choice once the iPhone app and push reminders get built. Nothing to set up yet. See also "Notification follow-ups" and the Cloudflare item under Bigger projects.
+- [ ] **AI weekly recap (Gemini API)**: an alternative to OpenAI for the recap and AI coach items. Compare cost and, most importantly, the data-use terms, since it sends people's training numbers out: check whether prompts are used to improve the vendor's products on the tier you would pay for. Details are in the "Gemini as the AI provider" item under Bigger projects.
+
+**Use something simpler instead**
+- [ ] **Add to calendar**: an "Add to calendar" link or an `.ics` file needs no Google permission at all. The Calendar API would mean another Google review.
+- [ ] **Maps**: the crew map uses OpenStreetMap and its place search, which are free. They have fair-use limits, so revisit only if the app gets real traffic. Google Maps would add billing and another Google request on every map view.
+
+**Skip for now (and why)**
+- Google Fit: closed to new developers since May 2024 and being shut down (sources disagree on the end date). Android's replacement, Health Connect, runs on the phone, so it belongs with a native Android app; Apple Health is the iPhone equivalent.
+- Google Analytics and reCAPTCHA: both add third-party tracking and a consent banner (see Legal and compliance, items 2 and 3). If sign-up spam becomes a problem, Cloudflare Turnstile is a lighter option that Supabase supports.
+- Gender permission (`user.gender.read`) to pre-fill the sex question in onboarding: another sensitive permission, and many accounts have none set.
+- Drive, Sheets and Gmail: restricted permissions with heavy review. Resend (already planned in `docs/EMAIL.md`) covers email.
+
 ## On hold (decided to wait)
 - [ ] **Starter / baseline crews**: real crews run by a Will Power team account (never fake members). Waiting on: which local areas to start with (e.g. Woodbridge), and creating the team account. Starter crews would be exempt from the 35-day auto-archive.
 - [ ] **Member-count fix** (onboarding showed placeholder numbers like "184 members"). Saved on local branch `backup/member-count-fix`, commit `8fa1172`. Re-apply when ready. Note: placeholder counts are still visible in the live sign-up suggestions until then.
