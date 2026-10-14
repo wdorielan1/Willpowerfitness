@@ -71,6 +71,7 @@ export default function Settings() {
       <section className="card">
         <h2>Workout</h2>
         <Toggle label="Share finished workouts to my crew" hint="Posts a quick summary to your crew’s feed when you finish." on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
+        <Toggle label="Offer to save my workout when I finish" hint="Save it as your Leg Day or Push Day, and we offer it first next time you train that day." on={s.askSave !== false} onClick={() => setS({ askSave: s.askSave === false })} />
         <Toggle label="Ask how hard my last set felt (RPE)" hint="One quick rating at the end of each exercise. Helps the app decide when to add weight." on={s.rpeEnabled} onClick={() => setS({ rpeEnabled: !s.rpeEnabled })} />
         <h3>Workout length</h3>
         <p className="small mute">If your workout clock is still running after this long, we ask “still working out?” and end it automatically 30 minutes later if you don’t answer.</p>
@@ -93,6 +94,16 @@ export default function Settings() {
         <h4>Equipment you use</h4>
         <p className="small mute">Pick how often you use each kind. Your plan, swaps and the Add list stay on what you use.</p>
         <EquipmentPicker gear={p.gear} equip={p.equip} onChange={(equip) => setP('equip', equip)} />
+        <h4>Hidden exercises</h4>
+        <p className="small mute">Lifts you chose “Never show me this” for with the thumbs-down in a workout. They stay out of your plan, Swap, Add and search until you show them again.</p>
+        {(() => {
+          const hid = Object.keys(p.hidden ?? {}).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x)
+          return hid.length === 0 ? <p className="small mute">None yet.</p> : <div className="people hidden-lifts">{hid.map((x) => (
+            <div className="row" key={x.id}><span>{x.name}<br /><span className="small mute">{x.muscle}</span></span>
+              <button type="button" className="ghost small-btn" onClick={() => setP('hidden', Object.fromEntries(Object.entries(p.hidden ?? {}).filter(([id]) => id !== x.id)))}>Show again</button></div>
+          ))}</div>
+        })()}
+        <p className="small mute">Will Power quietly learns from what you do, on your own account only: the lifts you finish, swap away, remove and save. It never hides anything without asking.</p>
         <label>Injuries or exercises to avoid<input value={p.avoid} onChange={(e) => setP('avoid', e.target.value)} placeholder="e.g. shoulder, lunge" /></label>
         <Toggle label="Include cardio" on={p.cardio} onClick={() => setP('cardio', !p.cardio)} />
         <h3>Switch up my exercises</h3>

@@ -20,6 +20,10 @@ export interface Profile {
   gear: Gear
   /** How often they use each kind of equipment. Anything they haven't picked follows the recommended default for their gear. */
   equip?: Partial<Record<EquipKind, EquipUse>>
+  /** Lifts they chose "Never show me this" for, each with the day they said it. Hidden from Swap, Add and search straight away, and from planned workouts from the next day. */
+  hidden?: Record<string, string>
+  /** Lifts they were asked "Stop suggesting this?" about and said to keep. */
+  kept?: string[]
   weight: number
   target: number
   time: string // HH:MM
@@ -92,6 +96,7 @@ export interface Settings {
   rotation: 'weekly' | 'biweekly' | 'monthly' | 'never' // how often accessory exercises change (main lifts change every 4 weeks)
   autoShare: boolean // post finished workouts to my crew
   equipAsked?: number // when we first asked what equipment they use (so it only pops up once)
+  askSave?: boolean // offer to save a finished workout as "your Leg Day" (on unless they said don't ask again)
   gymName?: string // optional place shown on share pictures (never live location)
   shareFormat?: 'story' | 'post' // last share picture size
   shareHideWeight?: boolean // body weight graph sticker: leave out the actual weights (default on)
@@ -127,7 +132,7 @@ export interface AppData {
   partner: boolean
   dayOverride: Record<string, DayType> // date -> workout type chosen by the user
   customSession?: Record<string, string[]> // date -> exercise ids picked in Build your own
-  myWorkouts?: { id: string; name: string; ids: string[] }[] // saved Build-your-own workouts
+  myWorkouts?: { id: string; name: string; ids: string[]; day?: DayType; focus?: WorkoutFocus }[] // saved workouts: Build your own, or "your Leg Day" saved after a finish (those carry the day they belong to)
   workoutFocus?: Record<string, WorkoutFocus> // date -> focused alternative for this session
   extras: Record<string, string[]> // date -> exercise ids added
   removed: Record<string, string[]> // date -> exercise ids removed

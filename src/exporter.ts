@@ -1,4 +1,4 @@
-import { DAY_NAMES, GOALS, LEVELS } from './data'
+import { DAY_NAMES, EXERCISES, GOALS, LEVELS } from './data'
 import { addDays, e1rm, macroPlan, streak, todayISO } from './engine'
 import { EQUIP_KINDS, beyondGear, kindUse } from './equipment'
 import type { AppData, EquipUse, Profile } from './types'
@@ -34,7 +34,7 @@ export function buildSummary(d: AppData, o: ExportOpts, today = todayISO()): str
   const out: string[] = [`# Training summary (last ${o.weeks} weeks, to ${today})`]
 
   if (o.profile && p) {
-    out.push('\n## Profile', `- Goal: ${GOALS[p.goal]} · Experience: ${LEVELS[p.level]} · Style: ${p.style}`, `- Training days: ${p.days.map((x) => DAY_NAMES[x]).join(', ')} · Equipment: ${{ gym: 'full gym', db: 'dumbbells', bw: 'bodyweight' }[p.gear]}`, `- Equipment use: ${equipmentLine(p)}`,
+    out.push('\n## Profile', `- Goal: ${GOALS[p.goal]} · Experience: ${LEVELS[p.level]} · Style: ${p.style}`, `- Training days: ${p.days.map((x) => DAY_NAMES[x]).join(', ')} · Equipment: ${{ gym: 'full gym', db: 'dumbbells', bw: 'bodyweight' }[p.gear]}`, `- Equipment use: ${equipmentLine(p)}`, Object.keys(p.hidden ?? {}).length ? `- Hidden by me (never suggest): ${Object.keys(p.hidden!).map((id) => EXERCISES.find((x) => x.id === id)?.name).filter(Boolean).join(', ')}` : '',
       `- Body weight: ${p.weight} lb → target ${p.target} lb`, p.avoid ? `- Avoiding: ${p.avoid}` : '', p.age ? `- Age group: ${p.age}` : '')
   }
 

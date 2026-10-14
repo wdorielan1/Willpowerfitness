@@ -35,8 +35,42 @@ export function hash(str: string) {
 
 // ---------- workout selection ----------
 const available = (ex: Exercise, gear: Gear) => gearRank[ex.gear] <= gearRank[gear]
-/** Within their gear and not on a kind of equipment they said they never use (stretches don't need equipment). */
-const allowed = (ex: Exercise, p: Profile) => available(ex, p.gear) && (!!ex.mobility || equipUse(p, ex) !== 'never')
+/** A few lifts exist under the same name (a full-body variant), so hiding one hides its twins too. */
+const hiddenNames = new WeakMap<object, Set<string>>()
+export function isHidden(ex: Exercise, p: Pick<Profile, 'hidden'>) {
+  if (!p.hidden) return false
+  if (p.hidden[ex.id]) return true
+  let names = hiddenNames.get(p.hidden)
+  if (!names) { names = new Set(Object.keys(p.hidden).map((id) => EXERCISES.find((e) => e.id === id)?.name.toLowerCase()).filter((n): n is string => !!n)); hiddenNames.set(p.hidden, names) }
+  return names.has(ex.name.toLowerCase())
+}
+/** Within their gear, not hidden, and not on a kind of equipment they said they never use (stretches don't need equipment). */
+const allowed = (ex: Exercise, p: Profile) => available(ex, p.gear) && !isHidden(ex, p) && (!!ex.mobility || equipUse(p, ex) !== 'never')
+
+/**
+ * The profile a plan for `date` is built from. A lift hidden today (or later) still counts as planned today, so hiding
+ * one in the middle of a workout never reshuffles the other lifts; it is just removed for the day.
+ */
+const planProfile = (p: Profile, date: string): Profile => {
+  if (!p.hidden) return p
+  const before = Object.fromEntries(Object.entries(p.hidden).filter(([, since]) => since < date))
+  return Object.keys(before).length === Object.keys(p.hidden).length ? p : { ...p, hidden: before }
+}
+
+/**
+ * On how many different days in the last two months a lift the app suggested was removed or swapped away,
+ * counting up to the day before `before`. Lifts they said to keep don't count. This is read from what they already did
+ * (the removed and swapped records), so nothing extra is stored.
+ */
+export function skipCounts(d: AppData, before: string, days = 60): Record<string, number> {
+  const from = addDays(before, -days)
+  const kept = new Set(d.profile?.kept ?? [])
+  const seen: Record<string, Set<string>> = {}
+  const mark = (id: string, date: string) => { if (date >= from && date < before && !kept.has(id)) (seen[id] ??= new Set()).add(date) }
+  for (const [date, ids] of Object.entries(d.removed ?? {})) for (const id of ids) mark(id, date)
+  for (const [key, to] of Object.entries(d.swaps ?? {})) { const [date, id] = key.split('|'); if (to !== id) mark(id, date) }
+  return Object.fromEntries(Object.entries(seen).map(([id, dates]) => [id, dates.size]))
+}
 const avoided = (ex: Exercise, avoid: string) => {
   const words = avoid.toLowerCase().split(/[,;\n]/).map((w) => w.trim()).filter((w) => w.length > 2)
   const hay = `${ex.name} ${ex.muscle}`.toLowerCase()
@@ -218,15 +252,18 @@ export const workoutName = (day: DayType, focus?: WorkoutFocus) =>
   day === 'Push' && focus === 'chest-triceps' ? 'Chest + Triceps' : day === 'Pull' && focus === 'back-biceps' ? 'Back + Biceps' : focus === 'custom' ? 'Custom workout' : day === 'Shoulders/Abs' ? 'Shoulders + Abs' : day === 'Rest/Cardio' ? 'Cardio' : day
 
 export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType, forceFocus?: WorkoutFocus) {
-  const p = d.profile!
+  const p = planProfile(d.profile!, date)
   const day = forceDay ?? dayFor(date, d)
   if (day === 'Rest/Cardio') return { day, items: [] as PlannedExercise[] }
   const focus = forceDay === undefined ? d.workoutFocus?.[date] : forceFocus
   const focusedMuscles = day === 'Push' && focus === 'chest-triceps' ? ['Chest', 'Upper chest', 'Triceps']
     : day === 'Pull' && focus === 'back-biceps' ? ['Back', 'Lats', 'Mid back', 'Biceps'] : null
-  const all = focusedMuscles
+  // lifts they have turned away on two or more earlier days go to the back of the line (still there if nothing else fits, never hidden)
+  const skips = skipCounts(d, date)
+  const pool = focusedMuscles
     ? candidates(day, p).filter((x) => focusedMuscles.includes(x.muscle))
     : candidates(day, p)
+  const all = [...pool.filter((x) => (skips[x.id] ?? 0) < 2), ...pool.filter((x) => (skips[x.id] ?? 0) >= 2)]
   const { block, period } = rotationFor(date, d)
   // muscles the person asked to emphasise that today's session can train, so their accessories come first
   const focusToday = [...new Set(all.filter((x) => !x.key && inFocus(x, p)).map((x) => x.muscle))].slice(0, 2)
@@ -262,7 +299,7 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
     return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
   }
   const customIds = focus === 'custom' ? (d.customSession?.[date] ?? []) : null
-  const picked = customIds ? customIds.map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x) : null
+  const picked = customIds ? customIds.map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x && !isHidden(x, p)) : null
   const base = (picked ?? [...keys, ...accessories]).map(build).filter((i) => !removed.includes(i.orig) && !removed.includes(i.ex.id))
   const extras = (d.extras?.[date] ?? [])
     .map((id) => EXERCISES.find((x) => x.id === id))
@@ -274,18 +311,22 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
 /** A few lifts exist twice under one name (a full-body variant), so never offer a lift that shares a name with one already in the workout. */
 const namesOf = (ids: string[]) => new Set(ids.map((id) => EXERCISES.find((e) => e.id === id)?.name.toLowerCase()))
 
-/** What someone has done and saved before, so lists can put familiar lifts first. */
-export interface History { logs: WorkoutLog[]; saved?: { ids: string[] }[]; today?: string }
-export const historyOf = (d: AppData): History => ({ logs: d.logs, saved: d.myWorkouts })
+/** What someone has done, saved and turned away before, so lists can put familiar lifts first. */
+export interface History { logs: WorkoutLog[]; saved?: { ids: string[] }[]; today?: string; skips?: Record<string, number> }
+export const historyOf = (d: AppData): History => ({ logs: d.logs, saved: d.myWorkouts, skips: skipCounts(d, addDays(todayISO(), 1)) })
 
-/** How often and how long ago each lift was logged, and which are in a saved workout. */
+/** How many days a lift was logged on and how long ago the last one was, and which lifts are in a saved workout. */
 function usage(h: History) {
   const today = h.today ?? todayISO()
-  const done = new Map<string, number>() // lift -> whole days since it was last logged
+  const done = new Map<string, { days: number; ago: number }>()
   for (const l of h.logs) {
     if (l.skipped) continue
     const ago = Math.max(0, Math.round((fromISO(today).getTime() - fromISO(l.date).getTime()) / 86400000))
-    for (const e of l.entries) if (e.sets.length && ago < (done.get(e.exId) ?? Infinity)) done.set(e.exId, ago)
+    for (const e of l.entries) {
+      if (!e.sets.length) continue
+      const was = done.get(e.exId)
+      done.set(e.exId, { days: (was?.days ?? 0) + 1, ago: Math.min(was?.ago ?? Infinity, ago) })
+    }
   }
   const saved = new Set((h.saved ?? []).flatMap((w) => w.ids))
   return { done, saved }
@@ -293,9 +334,10 @@ function usage(h: History) {
 
 /**
  * Best first. In order of weight: the lift fits what you are doing (the muscle you are swapping, or today's session),
- * then equipment you use often (sometimes counts a little), then the hand-tuned basics, then lifts you have done or
- * saved before, and last the ones you have not done lately. Lifts above your level and ones that suit your goal
- * nudge the order. `fit` is how well a lift matches the spot, worth the most.
+ * then equipment you use often (sometimes counts a little), then the hand-tuned basics, then what you do: lifts in a
+ * workout you saved count most, then lifts you finish (more the more often, and the longer since the last one the
+ * better), and lifts you keep turning away count against. Lifts above your level and ones that suit your goal nudge
+ * the order. `fit` is how well a lift matches the spot, worth the most.
  */
 function ranked(list: Exercise[], p: Profile, h: History, fit: (x: Exercise) => number): Exercise[] {
   const { done, saved } = usage(h)
@@ -303,9 +345,10 @@ function ranked(list: Exercise[], p: Profile, h: History, fit: (x: Exercise) => 
     let s = fit(x)
     s += equipUse(p, x) === 'often' ? 200 : 50
     if (!x.lib) s += 60
-    const ago = done.get(x.id)
-    s += ago === undefined ? 12 : 40 + Math.min(ago, 30) / 30 * 20
-    if (saved.has(x.id)) s += 30
+    const did = done.get(x.id)
+    s += did ? 40 + Math.min(did.days, 5) * 6 + Math.min(did.ago, 30) / 30 * 20 : 12
+    if (saved.has(x.id)) s += 80
+    s -= 70 * Math.min(h.skips?.[x.id] ?? 0, 3)
     if (x.lib && (x.lvl ?? 0) > LEVEL_NUM[p.level]) s -= 150
     return s + affinity(x, p) * 5
   }

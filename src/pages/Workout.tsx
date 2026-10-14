@@ -7,7 +7,7 @@ import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { BODY_AREAS, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, recommend, restFor, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { BODY_AREAS, addDays, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, isHidden, recommend, restFor, skipCounts, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { EQUIP_KINDS, equipKind } from '../equipment'
 import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
@@ -126,6 +126,28 @@ const applyOrder = <T extends { orig: string }>(list: T[], order?: string[]): T[
   return [...list].sort((a, b) => at(a) - at(b))
 }
 
+/** What a workout is called when it is saved after a finish ("Leg Day"). */
+const savedName = (day: DayType, focus?: WorkoutFocus) => focus === 'chest-triceps' ? 'Chest + Triceps Day' : focus === 'back-biceps' ? 'Back + Biceps Day'
+  : ({ Push: 'Push Day', Pull: 'Pull Day', Legs: 'Leg Day', 'Shoulders/Abs': 'Shoulders + Abs Day', 'Full Body': 'Full Body Day', 'Rest/Cardio': 'Cardio' } as Record<DayType, string>)[day]
+
+type SaveOffer = { kind: 'new' | 'update'; name: string; ids: string[]; day: DayType; focus?: WorkoutFocus; existing?: string }
+
+/** Under the recap on the finish screen: save what you just did as your Leg Day (or update it). Never saves without a tap. */
+function SaveOfferCard({ offer, onSave, onNever }: { offer: SaveOffer; onSave: () => void; onNever: () => void }) {
+  const [done, setDone] = useState<null | 'saved' | 'no'>(null)
+  if (done === 'no') return null
+  if (done === 'saved') return <p className="small ok-text" role="status">Saved as your {offer.name}. Next time you train it, we'll offer it first.</p>
+  return <div className="rec start save-offer">
+    <b>{offer.kind === 'update' ? `Update your ${offer.name}?` : `Save this as your ${offer.name}?`}</b>
+    <span className="small">{offer.kind === 'update' ? "Next time we'll start from today's lifts." : "We'll offer it next time and put those lifts first when you swap or add."}</span>
+    <div className="row">
+      <button type="button" className="primary small-btn" onClick={() => { onSave(); setDone('saved') }}>{offer.kind === 'update' ? 'Update it' : 'Save it'}</button>
+      <button type="button" className="ghost small-btn" onClick={() => setDone('no')}>Not now</button>
+    </div>
+    <button type="button" className="quiet-action" onClick={() => { onNever(); setDone('no') }}>Don't ask again</button>
+  </div>
+}
+
 type SessionChoice = { id: string; day: DayType; focus?: WorkoutFocus; label: string; ids?: string[] }
 const sessionChoices = (suggested: DayType, saved: { id: string; name: string; ids: string[] }[]): SessionChoice[] => [
   { id: 'usual', day: suggested, label: 'Usual plan' },
@@ -218,6 +240,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const { update } = useApp()
   const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
   const [equipNote, setEquipNote] = useState(false)
+  const [offerGone, setOfferGone] = useState(false)
   const asked = () => update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } }))
   const pickSession = (id: string) => { setSelected(id); setRemoved([]); setAdded([]); setOrderIds([]) }
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
@@ -225,6 +248,15 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const isSaved = choice.id.startsWith('my:')
   const made = isBuild ? { day: choice.day, items: [] as { ex: Exercise; sets: number; orig: string }[] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets, orig: ex.id })) } : generateWorkout(today, { ...data, removed: { ...data.removed, [today]: removedIds }, extras: { ...data.extras, [today]: addedIds } }, short, choice.day, choice.focus)
   const preview = { day: made.day, items: applyOrder(made.items, orderIds) }
+  const generated = !isBuild && !isSaved && choice.day !== 'Rest/Cardio'
+  // one nudge at a time: first the saved workout for this session, otherwise a lift they keep turning away
+  const savedMatch = generated ? (data.myWorkouts ?? []).find((w) => w.day === choice.day && w.focus === choice.focus) : undefined
+  const stop = generated && !savedMatch ? Object.entries(skipCounts(data, addDays(today, 1)))
+    .filter(([id, n]) => n >= 3 && (choice.day === 'Full Body' || EXERCISES.find((x) => x.id === id)?.day === choice.day || preview.items.some((i) => i.ex.id === id)))
+    .map(([id, n]) => ({ ex: EXERCISES.find((x) => x.id === id), n })).filter((c): c is { ex: Exercise; n: number } => !!c.ex && !isHidden(c.ex, data.profile!))
+    .sort((a, b) => b.n - a.n)[0] : undefined
+  const stopSuggesting = (id: string) => update((d) => ({ ...d, profile: { ...d.profile!, hidden: { ...d.profile!.hidden, [id]: addDays(today, -1) } } })) // dated yesterday so today's preview drops it right away
+  const keepSuggesting = (id: string) => update((d) => ({ ...d, profile: { ...d.profile!, kept: [...(d.profile!.kept ?? []), id] } }))
   const name = isBuild ? 'Build your own' : isSaved ? choice.label : workoutName(choice.day, choice.focus)
   return <>
     <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
@@ -232,6 +264,16 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
     <section className="card train-session-preview"><div className="section-head"><h2>{name}</h2><Icon name={choice.day === 'Rest/Cardio' ? 'clock' : 'weight'} /></div>
       <p className="small mute">{isBuild ? 'Choose your own exercises.' : isSaved ? 'One of your saved workouts.' : choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
       {isBuild ? <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => onStart('Full Body', 'custom', buildIds)} onSave={onSave} /> : choice.day !== 'Rest/Cardio' ? <>
+        {savedMatch && !offerGone && <div className="rec start train-offer">
+          <b>Use your saved {savedMatch.name}?</b>
+          <span className="small">Your {savedMatch.ids.length} lifts from last time, in the order you did them.</span>
+          <div className="row"><button type="button" className="primary small-btn" onClick={() => pickSession(`my:${savedMatch.id}`)}>Use it</button><button type="button" className="ghost small-btn" onClick={() => setOfferGone(true)}>Not now</button></div>
+        </div>}
+        {stop && <div className="rec start train-offer" role="group" aria-label="Stop suggesting this lift?">
+          <b>Stop suggesting {stop.ex.name}?</b>
+          <span className="small">You've skipped it on {stop.n} different days. Nothing gets hidden unless you say so.</span>
+          <div className="row"><button type="button" className="primary small-btn" onClick={() => stopSuggesting(stop.ex.id)}>Stop suggesting it</button><button type="button" className="ghost small-btn" onClick={() => keepSuggesting(stop.ex.id)}>Keep it</button></div>
+        </div>}
         <button className="train-short-toggle" aria-pressed={short} onClick={onShort}><Icon name="clock" /><span>Shorter session</span><span>{short ? 'On' : 'Off'}</span></button>
         {preview.items.length > 1 && <p className="small mute train-reorder-hint">Press and hold a lift, then drag it up or down to change the order.</p>}
         <ReorderList label="Exercises in this workout" items={preview.items} getKey={(x) => x.ex.id} onReorder={(next) => setOrderIds(next.map((x) => x.orig))}>{({ ex, sets, orig }) => <div className={`train-preview-lift${isSaved ? '' : ' has-remove'}`}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span></div>{!isSaved && <button className="quiet-action train-remove" aria-label={`Remove ${ex.name}`} onClick={() => (addedIds.includes(ex.id) ? setAdded(addedIds.filter((x) => x !== ex.id)) : setRemoved([...removedIds, orig]))}>✕</button>}</div>}</ReorderList>
@@ -283,6 +325,7 @@ export default function Workout() {
   const [saved, setSaved] = useState(false)
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
   const [resharing, setResharing] = useState(false)
+  const [saveOffer, setSaveOffer] = useState<SaveOffer | null>(null)
   const [validation, setValidation] = useState('')
   const [undo, setUndo] = useState<null | { label: string; restore?: (d: AppData) => AppData }>(null)
   // the little swipe demo plays until they swipe a set or tap Got it, then never comes back
@@ -291,7 +334,7 @@ export default function Workout() {
   useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 7000); return () => clearTimeout(t) }, [undo])
   const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
-  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string }>(null)
+  const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string } | { kind: 'dislike'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
   useEffect(() => { if (sp.get('change')) { if (active) setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp, active])
 
@@ -421,6 +464,14 @@ export default function Workout() {
     removeEx(it.orig, it.ex.id)
     setUndo({ label: `Removed ${it.ex.name}`, restore: (d) => ({ ...d, ...prev }) })
   }
+  /** Thumbs-down, "Never show me this": gone from today, and hidden from Swap, Add and search now and from planned workouts from tomorrow. Undo puts it all back. */
+  const neverShow = (it: (typeof items)[number]) => {
+    const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
+    const prevHidden = data.profile!.hidden
+    update((d) => ({ ...d, profile: { ...d.profile!, hidden: { ...d.profile!.hidden, [it.ex.id]: today } } }))
+    removeEx(it.orig, it.ex.id)
+    setUndo({ label: `Hidden ${it.ex.name}. You can bring it back in Settings.`, restore: (d) => ({ ...d, ...prev, profile: { ...d.profile!, hidden: prevHidden } }) })
+  }
   /** Swipe right on a lift: keep it and add a new one right after it that works the same muscle and fits their gear. */
   const addAfter = (it: (typeof items)[number]) => {
     const pick = swapOptions(it.ex, planIds, p, historyOf(data))[0]
@@ -479,6 +530,19 @@ export default function Workout() {
     }
     timer.stop()
     setSaved(true)
+    // offer to save what they just did as their Leg Day (or update it), unless they turned that off or it is already saved that way
+    const focus = data.workoutFocus?.[today]
+    const ids = entries.map((e) => e.exId)
+    if (!todaysLog && data.settings.askSave !== false && plan.day !== 'Rest/Cardio' && focus !== 'custom' && ids.length >= 2) {
+      const existing = (data.myWorkouts ?? []).find((w) => w.day === plan.day && w.focus === focus)
+      const same = existing && existing.ids.length === ids.length && existing.ids.every((id) => ids.includes(id))
+      if (!same) {
+        const taken = new Set((data.myWorkouts ?? []).map((w) => w.name.toLowerCase()))
+        let name = existing?.name ?? savedName(plan.day, focus)
+        for (let n = 2; !existing && taken.has(name.toLowerCase()); n++) name = `${savedName(plan.day, focus)} ${n}`
+        setSaveOffer({ kind: existing ? 'update' : 'new', name, ids, day: plan.day, focus, existing: existing?.id })
+      }
+    }
     if (todaysLog) setTimeout(() => nav('/'), 900)
     else setSummary(sum)
   }
@@ -525,7 +589,12 @@ export default function Workout() {
   return (
     <div className="workout-session">
       {resharing && todaysLog && (() => { const s = summaryFromLog(data, todaysLog); return s ? <DoneSheet summary={s} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setResharing(false)} /> : null })()}
-      {summary && <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => nav('/')} />}
+      {summary && <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => nav('/')}
+        extra={saveOffer && <SaveOfferCard offer={saveOffer}
+          onSave={() => update((d) => ({ ...d, myWorkouts: saveOffer.existing
+            ? (d.myWorkouts ?? []).map((w) => (w.id === saveOffer.existing ? { ...w, ids: saveOffer.ids } : w))
+            : [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name: saveOffer.name, ids: saveOffer.ids, day: saveOffer.day, focus: saveOffer.focus }] }))}
+          onNever={() => update((d) => ({ ...d, settings: { ...d.settings, askSave: false } }))} />} />}
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
         <div className="workout-header-title"><b>{sessionName} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>
@@ -619,6 +688,7 @@ export default function Workout() {
             </div>
             <div className="workout-set-tools">
               <button className="quiet-button" onClick={() => addSet(ex.ex.id, st.base, defReps(ex.ex))}><Icon name="plus" />Add set</button>
+              <button className="icon-button" aria-label="Not for me" onClick={() => setSheet({ kind: 'dislike', exId: ex.ex.id })}><Icon name="thumbDown" /></button>
               <button className="icon-button" aria-label="Exercise options" onClick={() => setSheet({ kind: 'options', exId: ex.ex.id })}><Icon name="more" /></button>
             </div>
             {validation && <p className="workout-validation" role="alert">{validation}</p>}
@@ -686,6 +756,18 @@ export default function Workout() {
       {ask === 'delete' && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and today's check-in will be undone. This can't be undone." confirmLabel="Yes, delete it" onConfirm={deleteLogged} onCancel={() => setAsk(null)} />}
       {DaySheet}
       {BuildSheet}
+      {sheet?.kind === 'dislike' && (() => {
+        const item = items.find((it) => it.ex.id === sheet.exId)
+        if (!item) return null
+        return (
+          <Sheet title="Not for me?" onClose={() => setSheet(null)}>
+            <h3>{item.ex.name}</h3>
+            <p className="small mute">Tell us what to do with this lift. Nothing is ever hidden unless you choose it here.</p>
+            <button className="ghost sheet-choice" onClick={() => { removeLift(item); setSheet(null) }}><b>Not today</b><span className="small mute">Skip it for this workout only</span></button>
+            <button className="ghost sheet-choice" onClick={() => { neverShow(item); setSheet(null) }}><b>Never show me this</b><span className="small mute">Hide it everywhere. You can bring it back in Settings.</span></button>
+          </Sheet>
+        )
+      })()}
       {sheet?.kind === 'options' && (() => {
         const item = items.find((it) => it.ex.id === sheet.exId)
         if (!item) return null

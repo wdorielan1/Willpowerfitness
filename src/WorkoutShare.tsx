@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Sheet } from './components'
 import { buildShareCard, fmtDuration, type CardFormat, type WorkoutSummary } from './shareCard'
 import { buildWorkoutSticker } from './shareSticker'
@@ -38,9 +38,11 @@ export function useImageAsset(key: string, build: () => Promise<Blob>) {
  * The share screen after a workout. With `crewPost`, the same screen posts the picture to the crew
  * (a card, or your own photo with a sticker on top) instead of sending it to Instagram.
  */
-export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost }: {
+export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra }: {
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
   crewPost?: { onPost: (blob: Blob) => Promise<string | null>; alreadyPosted?: boolean }
+  /** Something to show right under the recap, such as the offer to save this workout. */
+  extra?: ReactNode
 }) {
   const [style, setStyle] = useState<StickerStyle>(settings.shareStickerStyle ?? 'minimal')
   const [color, setColor] = useState<StickerTextColor>(settings.shareStickerTextColor ?? 'white')
@@ -214,6 +216,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost }: {
             </div>
           : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
       </div>
+      {extra}
       {crewPost && <div className="share-segments" role="group" aria-label="Picture type">
         <button type="button" className={mode === 'card' ? 'on' : ''} aria-pressed={mode === 'card'} onClick={() => { setMode('card'); setMessage('') }}>Card</button>
         <button type="button" className={mode === 'sticker' ? 'on' : ''} aria-pressed={mode === 'sticker'} onClick={() => { setMode('sticker'); setMessage('') }}>My photo + sticker</button>

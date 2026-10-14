@@ -1328,3 +1328,8 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .equip-seg > button { flex: 1; padding: 9px 4px; font-size: 13px; }
 .equip-seg > button.on { background: var(--accent); color: #101114; }
 .equip-actions { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); display: grid; gap: 8px; padding: 10px 0 calc(16px + env(safe-area-inset-bottom)); margin-bottom: calc(-16px - env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--card) 82%, transparent); }
+/* Thumbs-down choices, and the nudges above a workout preview */
+.sheet-choice { display: grid; grid-template-columns: 1fr; justify-content: stretch; gap: 2px; text-align: left; justify-items: start; padding: 14px 16px; }
+.sheet-choice b { font-size: 16px; }
+.train-offer, .save-offer { display: grid; gap: 8px; }
+.train-offer .row, .save-offer .row { gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
