@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Logo } from '../App'
+import { GOOGLE_BIRTHDAY_ON } from '../googleAge'
 
 const CONTACT_EMAIL = 'wdorielan1@gmail.com'
 const UPDATED = 'October 8, 2026'
@@ -20,7 +21,7 @@ export default function Privacy() {
       <h2>Information we collect</h2>
       <ul>
         <li><b>Account information:</b> your name and email address, and your password (stored securely by our authentication provider, never in plain text). If you sign in with Google, we receive your name and email from Google.</li>
-        <li><b>Age check:</b> right after you sign up (and once for accounts made before this check existed) we ask for your date of birth to make sure you are 13 or older. We do not save the date. We only save that you passed, and the day you did.</li>
+        <li><b>Age check:</b> right after you sign up (and once for accounts made before this check existed) we ask for your date of birth to make sure you are 13 or older. We do not save the date. We only save that you passed, and the day you did.{GOOGLE_BIRTHDAY_ON && ' If you sign in with Google, we ask Google for the birthday on your Google account instead (only if you allow it on Google’s permission screen), use it only to check your age, and do not keep it.'}</li>
         <li><b>Fitness profile:</b> goal, experience level, training days and time, equipment and how often you use each kind, current and target weight, cardio preference, any injuries or exercises you ask us to avoid, the lifts you hide, and which lifts you skip, finish and save (used only to improve your own suggestions).</li>
         <li><b>Activity you log:</b> workouts (weights, reps, sets, RPE, notes), cardio sessions, body weight, nutrition check-ins, and your streaks.</li>
         <li><b>Community activity:</b> the crews you join, your daily “I’m going” and “Workout complete” check-ins, and messages you post.</li>

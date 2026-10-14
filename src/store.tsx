@@ -4,6 +4,7 @@ import { supabase, fetchCrews, ensureMemberCloud, ensureProfileCard, publishProf
 import { computeStats } from './profileStats'
 import { DEFAULT_SETTINGS } from './data'
 import { withRequestTimeout, withTimeout } from './photos'
+import { GOOGLE_BIRTHDAY_ON, GOOGLE_SCOPES, rememberGoogleToken } from './googleAge'
 
 /** signUp returns this (instead of an error) when the person must confirm their email first */
 export const CONFIRM_EMAIL = 'confirm-email'
@@ -212,6 +213,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     loaded.current = false // an explicit retry must read again
     const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => {
+      // right after Google sign in the session carries Google's own token; keep it in memory to read the birthday once (age page)
+      if (session?.provider_token && session.user?.app_metadata?.provider === 'google') rememberGoogleToken(session.provider_token)
       if (ev === 'SIGNED_OUT') { authEvents++; if (scheduled) clearTimeout(scheduled); void hydrate(null) }
       else if ((ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION' || ev === 'TOKEN_REFRESHED') && session?.user) { authEvents++; schedule(session.user) }
     })
@@ -296,7 +299,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const googleIn = (e: string, name: string) => begin(e.toLowerCase(), name)
   const googleOAuth = async () => {
     if (!supabase) return 'Backend not configured.'
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } })
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, ...(GOOGLE_BIRTHDAY_ON ? { scopes: GOOGLE_SCOPES } : {}) } })
     return error ? error.message : null
   }
   const logOut = () => {

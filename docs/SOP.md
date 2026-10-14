@@ -23,6 +23,7 @@ Local check before pushing: `npx tsc --noEmit` then `npm run build`.
 - Environment variables (Amplify → Hosting → Environment variables):
   - `VITE_SUPABASE_URL` = `https://fbwufmdfhcexjxfgiqnh.supabase.co`
   - `VITE_SUPABASE_ANON_KEY` = the **publishable** key (Supabase → Project Settings → API Keys, starts `sb_publishable_`).
+  - `VITE_GOOGLE_BIRTHDAY` = `1` (optional, off when empty). Only after the Google Cloud steps in `docs/TODO.md` (Legal and compliance, item 1). Not a secret.
 - Never use the secret or `service_role` key in the app or in Amplify front-end variables.
 - After changing a variable, redeploy (Amplify → Redeploy this version).
 

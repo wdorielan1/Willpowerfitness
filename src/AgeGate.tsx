@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from './App'
 import { useApp } from './store'
 import { todayISO } from './engine'
 import { MIN_AGE, NOT_ALLOWED_MESSAGE, checkAge, isBlocked, markBlocked } from './age'
+import { googleAge } from './googleAge'
 
 /** A date of birth box with its one-line note. */
 export function DobField({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
@@ -24,6 +25,20 @@ export function AgeGate() {
   const [dob, setDob] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [young, setYoung] = useState(() => isBlocked())
+  // someone who just signed in with Google may not need to be asked: Google's own birthday gives the answer (see src/googleAge.ts)
+  const [checking, setChecking] = useState(() => !isBlocked() && !!googleAge())
+  useEffect(() => {
+    const p = isBlocked() ? null : googleAge()
+    if (!p) return
+    let alive = true
+    void p.then((r) => {
+      if (!alive) return
+      if (r === 'ok') update((d) => ({ ...d, ageConfirmed: todayISO() }))
+      else if (r === 'young') { markBlocked(); setYoung(true) }
+      setChecking(false)
+    })
+    return () => { alive = false }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = (ev: React.FormEvent) => {
     ev.preventDefault()
@@ -32,6 +47,8 @@ export function AgeGate() {
     if (r.reason === 'young') { markBlocked(); setYoung(true); return }
     setErr(r.message)
   }
+
+  if (checking) return <div className="auth" style={{ justifyItems: 'center' }}><Logo size={64} /></div>
 
   return (
     <div className="auth age-gate">
