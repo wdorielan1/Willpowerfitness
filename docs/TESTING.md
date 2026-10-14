@@ -20,6 +20,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A date that makes you under 13 (try a birthday tomorrow, 13 years ago): "Will Power is for people 13 and older, so we can't let you use it." Only Log out is left, and reloading still shows it. After logging out, the sign up page on that phone says it can't create an account for a day, and "I already have an account" goes to Log in
 - [ ] Same second page after real Google sign in (you land on it after Google sends you back). If you sign up by email and have to confirm by email, you see it after you confirm and log in
 - [ ] An account that was never checked (everyone who signed up before this): the next open shows the same second page before anything else; Terms and Privacy open from it; once passed it never comes back
+- [ ] (Only after the Google Cloud steps in docs/TODO.md are done and VITE_GOOGLE_BIRTHDAY=1 is set in Amplify.) Sign in with Google using an account that has a birthday with a year: Google's permission screen lists the birthday, and after allowing it you skip the age page and land in onboarding. Nothing about the birthday is saved (check Export my data)
+- [ ] (Same setup.) Google account with no birthday or no year, or untick the birthday permission on Google's screen: you get the normal age page. Sign in with email: the normal age page
+- [ ] (Same setup.) Normal Google sign in still works for an existing member and shows their name and photo; while VITE_GOOGLE_BIRTHDAY is empty Google asks for no birthday permission at all
 - [ ] After the check, look in your account data (Settings > Export my data JSON): it has an ageConfirmed day and no date of birth anywhere
 
 ## 2. Onboarding
