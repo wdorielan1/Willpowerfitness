@@ -4,6 +4,8 @@ import { Logo } from '../App'
 import { CONFIRM_EMAIL, useApp } from '../store'
 import { TAGLINE } from '../data'
 import { cloudEnabled } from '../cloud'
+import { checkAge, isBlocked, markBlocked, rememberPass, YOUNG_MESSAGE } from '../age'
+import { DobField } from '../AgeGate'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 
@@ -28,6 +30,21 @@ export default function Auth() {
   const [busy, setBusy] = useState(false)
   const [demoGoogle, setDemoGoogle] = useState(false)
   const gbtn = useRef<HTMLDivElement>(null)
+  // signing up asks for a date of birth first (email or Google); it is only used to check they are 13 or older and is never kept
+  const [dob, setDob] = useState('')
+  const [dobErr, setDobErr] = useState<string | null>(null)
+  const [blocked, setBlocked] = useState(() => isBlocked())
+  const modeRef = useRef(mode); modeRef.current = mode
+  const passAgeRef = useRef<(email?: string) => boolean>(() => false)
+  const dobRef = useRef(dob); dobRef.current = dob
+  /** True when they may go on. Under 13 stops here and this device won't take another answer for a day. */
+  const passAge = (email?: string): boolean => {
+    const r = checkAge(dobRef.current)
+    if (r.ok) { setDobErr(null); rememberPass(email); return true }
+    if (r.reason === 'young') { markBlocked(); setBlocked(true) } else setDobErr(r.message)
+    return false
+  }
+  passAgeRef.current = passAge
 
   useEffect(() => {
     if (!CLIENT_ID || cloudEnabled) return
@@ -41,6 +58,7 @@ export default function Auth() {
         client_id: CLIENT_ID,
         callback: (r: { credential: string }) => {
           const u = decodeJwt(r.credential)
+          if (modeRef.current === 'signup' && !passAgeRef.current(u.email)) return
           googleIn(u.email, u.name ?? u.email.split('@')[0])
         },
       })
@@ -52,8 +70,9 @@ export default function Auth() {
 
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault()
-    setBusy(true)
     setErr(null)
+    if (mode === 'signup' && !passAge(email)) return
+    setBusy(true)
     const res = mode === 'signup' ? await signUp(name.trim() || email.split('@')[0], email, pw) : await logIn(email, pw)
     setBusy(false)
     if (res === CONFIRM_EMAIL) { nav(`/check-email?e=${encodeURIComponent(email.trim().toLowerCase())}`); return }
@@ -70,8 +89,15 @@ export default function Auth() {
         <p className="mute">The accountability community for people who need help showing up. Free during beta.</p>
       </div>
 
+      {mode === 'signup' && blocked ? (
+        <div className="card" role="alert">
+          <p>{YOUNG_MESSAGE}</p>
+          <button type="button" className="ghost" onClick={() => setMode('login')}>I already have an account</button>
+        </div>
+      ) : <>
+      {mode === 'signup' && <div className="card"><DobField value={dob} onChange={(v) => { setDob(v); setDobErr(null) }} error={dobErr} />{dobErr && <div className="err" role="alert">{dobErr}</div>}</div>}
       {cloudEnabled ? (
-        <button className="google full" onClick={async () => { const r = await googleOAuth(); if (r) setErr(r) }}>Continue with Google</button>
+        <button className="google full" onClick={async () => { if (mode === 'signup' && !passAge()) return; const r = await googleOAuth(); if (r) setErr(r) }}>Continue with Google</button>
       ) : CLIENT_ID ? (
         <div ref={gbtn} style={{ display: 'grid', justifyItems: 'center' }} />
       ) : demoGoogle ? (
@@ -81,7 +107,7 @@ export default function Auth() {
           <button className="primary">Continue</button>
         </form>
       ) : (
-        <button className="google full" onClick={() => setDemoGoogle(true)}>Continue with Google</button>
+        <button className="google full" onClick={() => { if (mode === 'signup' && !passAge()) return; setDemoGoogle(true) }}>Continue with Google</button>
       )}
 
       <div className="divider">or use email</div>
@@ -98,6 +124,7 @@ export default function Auth() {
         <button className="primary" disabled={busy}>{mode === 'signup' ? 'Join free' : 'Log in'}</button>
         <p className="small mute" style={{ textAlign: 'center' }}>By continuing you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>.</p>
       </form>
+      </>}
     </div>
   )
 }

@@ -1333,3 +1333,7 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .sheet-choice b { font-size: 16px; }
 .train-offer, .save-offer { display: grid; gap: 8px; }
 .train-offer .row, .save-offer .row { gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
+/* Date of birth on sign up and on the age gate */
+.dob { display: grid; gap: 6px; }
+.dob input[type=date] { min-height: 48px; }
+.age-gate .card { display: grid; gap: 12px; }

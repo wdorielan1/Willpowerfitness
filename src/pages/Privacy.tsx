@@ -20,6 +20,7 @@ export default function Privacy() {
       <h2>Information we collect</h2>
       <ul>
         <li><b>Account information:</b> your name and email address, and your password (stored securely by our authentication provider, never in plain text). If you sign in with Google, we receive your name and email from Google.</li>
+        <li><b>Age check:</b> when you sign up (and once for accounts made before this check existed) we ask for your date of birth to make sure you are 13 or older. We do not save the date. We only save that you passed, and the day you did.</li>
         <li><b>Fitness profile:</b> goal, experience level, training days and time, equipment and how often you use each kind, current and target weight, cardio preference, any injuries or exercises you ask us to avoid, the lifts you hide, and which lifts you skip, finish and save (used only to improve your own suggestions).</li>
         <li><b>Activity you log:</b> workouts (weights, reps, sets, RPE, notes), cardio sessions, body weight, nutrition check-ins, and your streaks.</li>
         <li><b>Community activity:</b> the crews you join, your daily “I’m going” and “Workout complete” check-ins, and messages you post.</li>
@@ -70,7 +71,7 @@ export default function Privacy() {
       <p>We keep your information while your account is active and delete it after you request deletion, except where we must keep it for legal reasons. We use industry-standard safeguards, but no online service can be completely secure.</p>
 
       <h2>Children</h2>
-      <p>Will Power is not intended for children under 13, and we do not knowingly collect their information. If you believe a child has given us information, contact us and we will delete it.</p>
+      <p>Will Power is not intended for children under 13, and we do not knowingly collect their information. We ask for a date of birth at sign up and stop anyone who says they are under 13. If you believe a child has given us information, contact us and we will delete it.</p>
 
       <h2>Not medical advice</h2>
       <p>Workout and nutrition suggestions in the app are general information, not medical advice. Talk to a doctor before starting a new exercise or nutrition program.</p>

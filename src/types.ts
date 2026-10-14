@@ -112,6 +112,8 @@ export interface Settings {
 
 export interface AppData {
   name: string
+  /** The day they confirmed they are 13 or older. Their date of birth is never saved. */
+  ageConfirmed?: string
   profile: Profile | null
   joined: string[]
   primary: string | null

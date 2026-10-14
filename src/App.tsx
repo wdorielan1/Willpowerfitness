@@ -30,6 +30,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import Notifications, { NotificationBell } from './Notifications'
 import Search from './pages/Search'
+import { AgeGate } from './AgeGate'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power" />
@@ -77,6 +78,8 @@ export default function App() {
       </>
     )
   }
+  // everyone's age is checked once: new sign ups on the sign up page, everyone else here
+  if (!data.ageConfirmed) return <Routes><Route path="/privacy" element={<Privacy />} /><Route path="/terms" element={<Terms />} /><Route path="*" element={<AgeGate />} /></Routes>
   if (!data.profile) return <Onboarding />
   return (
     <RestTimerProvider>
