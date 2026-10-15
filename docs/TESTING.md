@@ -340,6 +340,20 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Delete Bob's account: Alice's followers count drops by one and the code still cannot be used by anyone else
 - [ ] Sharing from an iPhone: the share sheet opens straight away when you tap Share invite (no delay or error)
 
+## Smarter workouts step 3: skip check-ins (Train page and the workout screen)
+- [ ] Start a Legs (or any) workout. Swipe a lift left, or tap the thumbs-down then "Not today": the note says "Removed ..." with Undo and a small "Not your equipment? Tune it". Tap Tune it: the "What do you use?" screen opens, and Skip for now closes it with nothing changed
+- [ ] Skip a second lift in the same workout. If both need a gym (barbell, machine, cable) you see "Skipping a few lifts?" and "Are you at the gym today?" with I'm at home, I'm at the gym, Keep going, and "Don't ask me this again"
+- [ ] Tap "I'm at home": the rest of the lifts that need a gym (and that you haven't started) become dumbbell or bodyweight lifts, the note says how many, and a lift you already logged a set on is NOT changed. Tap Undo: it goes back. Swap and Add on that day offer only dumbbell and bodyweight lifts
+- [ ] Skip two lifts of the same kind (for example two dumbbell lifts, or two bodyweight lifts): "Want fewer dumbbells?" with "Fewer" and "Never use dumbbells". Never: the rest of today's lifts of that kind are swapped, lifts you already did stay, and after a reload today's list is exactly the same. The next day's plan follows the new choice
+- [ ] Skip two lifts with no pattern: "Is your equipment set up right?" with Tune my equipment
+- [ ] After the question has shown once, a third skip, or a reload, does not ask again that day
+- [ ] Settings > Workout has "Check in when I skip lifts or workouts". Off: no Tune it link and no question. "Don't ask me this again" in the sheet turns it off there too
+- [ ] Miss two scheduled workouts in a row (or skip them on purpose in the week card), then open Train: a card "What's in the way?" sits above the session buttons and says "You've missed your last two workouts" (or "...Legs twice")
+- [ ] "I don't like the lifts": pick two, tap Stop suggesting 2. They disappear from today's list, and they appear in Settings > Training under Hidden exercises with Show again
+- [ ] "Wrong equipment": the equipment screen opens; changing something and saving updates today's list. "No time": Shorter session turns on. "Tired or hurt": Cardio / recovery is picked with a Log cardio button
+- [ ] "Not now" quiets it for a week; "Don't ask again" turns it off. A brand-new account, or someone who is training again (latest session done), is never asked
+- [ ] On a Shoulders + Abs day with Legs as a focus area (so a leg lift is in the plan): swipe right on the leg lift. You get a shoulders or abs lift, not more leg work. Swipe right on a shoulders lift: you still get another shoulders lift
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
