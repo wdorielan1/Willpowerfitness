@@ -31,7 +31,7 @@ Supabase dashboard > **Authentication** > **Emails** > **Templates**. For each t
 | Invite user | You’re invited to Will Power | `invite-user.html` (sent when you invite someone from Authentication > Users > Invite user) |
 | Magic link or OTP | Your Will Power sign-in code | `magic-link.html` (shows the 6-digit code, see "Sign-in codes" below) |
 | Change email address | Confirm your new email for Will Power | `change-email.html` (uses `{{ .Email }}` and `{{ .NewEmail }}`) |
-| Reset password | Reset your Will Power password | `reset-password.html` (the app doesn't use this one today: forgot password works through the sign-in code below. It is only sent if you use "Send password recovery" in the dashboard) |
+| Reset password | Reset your Will Power password | `reset-password.html` (the app's own forgot password uses the sign-in code below, so this email only goes out if you use "Send password recovery" in the dashboard. It tells the person to use "Forgot password? Email me a code" instead of linking to a reset page the app doesn't have) |
 | Reauthentication | Your Will Power confirmation code | `reauthentication.html` (shows a code; only used if the app ever asks people to confirm a sensitive change) |
 
 The files use Supabase's placeholders (`{{ .ConfirmationURL }}`, `{{ .Token }}`, `{{ .SiteURL }}`, `{{ .Email }}`, `{{ .NewEmail }}`). Supabase fills these in each time it sends, so paste them exactly as they are, with the double curly braces. Set **Authentication > URL Configuration > Site URL** to `https://wilpow.com` so the logo and links point at your site. Add `https://wilpow.com/**` under Redirect URLs.
