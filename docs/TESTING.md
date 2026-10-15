@@ -294,6 +294,17 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The page title and link preview show the person's name
 - [ ] The rest of the app still works after the base path change (icons, exercise photos, map, install to home screen)
 
+## Delete my account (needs the delete-account function deployed first; test with a throwaway account only)
+- [ ] Settings, at the bottom of Account: a red "Delete my account" link under Log out
+- [ ] The sheet lists what goes (profile, workouts, photos, crew posts, comments, likes, follows, notifications, challenges you created), says a crew you started that others are in passes to its longest-standing member, and offers Export your data and a note about Google's connected apps
+- [ ] The red button stays off until you type DELETE (any capitals); Cancel closes everything and changes nothing
+- [ ] Before the function is deployed: the sheet says "Account deletion isn't switched on yet." and nothing is deleted
+- [ ] With a throwaway account that has a progress photo, a crew post with a photo and a comment: delete it. You are signed out and the next screen says "Your account has been deleted." once (OK dismisses it). In Supabase: the user is gone from Authentication > Users, their rows are gone (profiles, crew_posts, comments), and their files are gone from Storage (progress-photos and crew-photos). Logging in again says the email or password is incorrect, and signing up again with that email works
+- [ ] Delete a throwaway account that started a crew with another member: the crew is still there and now belongs to the other member. Delete one that started a crew nobody else joined: the crew and its files are gone
+- [ ] Other people's posts, comments and photos in a crew you were in are untouched, and your posts and comments disappear from their feeds
+- [ ] Sign up as a throwaway with a date of birth under 13: the blocked screen has a Delete my account button and it works the same way; signing up on that phone is still blocked for the day
+- [ ] If it fails (for example turn off the phone's connection and try): the sheet shows why and you stay signed in to try again
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
