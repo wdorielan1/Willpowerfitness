@@ -31,6 +31,7 @@ import Terms from './pages/Terms'
 import Notifications, { NotificationBell } from './Notifications'
 import Search from './pages/Search'
 import { AgeGate } from './AgeGate'
+import { ChoosePassword } from './ChoosePassword'
 
 export const Logo = ({ size = 32 }: { size?: number }) => (
   <img src={`${import.meta.env.BASE_URL}logo.svg`} width={size} height={size} alt="Will Power" />
@@ -58,7 +59,7 @@ function ScrollTop() {
 }
 
 export default function App() {
-  const { email, data, loading, accountError, syncError, retryAccount, logOut } = useApp()
+  const { email, data, loading, accountError, syncError, retryAccount, logOut, choosePassword } = useApp()
   const loc = useLocation()
   const [accountMenu, setAccountMenu] = useState(false)
   const today = todayISO()
@@ -86,6 +87,7 @@ export default function App() {
       </>
     )
   }
+  if (choosePassword) return <ChoosePassword /> // they just signed in with an emailed code
   // everyone's age is checked once: new sign ups on the sign up page, everyone else here
   if (!data.ageConfirmed) return <Routes><Route path="/privacy" element={<Privacy />} /><Route path="/terms" element={<Terms />} /><Route path="*" element={<AgeGate />} /></Routes>
   if (!data.profile) return <Onboarding />

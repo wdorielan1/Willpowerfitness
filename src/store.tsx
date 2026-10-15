@@ -74,6 +74,14 @@ interface Ctx {
   signUp: (name: string, email: string, password: string) => Promise<string | null>
   logIn: (email: string, password: string) => Promise<string | null>
   googleIn: (email: string, name: string) => void
+  /** Emails a one-time sign-in code to an existing account. Unknown addresses look the same as known ones. Returns a message when it fails. */
+  sendCode: (email: string) => Promise<string | null>
+  /** Signs in with the emailed code. Asks them to choose a new password straight after (they can skip). Returns a message when it fails. */
+  verifyCode: (email: string, code: string) => Promise<string | null>
+  /** True while the "Choose a new password" screen is showing after a code sign-in. */
+  choosePassword: boolean
+  /** Saves the new password, or `null` to skip. Returns a message when it fails. */
+  setPassword: (password: string | null) => Promise<string | null>
   /** Deletes the signed-in account for good (and everything it holds), then signs out. Returns a message when it fails. */
   deleteAccount: () => Promise<string | null>
   logOut: () => void
@@ -89,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [accountError, setAccountError] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [choosePassword, setChoosePassword] = useState(false)
   const [retry, setRetry] = useState(0)
   const loaded = useRef(false)
   const [data, setData] = useState<AppData>(() => {
@@ -152,7 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         hydration.current++; activeUser.current = null; loaded.current = false; pending.current = null
         write(SESSION, null)
         dataRef.current = blankData('')
-        setUserId(null); setGooglePhoto(null); setMyAvatar(null, null); setEmail(null); setData(blankData('')); setLoading(false)
+        setUserId(null); setGooglePhoto(null); setMyAvatar(null, null); setEmail(null); setData(blankData('')); setLoading(false); setChoosePassword(false)
         setAccountError(null); setSyncError(null)
         return
       }
@@ -300,6 +309,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     begin(key, acc.name)
     return null
   }
+  // ---- sign-in codes: forgot password, and signing in without one ----
+  const sendCode: Ctx['sendCode'] = async (e) => {
+    const key = e.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(key)) return 'Enter a valid email.'
+    if (!supabase) return 'Sign-in codes need an online account.'
+    // shouldCreateUser: false so a code can never start a sign up (that goes through the age check)
+    const { error } = await supabase.auth.signInWithOtp({ email: key, options: { shouldCreateUser: false } })
+    if (!error) return null
+    const said = `${error.code ?? ''} ${error.message}`.toLowerCase()
+    if (error.status === 429 || said.includes('rate') || said.includes('seconds')) return 'Please wait a minute before asking for another code.'
+    if (said.includes('otp_disabled') || said.includes('signups not allowed')) return null // no account for that email: answer exactly as if there were one
+    return error.message
+  }
+  const verifyCode: Ctx['verifyCode'] = async (e, code) => {
+    if (!supabase) return 'Sign-in codes need an online account.'
+    const token = code.replace(/\D/g, '')
+    if (token.length < 6) return 'Enter the 6-digit code from the email.'
+    setChoosePassword(true) // set first: the code signs them in, and the screen only shows once they are
+    const { error } = await supabase.auth.verifyOtp({ email: e.trim().toLowerCase(), token, type: 'email' })
+    if (!error) return null
+    setChoosePassword(false)
+    const said = `${error.code ?? ''} ${error.message}`.toLowerCase()
+    if (said.includes('expired') || said.includes('invalid')) return 'That code is wrong or has expired. Use the newest email, or ask for a new code.'
+    if (error.status === 429 || said.includes('rate')) return 'Too many tries. Wait a few minutes and ask for a new code.'
+    return error.message
+  }
+  const setPassword: Ctx['setPassword'] = async (password) => {
+    if (password !== null) {
+      if (password.length < 6) return 'Password must be at least 6 characters.'
+      if (!supabase) return 'Sign in first.'
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) return (error.code ?? '') === 'same_password' ? 'Pick a password you haven’t used before.' : error.message
+    }
+    setChoosePassword(false)
+    return null
+  }
   const googleIn = (e: string, name: string) => begin(e.toLowerCase(), name)
   const googleOAuth = async () => {
     if (!supabase) return 'Backend not configured.'
@@ -386,5 +431,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMyAvatar(userId, next)
     if (userId) void syncMyAvatar(userId, next)
   }
-  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, saveState, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, deleteAccount, logOut }}>{children}</C.Provider>
+  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, saveState, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, deleteAccount, sendCode, verifyCode, choosePassword, setPassword, logOut }}>{children}</C.Provider>
 }

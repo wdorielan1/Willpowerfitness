@@ -28,8 +28,8 @@ Supabase dashboard > **Authentication** > **Emails** > **Templates**. For each t
 | Template in Supabase | Subject line | File |
 |---|---|---|
 | Confirm sign up | Confirm your email to join Will Power | `confirm-signup.html` |
-| Reset password | Reset your Will Power password | `reset-password.html` |
-| Magic link | Your Will Power sign-in link | `magic-link.html` |
+| Reset password | Reset your Will Power password | `reset-password.html` (the app doesn't use this one today: forgot password works through the sign-in code below) |
+| Magic link | Your Will Power sign-in code | `magic-link.html` (now shows the 6-digit code, see below) |
 
 The files use Supabase's placeholders (`{{ .ConfirmationURL }}` and `{{ .SiteURL }}`). Set **Authentication > URL Configuration > Site URL** to `https://wilpow.com` so the logo and links point at your site. Add `https://wilpow.com/**` under Redirect URLs.
 
@@ -40,6 +40,24 @@ The files use Supabase's placeholders (`{{ .ConfirmationURL }}` and `{{ .SiteURL
 - Always send from the same address and name.
 - Test the score at mail-tester.com (send a sign-up email to the address it gives you). Aim for 9 out of 10 or better.
 - Watch Resend's dashboard for bounces and complaints. Fix a bad address list quickly.
+
+## Sign-in codes (forgot password, and signing in without a password)
+The Log in tab has "Forgot password? Email me a code". The person enters their email, we send a 6-digit code, they type it into the app and are signed in, then asked to choose a new password (they can skip). It is one flow for both "I forgot my password" and "I'd rather not use one".
+
+Why a code and not a link: on an iPhone, a link in an email opens in Safari, while the installed home-screen app keeps its own separate storage, so the link often cannot sign the app in. A code is typed into the app that is already open, so it always works.
+
+Owner steps, in the Supabase dashboard:
+1. **Authentication > Emails > Templates > Magic Link**: paste `docs/email-templates/magic-link.html` and set the subject to `Your Will Power sign-in code`. The template must contain `{{ .Token }}`, which is the code. (The app asks Supabase for a code through its "Magic Link" template.)
+2. **Authentication > Sign In / Providers > Email**: leave **Email OTP Length** at 6. Set **Email OTP Expiration** to about 900 seconds (15 minutes) if you want codes to expire sooner than the default hour.
+3. Do Steps 1 and 2 above first. Supabase's built-in sender allows only a few emails an hour, so codes (and sign-up confirmations) would arrive late or not at all.
+4. Test with your own account: Log in tab > Forgot password > your email > type the code. You should land on "Choose a new password".
+
+Good to know:
+- A code can only sign in an account that already exists. It never creates one, so new sign-ups still go through the sign-up page and the age check.
+- If the email has no account, the screen looks the same as if it did ("If that email has an account, we've sent a code"), so nobody can use it to find out who has an account.
+- Someone who signed up but never confirmed their email gets the sign-up confirmation email instead (a link, not a code). The "Send it again" button on the Check your email page is the way for them.
+- Supabase allows one code per address per minute, so the app counts down 60 seconds before "Send a new code" works.
+- Anyone can ask for a code for any email address. That is the same as every "forgot password" form, and the code goes only to that inbox. The Cloudflare Turnstile item in `docs/TODO.md` is the extra protection against someone spamming it.
 
 ## Later: follow notifications
 The same email service can send "X started following you" emails. See the TODO item "Email service (follows and sign-in)".
