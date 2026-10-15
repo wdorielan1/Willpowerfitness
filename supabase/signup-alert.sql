@@ -6,6 +6,7 @@
 -- only thing keeping your alerts private: treat it like a password and do not commit the real one anywhere. If you used the
 -- example topic from an earlier chat message, pick a new one now.
 --
+-- Priority 4 ("high") makes the phone play a sound and vibrate; the default priority can arrive silently.
 -- The alert says only "New signup #12 (google)": the count and how they signed up, never a name or email, because ntfy is a
 -- public service and people's addresses should not be sent to it.
 
@@ -16,7 +17,7 @@ create extension if not exists pg_net;
 
 select net.http_post(
   url := 'https://ntfy.sh',
-  body := jsonb_build_object('topic', 'YOUR-RANDOM-TOPIC', 'title', 'Will Power', 'message', 'Test alert'),
+  body := jsonb_build_object('topic', 'YOUR-RANDOM-TOPIC', 'title', 'Will Power', 'priority', 4, 'message', 'Test alert'),
   headers := '{"Content-Type":"application/json"}'::jsonb
 );
 
@@ -39,6 +40,7 @@ begin
     body := jsonb_build_object(
       'topic', 'YOUR-RANDOM-TOPIC',
       'title', 'Will Power',
+      'priority', 4,
       'message', 'New signup #' || n || ' (' || coalesce(new.raw_app_meta_data->>'provider', 'email') || ')'
     ),
     headers := '{"Content-Type":"application/json"}'::jsonb
