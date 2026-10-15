@@ -313,6 +313,21 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A real sign-up on the app (email, and Google in a private window) still works and buzzes. The message has only the count and "(email)" or "(google)", never a name or email
 - [ ] With the topic deliberately mistyped in the function, sign-up still works (the alert just fails quietly and "signup alert failed" appears in Logs > Postgres Logs)
 
+## Forgot password and sign-in codes (needs the Magic Link email template pasted into Supabase first, see docs/EMAIL.md)
+- [ ] Log in tab: a small "Forgot password? Email me a code" link under Log in. It is not on the Sign up tab
+- [ ] Tap it: the Google button and the password form go away, and you see "Get a sign-in code" with your email. A bad address is refused. "Back to log in" returns to the normal form
+- [ ] Enter your own email and tap Email me a code: the email arrives with "Your sign-in code" and a 6-digit code (check spam). The code screen says "If your email has an account, we've sent it a 6-digit code"
+- [ ] "Send a new code" is greyed with a countdown (about a minute), then works. "Use a different email" goes back
+- [ ] On an iPhone, tapping the code box offers the code from the email above the keyboard. Letters you type are ignored
+- [ ] A wrong code says "That code is wrong or has expired" and you can try again. A code that is too short is refused
+- [ ] The right code signs you in and shows "Choose a new password". Under 6 characters is refused. Save: you land in the app, then log out and log in with the new password to prove it
+- [ ] Do it again and tap "Skip for now": you land in the app and the old password still works. The screen does not come back after a reload
+- [ ] Type an email that has no account: the screen looks exactly the same as for a real one, and no code arrives
+- [ ] Ask for codes too fast: it says to wait a minute, in plain words
+- [ ] Works inside the installed home-screen app on iPhone (the whole reason for a code instead of a link): request the code in the app, read it in Mail, type it back in the app
+- [ ] A Google-only account (no password ever set) can use a code too and then set a password
+- [ ] A device-only account (no online backend, for example a local test build): the link does not show
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
