@@ -19,7 +19,8 @@ export default function Auth() {
   const nav = useNavigate()
   useEffect(() => {
     const ref = params.get('ref'), crew = params.get('crew'), u = params.get('u')
-    if (ref || crew || u) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew, u })) } catch { /* storage unavailable */ } }
+    const code = params.get('inv'), inv = code && /^[A-Za-z0-9]{16,64}$/.test(code) ? code : null
+    if (ref || crew || u || inv) { try { localStorage.setItem('wpf.invite', JSON.stringify({ ref, crew, u, inv })) } catch { /* storage unavailable */ } }
   }, [params])
   const [mode, setMode] = useState<'signup' | 'login'>(params.get('m') === 'login' ? 'login' : 'signup')
   const [name, setName] = useState('')

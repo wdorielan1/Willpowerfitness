@@ -519,6 +519,18 @@ export async function findByEmails(emails: string[]): Promise<PublicProfile[]> {
 }
 export async function followCloud(userId: string, friendId: string) { await supabase?.from('follows').upsert({ user_id: userId, friend_id: friendId }) }
 export async function unfollowCloud(userId: string, friendId: string) { await supabase?.from('follows').delete().eq('user_id', userId).eq('friend_id', friendId) }
+
+const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+/** A random one-time invite code (supabase/invites.sql). The plain-looking link still works without it, so a failure is just null. */
+export async function createInviteCode(userId: string): Promise<string | null> {
+  if (!supabase) return null
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const code = Array.from(bytes, (b) => CODE_CHARS[b % CODE_CHARS.length]).join('')
+  const { error } = await supabase.from('invites').insert({ code, inviter_id: userId })
+  return error ? null : code
+}
+/** Redeems an invite code for the signed-in person, so they and whoever invited them follow each other. Quietly does nothing when the code is used up, too old, or unknown. */
+export async function acceptInvite(code: string): Promise<void> { await supabase?.rpc('accept_invite', { p_code: code }) }
 /** A person you can follow: from a crew you share, a search, or the people who already follow you. */
 export interface Person { userId: string; name: string; handle: string | null; avatar: string | null; bio: string | null; isPublic: boolean; stats: ProfileStats | null; followers: number | null; following: number | null; crews: string[]; streak: number; iFollow: boolean; followsMe: boolean }
 

@@ -4,7 +4,7 @@ import { Logo } from '../App'
 import { useApp } from '../store'
 import { todayISO } from '../engine'
 import { withTimeout } from '../photos'
-import { ensureProfileCard, followCloud, handleToUser, joinCrewCloud } from '../cloud'
+import { acceptInvite, ensureProfileCard, followCloud, handleToUser, joinCrewCloud } from '../cloud'
 import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
 import { suggestCrews } from '../matching'
@@ -38,7 +38,7 @@ export default function Onboarding() {
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
   const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
 
-  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null; u?: string | null } | null } catch { return null } })()
+  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null; u?: string | null; inv?: string | null } | null } catch { return null } })()
   const invitedCrew = invite?.crew ? allCommunities(data.custom).find((c) => c.id === invite.crew) : undefined
   const base = suggestCrews(p, COMMUNITIES as CommunityDef[])
   const sugg = invitedCrew ? [{ crew: invitedCrew, score: 99, reasons: ['A friend invited you'] }, ...base.filter((s) => s.crew.id !== invitedCrew.id)] : base
@@ -57,6 +57,7 @@ export default function Onboarding() {
       }))
       if (saveError) throw new Error(saveError)
       if (userId) void ensureProfileCard(userId, data.name || 'Member', null, email).then((r) => { if (r) update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic })) }).catch(() => {})
+      if (userId && invite?.inv) void acceptInvite(invite.inv).catch(() => {}) // they and whoever invited them follow each other
       if (userId && invite?.u && invite.u !== userId) void followCloud(userId, invite.u).catch(() => {})
       else if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
       try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }

@@ -6,7 +6,7 @@ import { Avatar } from '../components'
 import SocialTabs from '../SocialTabs'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
-import { cloudEnabled, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
+import { cloudEnabled, createInviteCode, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
 import { streak } from '../engine'
 
 type ContactPicker = { select: (props: string[], opts: { multiple: boolean }) => Promise<{ email?: string[] }[]> }
@@ -35,15 +35,35 @@ export default function Friends() {
     void ensureProfileCard(userId, data.name || 'Member', null, email).then((r) => { if (r) { setHandle(r.handle); update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic })) } }).catch(() => {})
   }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : ''].filter(Boolean).join('&')}`
+  // A one-time code makes the follow go both ways when they join (supabase/invites.sql). It is made ahead of the tap, because
+  // the phone's share sheet only opens straight from a tap. Without one (not set up yet, or offline) the plain link still works.
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const codeKey = userId ? `wpf.inviteCode.${userId}` : ''
+  const freshCode = () => {
+    if (!userId || !cloudEnabled) return
+    void createInviteCode(userId).then((c) => {
+      setInviteCode(c)
+      try { if (c) localStorage.setItem(codeKey, `${c}|${Date.now()}`); else localStorage.removeItem(codeKey) } catch { /* storage unavailable */ }
+    }).catch(() => {})
+  }
+  useEffect(() => {
+    if (!userId || !cloudEnabled) return
+    let kept: string[] = []
+    try { kept = (localStorage.getItem(codeKey) ?? '').split('|') } catch { /* storage unavailable */ }
+    if (kept[0] && Date.now() - Number(kept[1]) < 7 * 86400000) setInviteCode(kept[0]) // a code nobody has been sent yet
+    else freshCode()
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const usedCode = () => { setInviteCode(null); try { localStorage.removeItem(codeKey) } catch { /* storage unavailable */ } freshCode() }
+
+  const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : '', inviteCode ? `inv=${inviteCode}` : ''].filter(Boolean).join('&')}`
   const share = async () => {
     const text = 'Train with me on Will Power. Your workout. Your crew.'
-    try { if (navigator.share) { await navigator.share({ title: 'Will Power', text, url: link }); return } } catch { /* cancelled */ }
-    try { await navigator.clipboard.writeText(link); setCopied(true) } catch { setShowLink(true); setMsg('Copy your invite link below.') }
+    try { if (navigator.share) { await navigator.share({ title: 'Will Power', text, url: link }); if (inviteCode) usedCode(); return } } catch { /* cancelled */ }
+    try { await navigator.clipboard.writeText(link); setCopied(true); if (inviteCode) usedCode() } catch { setShowLink(true); setMsg('Copy your invite link below.') }
   }
 
   const copyLink = async () => {
-    try { await navigator.clipboard.writeText(link); setCopied(true) }
+    try { await navigator.clipboard.writeText(link); setCopied(true); if (inviteCode) usedCode() }
     catch { setShowLink(true); setMsg('Copy your invite link below.') }
   }
 
@@ -97,7 +117,8 @@ export default function Friends() {
 
       <section className="card friends-invite">
         <h2>Invite a friend</h2>
-        <p className="small mute">Send your link. {data.primary ? 'They’ll see your crew as their first suggestion, and they’ll follow you when they join.' : 'They’ll follow you when they join the free beta.'}</p>
+        <p className="small mute">Send your link. {data.primary ? 'They’ll see your crew as their first suggestion, and they’ll follow you when they join' : 'They’ll follow you when they join the free beta'}{inviteCode ? ', and you’ll follow them back.' : '.'}</p>
+        {inviteCode && <p className="small mute">Every share makes a fresh link. The follow back goes to the first person who joins with it.</p>}
         <div className="friends-invite-actions"><button className="primary" onClick={() => void share()}>Share invite<Icon name="arrow" size={18} /></button><button className="ghost" onClick={() => void copyLink()}>Copy link</button></div>
         {showLink && <input className="social-invite-url" readOnly value={link} aria-label="Your invite link" onFocus={(event) => event.currentTarget.select()} />}
         {copied && <p className="social-feedback" role="status">Invite link copied.</p>}
