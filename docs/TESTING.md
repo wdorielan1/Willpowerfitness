@@ -328,6 +328,18 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] A Google-only account (no password ever set) can use a code too and then set a password
 - [ ] A device-only account (no online backend, for example a local test build): the link does not show
 
+## Invite follow-back (needs supabase/invites.sql run first; test with two accounts, Alice who invites and Bob who joins)
+- [ ] Friends page: the Invite a friend card says "They'll follow you when they join the free beta, and you'll follow them back." plus "Every share makes a fresh link. The follow back goes to the first person who joins with it." (Before the SQL has run, it only says they'll follow you, and the link has no `inv=`)
+- [ ] As Alice, tap Share invite (or Copy link) and send the link to Bob. The link has `inv=` and a long code. Tap Copy link again: it is a different code
+- [ ] In a private window (or another phone), open Alice's link and sign up as Bob, finish setup. Bob follows Alice AND Alice follows Bob: Alice's Following and Followers both show Bob, and Bob's show Alice
+- [ ] Alice gets a "started following you" notification from Bob, and Bob gets one from Alice
+- [ ] Open the same link again and sign up as a third person, Carol: she follows Alice, but Alice does NOT follow her back (the code was used)
+- [ ] A link from before this change (no `inv=`) still works: the new person follows the inviter, nothing else
+- [ ] Making up a link by hand with Alice's id (`#/join?u=ALICE-ID`) and signing up does NOT make Alice follow the new person
+- [ ] Alice can unfollow Bob later, and Bob can unfollow Alice; neither is forced to follow again
+- [ ] Delete Bob's account: Alice's followers count drops by one and the code still cannot be used by anyone else
+- [ ] Sharing from an iPhone: the share sheet opens straight away when you tap Share invite (no delay or error)
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
