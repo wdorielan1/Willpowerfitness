@@ -69,7 +69,7 @@ export default function Privacy() {
       </ul>
 
       <h2>Retention and security</h2>
-      <p>We keep your information while your account is active and delete it after you request deletion, except where we must keep it for legal reasons. We use industry-standard safeguards, but no online service can be completely secure.</p>
+      <p>We keep your information while your account is active. You can delete your account yourself in Settings: that removes your profile, workouts, posts, comments, likes, follows, photos and videos from our database and file storage. Copies may stay in our hosting provider’s backups for a limited time, and we may keep limited records where the law requires it. We use industry-standard safeguards, but no online service can be completely secure.</p>
 
       <h2>Children</h2>
       <p>Will Power is not intended for children under 13, and we do not knowingly collect their information. We ask for a date of birth right after sign up and stop anyone who says they are under 13. If you believe a child has given us information, contact us and we will delete it.</p>

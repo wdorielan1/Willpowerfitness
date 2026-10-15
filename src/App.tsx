@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, Link, useLocation } from 'react-router-dom'
-import { useApp } from './store'
+import { DELETED, useApp } from './store'
 import { dayFor, todayISO } from './engine'
 import { Icon, type IconName } from './icons'
 import { Sheet } from './components'
@@ -44,6 +44,13 @@ const tabs: [string, string, IconName][] = [
   ['/nutrition', 'Nutrition', 'food'],
 ]
 
+/** Shown once after an account is deleted, on whatever signed-out page comes next. */
+function DeletedNotice() {
+  const [show, setShow] = useState(() => { try { return !!localStorage.getItem(DELETED) } catch { return false } })
+  if (!show) return null
+  return <div className="deleted-notice" role="status"><span>Your account has been deleted.</span><button onClick={() => { try { localStorage.removeItem(DELETED) } catch { /* storage unavailable */ } setShow(false) }}>OK</button></div>
+}
+
 function ScrollTop() {
   const { pathname } = useLocation()
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }) }, [pathname])
@@ -68,6 +75,7 @@ export default function App() {
     return (
       <>
       <ScrollTop />
+      <DeletedNotice />
       <Routes>
         <Route path="/join" element={<Auth />} />
         <Route path="/check-email" element={<CheckEmail />} />

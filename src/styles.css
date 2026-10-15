@@ -1339,3 +1339,7 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .age-gate .card { display: grid; gap: 12px; }
 /* Greeting at the top of the Today page */
 .greeting { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.2px; }
+/* Delete my account */
+.delete-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.deleted-notice { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--card2); border-bottom: 1px solid var(--line); font-weight: 650; }
+.deleted-notice button { min-height: 36px; padding: 6px 14px; border-radius: 10px; }

@@ -7,6 +7,7 @@ import MatchQuestions from '../MatchQuestions'
 import ProfileSettings from '../ProfileSettings'
 import { FocusPicker, SexPicker } from '../ProfilePickers'
 import { EquipmentPicker } from '../EquipmentPicker'
+import { DeleteAccountSheet } from '../DeleteAccount'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -27,6 +28,7 @@ export default function Settings() {
   const setP = <K extends keyof Profile>(k: K, v: Profile[K]) => update((d) => ({ ...d, profile: { ...d.profile!, [k]: v } }))
   const setS = (patch: Partial<S>) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
   const setRest = (k: keyof S['rest'], v: number) => setS({ rest: { ...s.rest, [k]: v } })
+  const [deleting, setDeleting] = useState(false)
   const [wText, setWText] = useState(String(p.weight))
   const [tText, setTText] = useState(String(p.target))
   const toggleDay = (i: number) => setP('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
@@ -164,6 +166,8 @@ export default function Settings() {
         <h2>Account</h2>
         <p className="small mute">{data.name} · {email}</p>
         <button className="ghost" onClick={logOut}>Log out</button>
+        <button className="link-danger" onClick={() => setDeleting(true)}>Delete my account</button>
+        {deleting && <DeleteAccountSheet onClose={() => setDeleting(false)} />}
         <div className="row wrap small mute"><Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy</Link><Link to="/terms" style={{ textDecoration: 'underline' }}>Terms</Link></div>
       </section>
     </>

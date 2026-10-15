@@ -5,6 +5,7 @@ import { useApp } from './store'
 import { todayISO } from './engine'
 import { MIN_AGE, NOT_ALLOWED_MESSAGE, checkAge, isBlocked, markBlocked } from './age'
 import { googleAge } from './googleAge'
+import { DeleteAccountSheet } from './DeleteAccount'
 
 /** A date of birth box with its one-line note. */
 export function DobField({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
@@ -25,6 +26,7 @@ export function AgeGate() {
   const [dob, setDob] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [young, setYoung] = useState(() => isBlocked())
+  const [deleting, setDeleting] = useState(false)
   // someone who just signed in with Google may not need to be asked: Google's own birthday gives the answer (see src/googleAge.ts)
   const [checking, setChecking] = useState(() => !isBlocked() && !!googleAge())
   useEffect(() => {
@@ -57,7 +59,9 @@ export function AgeGate() {
         <div className="card">
           <p role="alert">{NOT_ALLOWED_MESSAGE}</p>
           <p className="small mute">If you think this is a mistake, see the contact details on our <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy page</Link>.</p>
-          <button className="primary" onClick={logOut}>Log out</button>
+          <button className="primary" onClick={() => setDeleting(true)}>Delete my account</button>
+          <button className="ghost" onClick={logOut}>Log out</button>
+          {deleting && <DeleteAccountSheet onClose={() => setDeleting(false)} />}
         </div>
       ) : (
         <form className="card" onSubmit={submit} noValidate>

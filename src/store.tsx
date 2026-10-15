@@ -9,6 +9,8 @@ import { GOOGLE_BIRTHDAY_ON, GOOGLE_SCOPES, rememberGoogleToken } from './google
 /** signUp returns this (instead of an error) when the person must confirm their email first */
 export const CONFIRM_EMAIL = 'confirm-email'
 const SESSION = 'wpf.session'
+/** Set when an account has just been deleted, so the signed-out screen can say so once. */
+export const DELETED = 'wpf.deleted'
 const ACCOUNTS = 'wpf.accounts'
 const dataKey = (email: string) => `wpf.data.${email}`
 
@@ -72,6 +74,8 @@ interface Ctx {
   signUp: (name: string, email: string, password: string) => Promise<string | null>
   logIn: (email: string, password: string) => Promise<string | null>
   googleIn: (email: string, name: string) => void
+  /** Deletes the signed-in account for good (and everything it holds), then signs out. Returns a message when it fails. */
+  deleteAccount: () => Promise<string | null>
   logOut: () => void
 }
 const C = createContext<Ctx>(null as unknown as Ctx)
@@ -302,6 +306,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, ...(GOOGLE_BIRTHDAY_ON ? { scopes: GOOGLE_SCOPES } : {}) } })
     return error ? error.message : null
   }
+  /** Everything this browser kept for the account that was just deleted. */
+  const wipeLocal = (uid: string | null, mail: string | null) => {
+    try {
+      if (uid) localStorage.removeItem(cacheKey(uid))
+      if (mail) localStorage.removeItem(dataKey(mail))
+      localStorage.removeItem('wpf.invite')
+      localStorage.setItem(DELETED, String(Date.now()))
+    } catch { /* storage unavailable */ }
+    try { indexedDB.deleteDatabase('wpf-photos') } catch { /* nothing stored on this device */ }
+  }
+  const deleteAccount: Ctx['deleteAccount'] = async () => {
+    const mail = emailRef.current
+    if (supabase) {
+      const uid = activeUser.current
+      if (!uid) return 'You’re signed out. Sign in again to delete your account.'
+      const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' })
+      if (error) {
+        const res = (error as { context?: Response }).context
+        let detail = ''
+        try { detail = res ? ((await res.json()) as { error?: string }).error ?? '' : '' } catch { /* no details sent */ }
+        if (res?.status === 404) return 'Account deletion isn’t switched on yet. Please try again later.'
+        return `We couldn’t delete your account${detail ? ` (${detail})` : ''}. Try again in a moment.`
+      }
+      pending.current = null; loaded.current = false // nothing left to save to
+      wipeLocal(uid, mail)
+      await supabase.auth.signOut({ scope: 'local' }) // the account is gone on the server, so only this browser's sign in needs clearing
+      return null
+    }
+    if (mail) {
+      const accounts = read<Record<string, unknown>>(ACCOUNTS, {})
+      delete accounts[mail]; write(ACCOUNTS, accounts)
+    }
+    wipeLocal(null, mail)
+    write(SESSION, null); setEmail(null); setData(blankData(''))
+    return null
+  }
   const logOut = () => {
     if (supabase) {
       // Flush before removing authentication; local cache survives failed/offline saves.
@@ -346,5 +386,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMyAvatar(userId, next)
     if (userId) void syncMyAvatar(userId, next)
   }
-  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, saveState, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, logOut }}>{children}</C.Provider>
+  return <C.Provider value={{ email, userId, avatarUrl, googlePhoto, setAvatar, loading, accountError, syncError, saveState, retryAccount, saveAccount, googleOAuth, data, update, signUp, logIn, googleIn, deleteAccount, logOut }}>{children}</C.Provider>
 }
