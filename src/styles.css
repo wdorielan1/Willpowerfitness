@@ -1182,7 +1182,7 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .swipe-front { position: relative; background: var(--bg); transition: transform .2s ease; }
 .swipe-front.held { transition: none; }
 .workout-swipe-hint { margin: 10px 0 0; text-align: center; }
-.workout-undo { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--mute); margin: 0; }
+.workout-undo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--mute); margin: 0; }
 .workout-undo button { background: transparent; border: 0; color: var(--text); text-decoration: underline; min-height: 36px; padding: 0 4px; font-weight: 700; font-size: 13px; }
 
 /* Looping demo of the set-row swipes */

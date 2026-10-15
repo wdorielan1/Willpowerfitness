@@ -1,6 +1,6 @@
 import { EXERCISES, SPLIT } from './data'
-import { equipUse, gearRank } from './equipment'
-import type { BodyArea, AppData, CarbDay, DayType, EquipUse, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
+import { EQUIP_KINDS, equipKind, equipUse, gearRank } from './equipment'
+import type { BodyArea, AppData, CarbDay, DayType, EquipKind, EquipUse, Exercise, Gear, Goal, Level, Profile, SetEntry, Settings, WorkoutFocus, WorkoutLog } from './types'
 
 // ---------- dates ----------
 export const iso = (d: Date) => {
@@ -52,9 +52,11 @@ const allowed = (ex: Exercise, p: Profile) => available(ex, p.gear) && !isHidden
  * one in the middle of a workout never reshuffles the other lifts; it is just removed for the day.
  */
 const planProfile = (p: Profile, date: string): Profile => {
-  if (!p.hidden) return p
-  const before = Object.fromEntries(Object.entries(p.hidden).filter(([, since]) => since < date))
-  return Object.keys(before).length === Object.keys(p.hidden).length ? p : { ...p, hidden: before }
+  // equipment changed in the middle of today's workout: today keeps the old choices, so a lift already done can't drop out of the plan
+  const q = p.equipSince === date ? { ...p, equip: p.equipWas } : p
+  if (!q.hidden) return q
+  const before = Object.fromEntries(Object.entries(q.hidden).filter(([, since]) => since < date))
+  return Object.keys(before).length === Object.keys(q.hidden).length ? q : { ...q, hidden: before }
 }
 
 /**
@@ -66,11 +68,37 @@ export function skipCounts(d: AppData, before: string, days = 60): Record<string
   const from = addDays(before, -days)
   const kept = new Set(d.profile?.kept ?? [])
   const seen: Record<string, Set<string>> = {}
-  const mark = (id: string, date: string) => { if (date >= from && date < before && !kept.has(id)) (seen[id] ??= new Set()).add(date) }
+  const mark = (id: string, date: string) => { if (date >= from && date < before && !kept.has(id) && !d.atHome?.[date]) (seen[id] ??= new Set()).add(date) } // a day at home swaps gym lifts out because of where they were, not what they like
   for (const [date, ids] of Object.entries(d.removed ?? {})) for (const id of ids) mark(id, date)
   for (const [key, to] of Object.entries(d.swaps ?? {})) { const [date, id] = key.split('|'); if (to !== id) mark(id, date) }
   return Object.fromEntries(Object.entries(seen).map(([id, dates]) => [id, dates.size]))
 }
+/** The planned lifts they removed or swapped away on `date` (original ids). This is what "skipped" means in the middle of a workout. */
+export function skippedOn(d: AppData, date: string): string[] {
+  const out = new Set<string>(d.removed?.[date] ?? [])
+  for (const [key, to] of Object.entries(d.swaps ?? {})) { const [day, id] = key.split('|'); if (day === date && to !== id) out.add(id) }
+  return [...out]
+}
+
+export type SkipRead = { kind: 'where' } | { kind: 'equip'; equip: EquipKind } | { kind: 'mixed' }
+/**
+ * What the lifts skipped in one workout say. Two that need a gym, for someone who set up a full gym: "are you at the gym today?"
+ * (once they say they are, `atGym`, the same lifts are read again as a matter of equipment). Two of one kind of equipment: do they
+ * use it? Otherwise there is no pattern, so the answer is to look at their equipment.
+ */
+export function readSkips(skipped: Exercise[], p: Profile, atGym = false): SkipRead {
+  if (!atGym && p.gear === 'gym' && skipped.filter((x) => x.gear === 'gym').length >= 2) return { kind: 'where' }
+  const counts = new Map<EquipKind, number>()
+  for (const x of skipped) counts.set(equipKind(x), (counts.get(equipKind(x)) ?? 0) + 1)
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
+  return top && top[1] >= 2 ? { kind: 'equip', equip: top[0] } : { kind: 'mixed' }
+}
+export const kindLabel = (k: EquipKind) => (EQUIP_KINDS.find((x) => x.id === k)?.label ?? k).toLowerCase()
+/** One step less often: Often becomes Sometimes, Sometimes becomes Never. */
+export const stepDown = (u: EquipUse): EquipUse => (u === 'often' ? 'sometimes' : 'never')
+/** The same person at home: no gym equipment, so dumbbells and bodyweight (kettlebells and bands stay as they chose). */
+export const homeProfile = (p: Profile): Profile => (p.gear === 'gym' ? { ...p, gear: 'db' } : p)
+
 const avoided = (ex: Exercise, avoid: string) => {
   const words = avoid.toLowerCase().split(/[,;\n]/).map((w) => w.trim()).filter((w) => w.length > 2)
   const hay = `${ex.name} ${ex.muscle}`.toLowerCase()
@@ -366,6 +394,16 @@ export function swapOptions(ex: Exercise, current: string[], p: Profile, h: Hist
   return ranked(pool, p, h, (x) => (x.muscle.split('/')[0] === muscle ? 1000 : 400) + (heavy(x) === heavy(ex) ? 30 : 0))
 }
 
+/**
+ * The lift a right swipe adds after `ex`: more of the same muscle. The exception is a lift that is only in the workout as an extra
+ * for a focus area (leg work on a shoulders and abs day): swiping on that must not pull in more of that muscle, so it adds the best
+ * fit for the session itself instead.
+ */
+export function addAfterPick(ex: Exercise, current: string[], p: Profile, h: History, day: DayType): Exercise | undefined {
+  const offSession = day !== 'Full Body' && day !== 'Rest/Cardio' && ex.day !== day
+  return offSession ? addableExercises(current, p, h, day).find((x) => !x.mobility) : swapOptions(ex, current, p, h)[0]
+}
+
 /** Every exercise you could add to today's workout. Give it your history and the session's day to get the best fits first. */
 export function addableExercises(current: string[], p: Profile, h?: History, day?: DayType) {
   const taken = namesOf(current)
@@ -545,6 +583,31 @@ export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
     }
   }
   return out
+}
+
+/**
+ * Whole workouts that did not happen, for the "what's in the way?" check-in: their most recent scheduled session was missed (or
+ * skipped on purpose) and so was the one before it, or one more of the same kind (say Legs twice) in the last four weeks. Read from
+ * what is already stored. Days before someone's first activity never count.
+ */
+export function missedCheckIn(d: AppData, today = todayISO()): { reason: 'row' | 'type'; day: DayType; latest: string } | null {
+  if (!d.profile) return null
+  const sessions: WeekDay[] = []
+  const monday = addDays(today, -((fromISO(today).getDay() + 6) % 7))
+  for (let k = 0; k < 4; k++) {
+    // an earlier week is read as of its Sunday, so Monday to Saturday are settled; its Sunday counts too once it is past
+    for (const day of weekSchedule(d, k === 0 ? today : addDays(monday, -7 * k + 6))) {
+      const status = day.status === 'today' && day.date < today ? 'missed' : day.status
+      if (day.date < today && (status === 'done' || status === 'missed' || status === 'skipped')) sessions.push({ ...day, status })
+    }
+  }
+  sessions.sort((a, b) => b.date.localeCompare(a.date))
+  const gone = (s: WeekDay) => s.status !== 'done'
+  // someone who is training again is not stuck: it only counts while their most recent scheduled session was missed
+  if (!sessions.length || !gone(sessions[0])) return null
+  if (sessions.length >= 2 && gone(sessions[1])) return { reason: 'row', day: sessions[0].planned, latest: sessions[0].date }
+  const same = sessions.filter((s) => gone(s) && s.planned === sessions[0].planned)
+  return same.length >= 2 ? { reason: 'type', day: sessions[0].planned, latest: sessions[0].date } : null
 }
 
 // ---------- carb-day calendar ----------

@@ -7,8 +7,8 @@ import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { BODY_AREAS, addDays, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, isHidden, recommend, restFor, skipCounts, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
-import { EQUIP_KINDS, equipKind } from '../equipment'
+import { BODY_AREAS, addAfterPick, addDays, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, homeProfile, isHidden, kindLabel, missedCheckIn, readSkips, recommend, restFor, skipCounts, skippedOn, stepDown, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { EQUIP_KINDS, equipKind, equipUse, kindUse } from '../equipment'
 import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
@@ -17,7 +17,7 @@ import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
 import { SwipeDemo } from '../SwipeDemo'
-import type { AppData, DayType, Draft, LogEntry, SetEntry, WorkoutFocus } from '../types'
+import type { AppData, DayType, Draft, EquipKind, LogEntry, Profile, SetEntry, WorkoutFocus } from '../types'
 
 const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
 
@@ -241,6 +241,14 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
   const [equipNote, setEquipNote] = useState(false)
   const [offerGone, setOfferGone] = useState(false)
+  // whole workouts that did not happen: one "what's in the way?" card, never more than once a week
+  const miss = data.settings.askSkips === false || (data.missedAsked && addDays(data.missedAsked, 6) >= today) ? null : missedCheckIn(data, today)
+  const [missOpen, setMissOpen] = useState(true)
+  const [fixing, setFixing] = useState<null | 'lifts' | 'equip'>(null)
+  const [dislikes, setDislikes] = useState<string[]>([])
+  const [missNote, setMissNote] = useState('')
+  const showMiss = !!miss && missOpen
+  const answered = () => { update((d) => ({ ...d, missedAsked: today })); setMissOpen(false) }
   const asked = () => update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } }))
   const pickSession = (id: string) => { setSelected(id); setRemoved([]); setAdded([]); setOrderIds([]) }
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
@@ -260,16 +268,35 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const name = isBuild ? 'Build your own' : isSaved ? choice.label : workoutName(choice.day, choice.focus)
   return <>
     <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
+    {showMiss && miss && <div className="rec start train-offer" role="group" aria-label="What's in the way?">
+      <b>What’s in the way?</b>
+      <span className="small">{miss.reason === 'row' ? 'You’ve missed your last two workouts.' : `You’ve missed ${workoutName(miss.day)} twice.`} Pick the closest one and we’ll adjust. Nothing changes unless you tap.</span>
+      <div className="row">
+        <button type="button" className="ghost small-btn" onClick={() => { setDislikes([]); setFixing('lifts') }}>I don’t like the lifts</button>
+        <button type="button" className="ghost small-btn" onClick={() => setFixing('equip')}>Wrong equipment</button>
+        <button type="button" className="ghost small-btn" onClick={() => { if (!short) onShort(); setMissNote('Shorter session is on, so today is quicker.'); answered() }}>No time</button>
+        <button type="button" className="ghost small-btn" onClick={() => { pickSession('cardio'); setMissNote('Take it easy today. Log a walk or a ride, and your plan is here when you’re ready.'); answered() }}>Tired or hurt</button>
+      </div>
+      <div className="row"><button type="button" className="quiet-action" onClick={answered}>Not now</button><button type="button" className="quiet-action" onClick={() => { update((d) => ({ ...d, settings: { ...d.settings, askSkips: false } })); setMissOpen(false) }}>Don’t ask again</button></div>
+    </div>}
+    {missNote && <p className="small ok-text" role="status">{missNote}</p>}
     <div className="train-session-choices" role="group" aria-label="Choose workout">{choices.map((item) => <button key={item.id} aria-pressed={selected === item.id} onClick={() => pickSession(item.id)}>{item.label}{item.id === 'usual' && <span>{workoutName(suggested)}</span>}</button>)}</div>
+    {fixing === 'lifts' && miss && <Sheet title="Which lifts don’t you like?" onClose={() => setFixing(null)}>
+      <p className="small mute">Tap the ones to stop suggesting. You can bring them back any time in Settings.</p>
+      {generateWorkout(today, data, short, miss.day).items.map(({ ex }) => <button key={ex.id} type="button" className="ghost sheet-choice" aria-pressed={dislikes.includes(ex.id)} onClick={() => setDislikes(dislikes.includes(ex.id) ? dislikes.filter((x) => x !== ex.id) : [...dislikes, ex.id])}><b>{dislikes.includes(ex.id) ? '✓ ' : ''}{ex.name}</b><span className="small mute">{ex.muscle}</span></button>)}
+      <button type="button" className="primary" disabled={!dislikes.length} onClick={() => { dislikes.forEach(stopSuggesting); setFixing(null); setMissNote(`Done. We won’t suggest ${dislikes.length === 1 ? 'that lift' : 'those lifts'} again.`); answered() }}>Stop suggesting {dislikes.length || ''}</button>
+    </Sheet>}
+    {fixing === 'equip' && <EquipmentSheet gear={data.profile!.gear} equip={data.profile!.equip} onClose={() => setFixing(null)} onSkip={() => setFixing(null)}
+      onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip } })); setFixing(null); setMissNote('Your plan now follows the equipment you use.'); answered() }} />}
     <section className="card train-session-preview"><div className="section-head"><h2>{name}</h2><Icon name={choice.day === 'Rest/Cardio' ? 'clock' : 'weight'} /></div>
       <p className="small mute">{isBuild ? 'Choose your own exercises.' : isSaved ? 'One of your saved workouts.' : choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
       {isBuild ? <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => onStart('Full Body', 'custom', buildIds)} onSave={onSave} /> : choice.day !== 'Rest/Cardio' ? <>
-        {savedMatch && !offerGone && <div className="rec start train-offer">
+        {savedMatch && !offerGone && !showMiss && <div className="rec start train-offer">
           <b>Use your saved {savedMatch.name}?</b>
           <span className="small">Your {savedMatch.ids.length} lifts from last time, in the order you did them.</span>
           <div className="row"><button type="button" className="primary small-btn" onClick={() => pickSession(`my:${savedMatch.id}`)}>Use it</button><button type="button" className="ghost small-btn" onClick={() => setOfferGone(true)}>Not now</button></div>
         </div>}
-        {stop && <div className="rec start train-offer" role="group" aria-label="Stop suggesting this lift?">
+        {stop && !showMiss && <div className="rec start train-offer" role="group" aria-label="Stop suggesting this lift?">
           <b>Stop suggesting {stop.ex.name}?</b>
           <span className="small">You've skipped it on {stop.n} different days. Nothing gets hidden unless you say so.</span>
           <div className="row"><button type="button" className="primary small-btn" onClick={() => stopSuggesting(stop.ex.id)}>Stop suggesting it</button><button type="button" className="ghost small-btn" onClick={() => keepSuggesting(stop.ex.id)}>Keep it</button></div>
@@ -305,6 +332,8 @@ export default function Workout() {
   const nav = useNavigate()
   const p = data.profile!
   const today = todayISO()
+  const here = data.atHome?.[today] ? homeProfile(p) : p // what Swap and Add may offer today: at home means no gym equipment
+  const skippedIds = skippedOn(data, today) // planned lifts removed or swapped away in today's workout
   const short = !!data.short[today]
   const suggested = dayTypeFor(today, p, data.logs)
   const plan = generateWorkout(today, data, short)
@@ -327,7 +356,9 @@ export default function Workout() {
   const [resharing, setResharing] = useState(false)
   const [saveOffer, setSaveOffer] = useState<SaveOffer | null>(null)
   const [validation, setValidation] = useState('')
-  const [undo, setUndo] = useState<null | { label: string; restore?: (d: AppData) => AppData }>(null)
+  const [undo, setUndo] = useState<null | { label: string; restore?: (d: AppData) => AppData; tune?: boolean }>(null)
+  const [check, setCheck] = useState<null | { atGym: boolean }>(null) // the "skipping a few lifts?" check-in
+  const [fixEquip, setFixEquip] = useState(false)
   // the little swipe demo plays until they swipe a set or tap Got it, then never comes back
   const [swipeSeen, setSwipeSeen] = useState(() => { try { return localStorage.getItem('wpf.swipeSeen') === '1' } catch { return false } })
   const seeSwipe = () => { setSwipeSeen(true); try { localStorage.setItem('wpf.swipeSeen', '1') } catch { /* private mode: it just shows again next time */ } }
@@ -461,8 +492,9 @@ export default function Workout() {
   /** Swipe left on a lift: gone from today's workout, with a few seconds to take it back. */
   const removeLift = (it: (typeof items)[number]) => {
     const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
+    const firstSkip = skippedIds.length === 0 && data.settings.askSkips !== false && !(data.extras[today] ?? []).includes(it.ex.id)
     removeEx(it.orig, it.ex.id)
-    setUndo({ label: `Removed ${it.ex.name}`, restore: (d) => ({ ...d, ...prev }) })
+    setUndo({ label: `Removed ${it.ex.name}`, restore: (d) => ({ ...d, ...prev }), tune: firstSkip })
   }
   /** Thumbs-down, "Never show me this": gone from today, and hidden from Swap, Add and search now and from planned workouts from tomorrow. Undo puts it all back. */
   const neverShow = (it: (typeof items)[number]) => {
@@ -474,7 +506,7 @@ export default function Workout() {
   }
   /** Swipe right on a lift: keep it and add a new one right after it that works the same muscle and fits their gear. */
   const addAfter = (it: (typeof items)[number]) => {
-    const pick = swapOptions(it.ex, planIds, p, historyOf(data))[0]
+    const pick = addAfterPick(it.ex, planIds, here, historyOf(data), plan.day)
     if (!pick) { setUndo({ label: 'Nothing else fits your gear for this spot.' }); return }
     const prev = { extras: data.extras, removed: data.removed, exOrder: data.exOrder }
     const order = items.map((x) => x.orig)
@@ -489,6 +521,60 @@ export default function Workout() {
   const wipeToday = (d: AppData): AppData => ({ ...d, exOrder: stripToday(d.exOrder ?? {}), workoutPosted: stripToday(d.workoutPosted ?? {}), drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
   const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
+
+  // ---- skip check-ins: after a second skipped lift in one workout, ask what is going on and offer a fix (at most once a day) ----
+  const skippedExs = skippedIds.map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x)
+  useEffect(() => {
+    if (!active || todaysLog || skippedIds.length < 2 || data.skipAsked === today || data.settings.askSkips === false) return
+    update((d) => ({ ...d, skipAsked: today }))
+    setCheck({ atGym: false })
+  }, [skippedIds.length, active]) // eslint-disable-line react-hooks/exhaustive-deps
+  /** Swap the lifts not started yet that `needs` replacing for the best alternatives under `prof`, in one step that Undo puts back. Lifts already worked on never move. */
+  const rebuild = (needs: (x: Exercise) => boolean, prof: Profile, label: (n: number) => string, patch: (d: AppData) => AppData = (d) => d, restore: (d: AppData) => AppData = (d) => d) => {
+    const prev = { swaps: data.swaps, extras: data.extras, exOrder: data.exOrder }
+    const taken = items.map((i) => i.ex.id)
+    const newSwaps: Record<string, string> = {}
+    const newExtras: Record<string, string> = {} // an added lift: old id to new id
+    items.forEach((it, i) => {
+      if (exState[i].counted.some(Boolean) || exState[i].completed.some(Boolean) || !needs(it.ex)) return
+      const pick = swapOptions(it.ex, taken, prof, historyOf(data))[0]
+      if (!pick) return
+      taken.push(pick.id)
+      if ((data.extras[today] ?? []).includes(it.ex.id)) newExtras[it.ex.id] = pick.id; else newSwaps[`${today}|${it.orig}`] = pick.id
+    })
+    const n = Object.keys(newSwaps).length + Object.keys(newExtras).length
+    update((d) => {
+      const x = patch(d)
+      return {
+        ...x, swaps: { ...x.swaps, ...newSwaps },
+        ...(x.extras[today]?.length ? { extras: { ...x.extras, [today]: x.extras[today].map((id) => newExtras[id] ?? id) } } : {}),
+        ...(x.exOrder?.[today] ? { exOrder: { ...x.exOrder, [today]: x.exOrder[today].map((id) => newExtras[id] ?? id) } } : {}),
+      }
+    })
+    setUndo({ label: label(n), restore: (d) => ({ ...restore(d), ...prev }) })
+  }
+  const lifts = (n: number) => `${n} ${n === 1 ? 'lift' : 'lifts'}`
+  /** "I'm at home": the rest of today's lifts that need a gym become dumbbell and bodyweight ones. */
+  const goHome = () => {
+    setCheck(null)
+    rebuild((x) => x.gear === 'gym', homeProfile(p), (n) => n ? `Rebuilt the rest for home: ${lifts(n)} swapped for dumbbell or bodyweight ones.` : 'The rest of your workout already works at home.',
+      (d) => ({ ...d, atHome: { ...d.atHome, [today]: true } }), (d) => ({ ...d, atHome: Object.fromEntries(Object.entries(d.atHome ?? {}).filter(([k]) => k !== today)) }))
+  }
+  /**
+   * Equipment changed in the middle of a workout. Today's plan keeps the old choices (so nothing already done can drop out of it), the lifts
+   * not started yet are swapped to follow the new ones, and the new choices apply from tomorrow.
+   */
+  const changeEquip = (equip: Profile['equip'], label: (n: number) => string) => {
+    const next: Profile = { ...p, equip }
+    const was = { equip: p.equip, equipWas: p.equipWas, equipSince: p.equipSince }
+    rebuild((x) => !x.mobility && equipUse(next, x) === 'never', next, label,
+      (d) => ({ ...d, profile: { ...d.profile!, equip, equipWas: d.profile!.equipSince === today ? d.profile!.equipWas : d.profile!.equip, equipSince: today } }),
+      (d) => ({ ...d, profile: { ...d.profile!, ...was } }))
+    setCheck(null)
+  }
+  const neverKind = (k: EquipKind) => changeEquip({ ...p.equip, [k]: 'never' }, (n) => `No more ${kindLabel(k)}.${n ? ` Swapped ${lifts(n)} for ones you use.` : ''}`)
+  const fewerKind = (k: EquipKind) => changeEquip({ ...p.equip, [k]: stepDown(kindUse(p, k)) }, () => `Fewer ${kindLabel(k)} from now on.`)
+  const stopAsking = () => { update((d) => ({ ...d, settings: { ...d.settings, askSkips: false } })); setCheck(null) }
 
   const finish = () => {
     const invalid = exState.findIndex((s) => s.bad.some(Boolean))
@@ -579,7 +665,7 @@ export default function Workout() {
     </Sheet>
   )
 
-  const UndoNote = undo && <p className="workout-undo" role="status">{undo.label}{undo.restore && <button type="button" onClick={() => { update(undo.restore!); setUndo(null) }}>Undo</button>}</p>
+  const UndoNote = undo && <p className="workout-undo" role="status">{undo.label}{undo.restore && <button type="button" onClick={() => { update(undo.restore!); setUndo(null) }}>Undo</button>}{undo.tune && <button type="button" onClick={() => { setUndo(null); setFixEquip(true) }}>Not your equipment? Tune it</button>}</p>
   const ex = page >= 1 && page <= items.length ? items[page - 1] : null
   const st = ex ? exState[page - 1] : null
   const nextSet = st ? st.completed.findIndex((done) => !done) : -1
@@ -797,9 +883,37 @@ export default function Workout() {
           <p className="small mute">Aim for 8 to 9 on your working sets. Rate only the <b>last set</b> of each exercise. You can turn this off in Settings.</p>
         </Sheet>
       )}
+      {check && (() => {
+        const read = readSkips(skippedExs, p, check.atGym)
+        const names = skippedExs.map((x) => x.name)
+        const list = names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}` : names.join(' and ')
+        return (
+          <Sheet title="Skipping a few lifts?" onClose={() => setCheck(null)}>
+            <p className="small mute">You’ve skipped {list}.</p>
+            {read.kind === 'where' && <>
+              <h3>Are you at the gym today?</h3>
+              <button className="ghost sheet-choice" onClick={goHome}><b>I’m at home</b><span className="small mute">Swap the rest for dumbbell and bodyweight lifts.</span></button>
+              <button className="ghost sheet-choice" onClick={() => setCheck({ atGym: true })}><b>I’m at the gym</b><span className="small mute">These lifts just aren’t for me today.</span></button>
+            </>}
+            {read.kind === 'equip' && <>
+              <h3>Want fewer {kindLabel(read.equip)}?</h3>
+              {kindUse(p, read.equip) === 'often' && <button className="ghost sheet-choice" onClick={() => fewerKind(read.equip)}><b>Fewer {kindLabel(read.equip)}</b><span className="small mute">Still in your plans now and then.</span></button>}
+              <button className="ghost sheet-choice" onClick={() => neverKind(read.equip)}><b>Never use {kindLabel(read.equip)}</b><span className="small mute">Swap the rest of today and keep them out of your plans.</span></button>
+            </>}
+            {read.kind === 'mixed' && <>
+              <h3>Is your equipment set up right?</h3>
+              <button className="ghost sheet-choice" onClick={() => { setCheck(null); setFixEquip(true) }}><b>Tune my equipment</b><span className="small mute">Say what you use, and your plans follow it.</span></button>
+            </>}
+            <button className="ghost" onClick={() => setCheck(null)}>Keep going</button>
+            <button className="quiet-action" onClick={stopAsking}>Don’t ask me this again</button>
+          </Sheet>
+        )
+      })()}
+      {fixEquip && <EquipmentSheet gear={p.gear} equip={p.equip} onClose={() => setFixEquip(false)} onSkip={() => setFixEquip(false)}
+        onSave={(equip) => { setFixEquip(false); changeEquip(equip, (n) => `Equipment updated.${n ? ` Swapped ${lifts(n)} for ones you use.` : ''} Your next workouts follow it.`) }} />}
       {sheet?.kind === 'swap' && (() => {
         const cur = items.find((i) => i.ex.id === sheet.cur)?.ex
-        const opts = cur ? swapOptions(cur, planIds, p, historyOf(data)) : []
+        const opts = cur ? swapOptions(cur, planIds, here, historyOf(data)) : []
         return (
           <Sheet title={`Swap ${cur?.name ?? ''}`} onClose={() => setSheet(null)}>
             <ExerciseFinder best like={cur} pool={opts} onPick={(o) => swapTo(sheet.orig, sheet.cur, o.id)} />
@@ -808,7 +922,7 @@ export default function Workout() {
       })()}
       {sheet?.kind === 'add' && (
         <Sheet title="Add an exercise" onClose={() => setSheet(null)}>
-          <ExerciseFinder best prefer={plan.day} pool={addableExercises(planIds, p, historyOf(data), plan.day)} onPick={(o) => addEx(o.id)} />
+          <ExerciseFinder best prefer={plan.day} pool={addableExercises(planIds, here, historyOf(data), plan.day)} onPick={(o) => addEx(o.id)} />
         </Sheet>
       )}
     </div>
