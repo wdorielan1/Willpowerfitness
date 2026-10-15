@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
 import { carbPlanFor, dayFor, fmtTime, fromISO, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { greeting } from '../greeting'
 import { Avatar, ConfirmSheet, Sheet, fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
@@ -27,6 +28,13 @@ function SessionElapsed({ since }: { since: number }) {
     return () => clearInterval(interval)
   }, [])
   return <span className="session-elapsed"><Icon name="clock" />{fmtClock(now - since)} elapsed</span>
+}
+
+/** "Good evening, Will" at the top of the page. It re-reads the clock every minute so it changes on its own at 5, 12, 17 and 22 o'clock. */
+function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boolean }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t) }, [])
+  return <p className="greeting">{greeting(now, name, { done, rest })}</p>
 }
 
 export default function Dashboard() {
@@ -63,6 +71,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <Greeting name={data.name} done={ci.done} rest={rest} />
       <section className="week-summary" aria-label="This week’s training">
         <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
         <div className="week-strip">

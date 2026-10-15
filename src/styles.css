@@ -1337,3 +1337,5 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .dob { display: grid; gap: 6px; }
 .dob input[type=date] { min-height: 48px; }
 .age-gate .card { display: grid; gap: 12px; }
+/* Greeting at the top of the Today page */
+.greeting { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.2px; }
