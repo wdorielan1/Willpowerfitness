@@ -305,6 +305,14 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] Sign up as a throwaway with a date of birth under 13: the blocked screen has a Delete my account button and it works the same way; signing up on that phone is still blocked for the day
 - [ ] If it fails (for example turn off the phone's connection and try): the sheet shows why and you stay signed in to try again
 
+## Sign-up alert (owner runs supabase/signup-alert.sql first, with their own random ntfy topic)
+- [ ] Step 1 of the file: the phone buzzes with "Test alert", and the query under it shows status_code 200
+- [ ] If the phone does not buzz: the topic in the ntfy app is not spelled exactly like the one in the SQL (check for a stray space or capital)
+- [ ] Step 2: runs without an error. `select tgname, tgenabled from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal;` lists on_signup_notify
+- [ ] Step 3: Authentication > Users > Add user > Create new user: the phone buzzes with "New signup #N (email)", then delete that test user
+- [ ] A real sign-up on the app (email, and Google in a private window) still works and buzzes. The message has only the count and "(email)" or "(google)", never a name or email
+- [ ] With the topic deliberately mistyped in the function, sign-up still works (the alert just fails quietly and "signup alert failed" appears in Logs > Postgres Logs)
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
