@@ -39,6 +39,9 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The same import still works later from the Import page
 
 ## 3. Today and workouts
+- [ ] Today page greeting (top of the page, above This week): "Good morning, <first name>" 5:00 to 11:59, "Good afternoon, ..." 12:00 to 16:59, "Good evening, ..." 17:00 to 21:59, and "Late night workout, <first name>?" 22:00 to 4:59 (try by changing the phone's clock, or just check the one that matches now)
+- [ ] Late night after you finished a workout today it says "Nice work, <name>"; late night on a rest day it says "Good night, <name>"; it uses only your first name, capitalised; an account whose name is an email handle with digits gets the greeting with no name and no comma
+- [ ] Leave the Today page open across 5:00, 12:00, 17:00 or 22:00: the greeting changes by itself within a minute
 - [ ] Today's session loads for your split, level and goal
 - [ ] Start a workout, log sets, finish, see it in Progress
 - [ ] Add, Swap and remove (x) an exercise; search works
