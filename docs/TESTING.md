@@ -451,6 +451,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Home feed switch (needs an account online): All, My crews, Following. Following shows posts from people you follow (their public posts, and posts in crews you share). My crews shows only your crews. Your choice is remembered. On a local-mode device there is no switch
 - [ ] Following with nobody followed: "Nobody to show yet" with a Find friends button
 
+## Likes and comments popup (needs an account online)
+- [ ] Under each post in the feed: a heart and a comment bubble side by side, each with its count. No comment section under the post
+- [ ] Tap the heart: it likes or unlikes (the heart fills). Tap the number next to it: a popup "Likes and comments" opens on Likes, listing who liked it
+- [ ] Tap the comment bubble (or its number): the same popup opens on Comments, listing each comment with who wrote it and when, a heart on each, and Delete (your own, or any on your post) and Report (others')
+- [ ] In the popup, switch between Likes and Comments with the two buttons; each shows its count
+- [ ] Write a comment and Send: it appears in the list, the Comments count goes up, and after Close the number under the post is right
+- [ ] Tap the heart on a comment, then its count: a second popup lists who liked that comment, on top of the first
+- [ ] A post from someone you follow in a crew you are not in has the comment bubble but no heart
+- [ ] Profile pages still show the old "Comment" button that opens comments inline (unchanged)
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
