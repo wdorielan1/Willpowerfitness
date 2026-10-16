@@ -107,7 +107,7 @@ try {
   await screenshot('photo-story', page.locator('.share-preview-wrap'))
   const canvasStory = await page.locator('.share-photo-stage canvas').evaluate((c) => [c.width, c.height])
   check('Story composition is 1080 × 1920', canvasStory[0] === 1080 && canvasStory[1] === 1920)
-  await page.getByRole('button', { name: 'Post', exact: true }).click()
+  await page.getByRole('group', { name: 'Picture size', exact: true }).getByRole('button', { name: 'Post', exact: true }).click()
   await ready()
   await screenshot('photo-post', page.locator('.share-preview-wrap'))
   const canvasPost = await page.locator('.share-photo-stage canvas').evaluate((c) => [c.width, c.height])
@@ -150,10 +150,8 @@ try {
 
   await page.goto(`${base}/tests/share-sticker/?no-pr`); await ready()
   await screenshot('no-pr-sticker', page.locator('.share-preview-wrap'))
-  await page.getByRole('button', { name: 'No photo? Use a card', exact: true }).click(); await ready()
-  await screenshot('original-card-option', page.locator('.share-preview-wrap'))
-  check('Original background card remains available', await page.getByAltText('Original Will Power background card').isVisible())
-  await page.getByRole('button', { name: 'Back to stickers', exact: true }).click(); await ready()
+  await page.waitForSelector('img[alt="Scorecard workout card preview"]')
+  check('Cards are directly available below stickers', await page.locator('.workout-card-option').count() === 4)
 
   const helpers = await page.evaluate(async () => {
     const { photo, renderer, fixture } = window.__shareTest

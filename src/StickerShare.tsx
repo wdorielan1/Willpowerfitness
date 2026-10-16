@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Sheet } from './components'
-import { useImageAsset } from './WorkoutShare'
+import { useImageAsset } from './useImageAsset'
 import type { CardFormat } from './shareCard'
 import { clampPlacement, composeSharePhoto, copyWorkoutSticker, drawPhotoComposition, getFrameSize, loadSharePhoto, photoBrightness, shareWorkoutImage, stickerRect } from './sharePhoto'
 import type { Settings, StickerPlacement, StickerTextColor } from './types'
