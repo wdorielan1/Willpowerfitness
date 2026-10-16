@@ -111,7 +111,7 @@ export default function Onboarding() {
     </>,
     <>
       <h2>Bring your lifting history</h2>
-      <p className="mute small">Already track your workouts in ChatGPT, Claude or another AI, or in notes? Bring them so you don’t start from scratch. Optional. You can also do this later in Settings.</p>
+      <p className="mute small">Optional. If you track your lifts with ChatGPT or Claude, bring them so you don’t start from scratch. No AI? Just tap Next. You can also do this later in Settings.</p>
       {imported
         ? <p className="ok-text">✓ {imported.sets} sets across {imported.logs.length} workout{imported.logs.length === 1 ? '' : 's'} ready. They’ll be added when you finish setup. <button className="ghost small-btn" onClick={() => setImported(null)}>Remove</button></p>
         : <HistoryImporter importLabel={(n) => `Use these ${n} sets`} onImport={(r) => setImported({ logs: r.logs, sets: r.setCount })} />}

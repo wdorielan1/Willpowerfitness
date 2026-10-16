@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { CHATGPT_FOOD_PROMPT, parseFoods } from './foodImport'
+import { AiPrompt } from './AiPrompt'
 import { Icon } from './icons'
 import type { FoodItem } from './types'
 
@@ -23,7 +24,6 @@ export default function MyFoods({ foods, mealNames, defaultMeal, onAdd, onSave, 
   const [q, setQ] = useState('')
   const [note, setNote] = useState('')
   const [text, setText] = useState('')
-  const [copied, setCopied] = useState(false)
   const [importOpen, setImportOpen] = useState(foods.length === 0)
   const [form, setForm] = useState({ name: '', serving: '1 serving', cal: '', p: '', c: '', f: '' })
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
@@ -81,10 +81,8 @@ export default function MyFoods({ foods, mealNames, defaultMeal, onAdd, onSave, 
       <section className="card">
         <button type="button" className="myfoods-toggle" aria-expanded={importOpen} onClick={() => setImportOpen(!importOpen)}><span><h3>Import from ChatGPT or another AI</h3><span className="nutrition-help">Paste a CSV or table of the foods you eat most.</span></span><Icon name="chevron" size={18} /></button>
         {importOpen && <>
-          <p className="small mute">Give ChatGPT, Claude or another AI your food log (or just tell it what you usually eat) along with this prompt. Then paste what it gives you back here. Nothing is sent from Will Power.</p>
-          <pre className="myfoods-prompt">{CHATGPT_FOOD_PROMPT}</pre>
-          <button type="button" className="ghost" onClick={() => { void navigator.clipboard?.writeText(CHATGPT_FOOD_PROMPT); setCopied(true) }}>{copied ? 'Copied' : 'Copy the prompt'}</button>
-          <label>Paste it here<textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={'name,serving,calories,protein,carbs,fat\nChicken rice bowl,1 bowl,650,48,70,16'} aria-label="Foods to import" /></label>
+          <AiPrompt title="Do you track your food with AI?" hint="Tap a button. We copy the instructions and open the chat. Paste them there with your food log (or just tell it what you usually eat), then paste the answer below." prompt={CHATGPT_FOOD_PROMPT} />
+          <label>Paste the answer here<textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={'name,serving,calories,protein,carbs,fat\nChicken rice bowl,1 bowl,650,48,70,16'} aria-label="Foods to import" /></label>
           <input ref={file} type="file" accept=".csv,.txt,text/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); e.target.value = '' }} />
           <button type="button" className="ghost small-btn" onClick={() => file.current?.click()}>Upload a .csv / .txt file</button>
           {result && (result.foods.length === 0

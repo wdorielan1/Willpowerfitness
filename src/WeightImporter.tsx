@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { fromISO } from './engine'
 import { CHATGPT_WEIGHT_PROMPT, mergeWeights, parseWeights } from './importer'
 import { WeightChart } from './WeightChart'
+import { AiPrompt } from './AiPrompt'
 import type { WeightLog } from './types'
 
 const fmtDay = (iso: string) => fromISO(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -10,7 +11,6 @@ const fmtDay = (iso: string) => fromISO(iso).toLocaleDateString(undefined, { mon
 export default function WeightImporter({ existing, onImport }: { existing: WeightLog[]; onImport: (entries: WeightLog[]) => void }) {
   const [text, setText] = useState('')
   const [kg, setKg] = useState(false)
-  const [copied, setCopied] = useState(false)
   const file = useRef<HTMLInputElement>(null)
   const result = useMemo(() => (text.trim() ? parseWeights(text, { kg }) : null), [text, kg])
   const merge = useMemo(() => (result ? mergeWeights(existing, result.entries) : null), [result, existing])
@@ -20,12 +20,7 @@ export default function WeightImporter({ existing, onImport }: { existing: Weigh
 
   return (
     <>
-      <section className="card">
-        <h3>Weigh yourself every day?</h3>
-        <p className="small mute">If your weigh-ins live in a scale app, Apple Health, a spreadsheet or notes, give them to ChatGPT, Claude or another AI along with this prompt. Then paste the CSV it gives you back here. Nothing is sent from Will Power.</p>
-        <pre style={{ whiteSpace: 'pre-wrap', background: 'var(--card2)', borderRadius: 12, padding: 12, fontSize: 13, margin: 0 }}>{CHATGPT_WEIGHT_PROMPT}</pre>
-        <button className="ghost" onClick={() => { void navigator.clipboard?.writeText(CHATGPT_WEIGHT_PROMPT); setCopied(true) }}>{copied ? 'Copied' : 'Copy the prompt'}</button>
-      </section>
+      <AiPrompt title="Weigh yourself every day?" hint="If your weigh-ins live in a scale app, Apple Health, a spreadsheet or notes, tap a button. We copy the instructions and open the chat. Paste them there with your weigh-ins, then paste the answer below." prompt={CHATGPT_WEIGHT_PROMPT} />
 
       <section className="card">
         <h3>Paste it here</h3>

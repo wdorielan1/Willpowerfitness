@@ -1415,3 +1415,11 @@ p.focus-note { margin: -4px 0 0; }
 .week-moved span { flex: 1; min-width: 0; }
 .week-sheet-move { display: grid; gap: 8px; margin-top: 6px; }
 .week-sheet-move h3 { font-size: 15px; }
+
+/* copy a prompt for ChatGPT or Claude in one tap, with the prompt itself out of the way */
+.ai-prompt .ai-actions { display: grid; gap: 8px; }
+.ai-prompt .ai-actions button { min-height: 48px; }
+.ai-prompt .ai-show { justify-self: start; }
+.ai-prompt-text { white-space: pre-wrap; background: var(--card2); border-radius: 12px; padding: 12px; font-size: 13px; margin: 0; max-height: 260px; overflow: auto; }
+.import-more summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--mute); padding: 6px 0; }
+.import-more[open] { display: grid; gap: 10px; }

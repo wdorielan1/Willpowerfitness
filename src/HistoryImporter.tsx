@@ -1,35 +1,33 @@
 import { useMemo, useRef, useState } from 'react'
 import { addDays, todayISO } from './engine'
 import { CHATGPT_PROMPT, parseHistory, type ImportResult } from './importer'
+import { AiPrompt } from './AiPrompt'
 
 /** Copy a prompt for an AI chat, paste its CSV back, preview it, then hand the parsed result to the caller. */
 export default function HistoryImporter({ onImport, importLabel = (n: number) => `Import ${n} sets` }: { onImport: (r: ImportResult) => void; importLabel?: (sets: number) => string }) {
   const [text, setText] = useState('')
   const [kg, setKg] = useState(false)
   const [undated, setUndated] = useState(addDays(todayISO(), -1))
-  const [copied, setCopied] = useState(false)
   const file = useRef<HTMLInputElement>(null)
   const result = useMemo(() => (text.trim() ? parseHistory(text, { kg, undatedDate: undated }) : null), [text, kg, undated])
 
   return (
     <>
-      <section className="card">
-        <h3>Track your lifts in ChatGPT, Claude or another AI?</h3>
-        <p className="small mute">Paste this prompt into that chat, then copy its CSV back here. No AI connection or key is needed on our side.</p>
-        <pre style={{ whiteSpace: 'pre-wrap', background: 'var(--card2)', borderRadius: 12, padding: 12, fontSize: 13, margin: 0 }}>{CHATGPT_PROMPT}</pre>
-        <button className="ghost" onClick={() => { void navigator.clipboard?.writeText(CHATGPT_PROMPT); setCopied(true) }}>{copied ? 'Copied' : 'Copy the prompt'}</button>
-      </section>
+      <AiPrompt title="Do you track your workouts with AI?" hint="Tap a button. We copy the instructions and open the chat. Paste them there with your workouts, then paste the answer below." prompt={CHATGPT_PROMPT} />
 
       <section className="card">
-        <h3>Paste it here</h3>
-        <p className="small mute">CSV works best (<code>date,exercise,weight,reps,sets</code>). Plain notes like <code>Bench press: 185x8, 185x8, 175x7</code> work too, with a date on its own line above.</p>
-        <textarea rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'date,exercise,weight,reps,sets\n2026-09-01,Bench Press,185,8,3'} />
+        <h3>Paste the answer here</h3>
+        <textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste what ChatGPT or Claude gave you" aria-label="Your workouts from ChatGPT or Claude" />
         <input ref={file} type="file" accept=".csv,.txt,text/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); e.target.value = '' }} />
-        <div className="row wrap">
-          <button className="ghost small-btn" onClick={() => file.current?.click()}>Upload a .csv / .txt file</button>
-          <button className={`chip ${kg ? 'on' : ''}`} onClick={() => setKg(!kg)}>{kg ? 'Weights are in kg → convert' : 'Weights in lb'}</button>
-        </div>
-        <label>Date to use for lines with no date<input type="date" value={undated} max={todayISO()} onChange={(e) => setUndated(e.target.value)} /></label>
+        <details className="import-more">
+          <summary>More options</summary>
+          <p className="small mute">CSV works best (<code>date,exercise,weight,reps,sets</code>). Plain notes like <code>Bench press: 185x8, 185x8, 175x7</code> work too, with a date on its own line above.</p>
+          <div className="row wrap">
+            <button className="ghost small-btn" onClick={() => file.current?.click()}>Upload a .csv / .txt file</button>
+            <button className={`chip ${kg ? 'on' : ''}`} onClick={() => setKg(!kg)}>{kg ? 'Weights are in kg → convert' : 'Weights in lb'}</button>
+          </div>
+          <label>Date to use for lines with no date<input type="date" value={undated} max={todayISO()} onChange={(e) => setUndated(e.target.value)} /></label>
+        </details>
       </section>
 
       {result && (
