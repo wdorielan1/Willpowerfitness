@@ -124,6 +124,21 @@ export default function Dashboard() {
 
       </section>
 
+      <section className="today-nutrition" aria-label="Today’s nutrition">
+        <div className="section-head"><h2>Today’s nutrition</h2><Link to="/nutrition" className="quiet-action">Open<Icon name="chevron" /></Link></div>
+        <p className="today-nutrition-plan">{nutrition.carb[0].toUpperCase() + nutrition.carb.slice(1)} carb day · {data.settings.nutrition.meals} meals</p>
+        <div className="today-nutrition-targets">
+          <div><span>Calories</span><p><b>{Math.round(food.cal).toLocaleString()}</b> / {targets.cal.toLocaleString()}</p></div>
+          <div><span>Protein</span><p><b>{Math.round(food.p)}g</b> / {targets.p}g</p></div>
+        </div>
+        <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
+      </section>
+
+      <div className="dashboard-shortcuts">
+        <Link to="/log" className="quiet-action"><Icon name="plus" />Quick log</Link>
+        <Link to="/shortcuts" className="quiet-action"><Icon name="clock" />Siri shortcuts</Link>
+      </div>
+
       {crew ? <section className="crew-summary" aria-label="Your crew">
         <div className="crew-summary-top">
           <span className="icon-surface"><Icon name="crew" /></span>
@@ -145,21 +160,6 @@ export default function Dashboard() {
         <div className="grow"><h2>Find your crew</h2><p className="crew-summary-meta">People who train when you do.</p></div>
         <Icon name="chevron" />
       </Link>}
-
-      <div className="dashboard-shortcuts">
-        <Link to="/log" className="quiet-action"><Icon name="plus" />Quick log</Link>
-        <Link to="/shortcuts" className="quiet-action"><Icon name="clock" />Siri shortcuts</Link>
-      </div>
-
-      <section className="today-nutrition" aria-label="Today’s nutrition">
-        <div className="section-head"><h2>Today’s nutrition</h2><Link to="/nutrition" className="quiet-action">Open<Icon name="chevron" /></Link></div>
-        <p className="today-nutrition-plan">{nutrition.carb[0].toUpperCase() + nutrition.carb.slice(1)} carb day · {data.settings.nutrition.meals} meals</p>
-        <div className="today-nutrition-targets">
-          <div><span>Calories</span><p><b>{Math.round(food.cal).toLocaleString()}</b> / {targets.cal.toLocaleString()}</p></div>
-          <div><span>Protein</span><p><b>{Math.round(food.p)}g</b> / {targets.p}g</p></div>
-        </div>
-        <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
-      </section>
       {askUndo && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAskUndo(false); ci.undo() }} onCancel={() => setAskUndo(false)} />}
       {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}
       {peek && (() => {
