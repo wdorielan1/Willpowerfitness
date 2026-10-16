@@ -102,7 +102,7 @@ export function useWorkoutSharing() {
   /** The crews that already have the workout from this day. */
   const posted = (date: string) => crews.filter((c) => data.workoutPosted?.[postedKey(date, c.id, data.primary)]).map((c) => c.id)
   /** Posts a workout (from today or any earlier day) to the chosen crews, with a picture if there is one. Returns an error message, or null. */
-  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string): Promise<string | null> => {
+  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: { photos?: Blob[]; video?: PreparedVideo; progress?: (text: string) => void }): Promise<string | null> => {
     const done = posted(log.date)
     const todo = ids.filter((id) => !done.includes(id))
     if (!todo.length) return 'That workout is already shared with this crew.'
@@ -110,7 +110,9 @@ export function useWorkoutSharing() {
     const wp = sum
       ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false, { at: log.finishedAt, place, caption })
       : { text: `Finished ${log.dayType}${log.minutes ? ` in ${log.minutes} min` : ''}`, meta: { sets: log.entries.reduce((a, e) => a + e.sets.length, 0), exercises: log.entries.length } as Record<string, unknown> }
-    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta: wp.meta, photos: blob ? [blob] : undefined })
+    // the picture of the workout first, then any photos they added, and a video if they added one
+    const photos = [...(blob ? [blob] : []), ...(more?.photos ?? [])]
+    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta: wp.meta, photos: photos.length ? photos : undefined, video: more?.video, progress: more?.progress })
     if (ok.length) {
       update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [postedKey(log.date, id, d.primary), true])) } }))
       announceFeedChanged()
@@ -126,7 +128,7 @@ export function ShareWorkoutSheet({ log, viewing, onClose }: { log: WorkoutLog; 
   const { crews, posted, share } = useWorkoutSharing()
   const summary = summaryFromLog(data, log)
   if (!summary) return null
-  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string; caption?: string }) => share(log, ids, blob, opts?.place, opts?.caption) } : undefined
+  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; progress?: (text: string) => void }) => share(log, ids, blob, opts?.place, opts?.caption, opts) } : undefined
   return <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={onClose} crewPost={crewPost} />
 }
 
@@ -422,13 +424,21 @@ function PostActivity({ post, tab: first, me, onClose }: { post: FeedPost; tab: 
   )
 }
 
-/** Photos side by side like Strava: one fills the post, two share it, three fit across, and more scroll sideways. */
+/** A post's pictures: one fills the post, and with more you swipe through them one at a time, each full width like any social feed. */
 function PostPhotos({ srcs, onOpen, lead }: { srcs: string[]; onOpen: (i: number) => void; lead?: ReactNode }) {
   const total = srcs.length + (lead ? 1 : 0)
+  const [at, setAt] = useState(0)
   const what = lead ? `A video and ${srcs.length} photo${srcs.length === 1 ? '' : 's'}` : `${srcs.length} photo${srcs.length === 1 ? '' : 's'}`
-  return <div className="post-strip" data-count={Math.min(total, 4)} role="list" aria-label={`${what}${total > 3 ? ', swipe to see more' : ''}`}>
-    {lead && <div className="post-strip-item post-strip-video" role="listitem">{lead}</div>}
-    {srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
+  return <div className="post-carousel">
+    <div className="post-strip" data-count={Math.min(total, 4)} role="list" aria-label={`${what}${total > 1 ? ', swipe to see more' : ''}`}
+      onScroll={total > 1 ? (e) => { const el = e.currentTarget; setAt(Math.min(total - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, el.clientWidth + 6))))) } : undefined}>
+      {lead && <div className="post-strip-item post-strip-video" role="listitem">{lead}</div>}
+      {srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
+    </div>
+    {total > 1 && <>
+      <span className="post-count" aria-hidden="true">{at + 1}/{total}</span>
+      <div className="post-dots" aria-hidden="true">{Array.from({ length: total }, (_, i) => <i key={i} className={i === at ? 'on' : ''} />)}</div>
+    </>}
   </div>
 }
 
@@ -469,6 +479,10 @@ function PostVideo({ video, cover, ts, tile = false, hold = false, onOpen }: { v
   const [src, setSrc] = useState<string | null>(null)
   const srcNow = useRef<string | null>(null); srcNow.current = src
   const [err, setErr] = useState('')
+  // the clip's own shape, once the cover or the clip has loaded, so the frame is exactly the video: no bars around it (never taller than 9:16 or wider than 16:9)
+  const [shape, setShape] = useState<number | null>(null)
+  const learn = (w: number, h: number) => { if (w > 0 && h > 0) setShape(Math.min(16 / 9, Math.max(9 / 16, w / h))) }
+  const frame = { aspectRatio: String(shape ?? 0.8) }
   const [blocked, setBlocked] = useState(false) // the phone wouldn't start it without a tap
   const [engaged, setEngaged] = useState(false) // they tapped: sound on
   const [controls, setControls] = useState(false) // native controls, shown just after the tap so that same tap doesn't also hit their pause button
@@ -560,8 +574,8 @@ function PostVideo({ video, cover, ts, tile = false, hold = false, onOpen }: { v
   if (!src) {
     return (
       <div ref={box}>
-        <button className="post-video-cover" aria-label={length ? `Play video, ${length}` : 'Play video'} onClick={tapCover}>
-          {cover ? <img src={cover} alt="" loading="lazy" /> : <span className="post-video-blank" />}
+        <button className="post-video-cover" style={frame} aria-label={length ? `Play video, ${length}` : 'Play video'} onClick={tapCover}>
+          {cover ? <img src={cover} alt="" loading="lazy" onLoad={(e) => learn(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} /> : <span className="post-video-blank" />}
           <span className="post-video-play"><Icon name="play" size={26} /></span>
           {length && <span className="post-video-time">{length}</span>}
         </button>
@@ -571,9 +585,9 @@ function PostVideo({ video, cover, ts, tile = false, hold = false, onOpen }: { v
     )
   }
   return (
-    <div ref={box} className="post-video-wrap">
+    <div ref={box} className="post-video-wrap" style={frame}>
       <video ref={el} className="post-video" src={src} poster={cover} muted={!engaged} loop playsInline preload="auto" controls={controls && !blocked}
-        onCanPlay={() => { if (engaged) void start(); else scheduleChoose() }} onClick={tapVideo}
+        onLoadedMetadata={(e) => learn(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} onCanPlay={() => { if (engaged) void start(); else scheduleChoose() }} onClick={tapVideo}
         onError={() => { setSrc(null); setErr('This device can\u2019t play that video.') }} />
       {blocked && <button className="post-video-play post-video-play-over" aria-label="Play video" onClick={() => void start()}><Icon name="play" size={26} /></button>}
       {!engaged && !blocked && <span className="post-video-hint" aria-hidden="true">Tap for sound</span>}
