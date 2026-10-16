@@ -488,6 +488,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] On a computer the button still says "Save card" and downloads a PNG
 - [ ] "Share card" is unchanged (Instagram and the rest of the share sheet)
 
+## More photos and a video when sharing a workout, and bigger pictures in the feed
+- [ ] Share a workout (Home, Share workout): under the caption is "More for your post (optional)" with Add photos and Add video
+- [ ] Add two photos: small previews show, each with an X. Remove one. Add a video up to 30 seconds: a preview with its length shows
+- [ ] With a video you can add 4 photos in all (the workout card is the fifth picture). Going over says how many more you can add
+- [ ] Post it: the post has the workout card, your photos and the video, with your caption. Nothing added still posts just the card
+- [ ] Every post with more than one picture or video shows them full width, one at a time. Swipe sideways; a count like 1/4 sits on the picture and dots sit under it
+- [ ] A single photo still fills the post and shows whole
+- [ ] A single video fills the post at its own shape (tall for a phone video held upright, wide for sideways) with no black bars at the sides
+- [ ] The video starts by itself without sound as you scroll to it, and tapping it opens it with sound
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
