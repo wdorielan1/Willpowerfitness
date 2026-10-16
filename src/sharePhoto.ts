@@ -205,6 +205,28 @@ function downloadImage(blob: Blob): 'saved' {
 
 const isCancelled = (error: unknown) => error instanceof Error && error.name === 'AbortError'
 
+/** A phone or tablet (an iPad asks for the desktop site, so it also counts when a Mac has a touch screen). */
+export const isPhone = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
+/**
+ * Put a picture in the photo library. A download only lands in Files or Downloads as a file, so on a phone this opens the share
+ * sheet with just the picture, where "Save Image" (iPhone) or the Photos or Gallery app (Android) puts it with the photos. When
+ * the browser cannot share files it says 'view' and the caller shows the picture to press and hold. On a computer it downloads.
+ */
+export async function saveImageToPhotos(blob: Blob, name: string): Promise<'shared' | 'saved' | 'view' | 'cancelled'> {
+  if (!isPhone()) {
+    const url = URL.createObjectURL(blob), a = document.createElement('a')
+    a.href = url; a.download = name
+    try { document.body.appendChild(a); a.click() } finally { a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30_000) }
+    return 'saved'
+  }
+  try {
+    const file = new File([blob], name, { type: blob.type || 'image/png' })
+    if (navigator.share && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return 'shared' }
+  } catch (error) { if (isCancelled(error)) return 'cancelled' }
+  return 'view'
+}
+
 /** Preserve the existing card share path; composed photos need a JPEG filename/MIME. */
 export async function shareWorkoutImage(blob: Blob, text: string): Promise<'shared' | 'saved' | 'cancelled'> {
   if (blob.type !== 'image/jpeg') {

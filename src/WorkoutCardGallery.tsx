@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { buildShareCard, type CardFormat, type WorkoutSummary } from './shareCard'
-import { loadSharePhoto, shareWorkoutImage } from './sharePhoto'
+import { isPhone, loadSharePhoto, saveImageToPhotos, shareWorkoutImage } from './sharePhoto'
 import { useImageAsset } from './useImageAsset'
 import { WORKOUT_CARD_STYLES, type WorkoutCardStyle } from './workoutCardDesign'
 import type { Settings } from './types'
@@ -36,6 +36,7 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [viewing, setViewing] = useState(false) // a phone that cannot hand over a picture: show it to press and hold
   const [photoError, setPhotoError] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const version = useRef(0)
@@ -59,12 +60,15 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
     } catch { if (request === version.current) setPhotoError('Could not open that photo. Try a JPEG or PNG from your library.') }
     finally { if (request === version.current) setLoading(false) }
   }
-  const save = () => {
+  // On a phone this goes to the photo library through the share sheet (a download would only make a file); on a computer it downloads.
+  const save = async () => {
     if (!asset || disabled) return
-    const a = document.createElement('a')
-    a.href = asset.url; a.download = `willpower-${style}-${summary.date}-${format}.png`
-    document.body.appendChild(a); a.click(); a.remove()
-    setMessage('Card downloaded. Add it to an Instagram story or post.')
+    setMessage(''); setViewing(false)
+    try {
+      const result = await saveImageToPhotos(asset.blob, `willpower-${style}-${summary.date}-${format}.png`)
+      if (result === 'view') setViewing(true)
+      else if (result === 'saved') setMessage('Card downloaded. Add it to an Instagram story or post.')
+    } catch { setMessage('Could not save the card. Try Share card instead.') }
   }
   const share = async () => {
     if (!asset || disabled) return
@@ -100,8 +104,13 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
       : <div className="workout-card-selected"><div className={`share-card-preview ${format}`}>{asset ? <img src={asset.url} alt={`${picked.name} workout card preview`} /> : <span className="share-loading">Preparing card…</span>}</div></div>}
     <p className="share-hint">{style === 'pr' && !unavailable ? 'The percentage compares estimated one-rep max with your previous best.' : picked.detail}</p>
     {crewPost && <button type="button" className="primary crew-post-button" disabled={disabled || crewPost.disabled} onClick={() => void post()}>{crewPost.label}</button>}
-    <div className="share-actions"><button type="button" className="ghost" disabled={disabled} onClick={save}>Save card</button><button type="button" className="primary" disabled={disabled} onClick={() => void share()}>{busy ? 'Sharing…' : 'Share card'}</button></div>
-    <p className="share-hint">Choose Instagram in your phone’s share sheet, or upload the saved card in Instagram.</p>
+    {viewing && asset && <div className="save-photo" role="group" aria-label="Save the card to your photos">
+      <img src={asset.url} alt="Your workout card" />
+      <p><b>Press and hold the picture</b>, then choose {/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Add to Photos' : 'Download image'}.</p>
+      <button type="button" className="quiet-button" onClick={() => setViewing(false)}>Done</button>
+    </div>}
+    <div className="share-actions"><button type="button" className="ghost" disabled={disabled} onClick={() => void save()}>{isPhone() ? 'Save to photos' : 'Save card'}</button><button type="button" className="primary" disabled={disabled} onClick={() => void share()}>{busy ? 'Sharing…' : 'Share card'}</button></div>
+    <p className="share-hint">{isPhone() ? (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Save to photos opens the share sheet: tap Save Image. Share card sends it on, like to Instagram.' : 'Save to photos opens the share sheet: pick your Photos or Gallery app. Share card sends it on, like to Instagram.') : 'Choose Instagram in your phone’s share sheet, or upload the saved card in Instagram.'}</p>
     {(error || message) && <p className={error ? 'err' : 'share-message'} role="status">{error || message}</p>}
   </section>
 }

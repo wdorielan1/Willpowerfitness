@@ -1519,3 +1519,8 @@ p.focus-note { margin: -4px 0 0; }
 .person-card .primary { width: 100%; }
 .person-card-done { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; }
 .invite-card { border-style: dashed; }
+
+/* a phone that cannot hand a picture to the share sheet: the card, big, to press and hold */
+.save-photo { display: grid; gap: 10px; justify-items: center; padding: 12px; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; text-align: center; }
+.save-photo img { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 10px; -webkit-touch-callout: default; user-select: auto; }
+.save-photo p { margin: 0; font-size: 14px; line-height: 1.45; }
