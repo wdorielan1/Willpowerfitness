@@ -493,7 +493,11 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Add two photos: small previews show, each with an X. Remove one. Add a video up to 30 seconds: a preview with its length shows
 - [ ] With a video you can add 4 photos in all (the workout card is the fifth picture). Going over says how many more you can add
 - [ ] Post it: the post has the workout card, your photos and the video, with your caption. Nothing added still posts just the card
-- [ ] Every post with more than one picture or video shows them full width, one at a time. Swipe sideways; a count like 1/4 sits on the picture and dots sit under it
+- [ ] A post with more than one picture or video rolls sideways like Strava: the first is big (about 86% of the width) and the edge of the next peeks in, so you can roll through freely without swiping each one all the way. Dots under it show where you are
+- [ ] In the share sheet, once you add a photo or video, a row of tiles shows the order of the post with a "Workout card" tile 🔒 first. It says the card is locked to the front
+- [ ] Tap Unlock: the card tile gets ‹ › arrows. Slide it later; the order in the sheet changes and so does the post. Lock to front puts it back first
+- [ ] Posted with the card locked: the card is the first panel in the feed, then the video, then your photos. Posted unlocked and slid back: it follows your order
+- [ ] With nothing added (just the card) there is no lock row
 - [ ] A single photo still fills the post and shows whole
 - [ ] A single video fills the post at its own shape (tall for a phone video held upright, wide for sideways) with no black bars at the sides
 - [ ] The video starts by itself without sound as you scroll to it, and tapping it opens it with sound
