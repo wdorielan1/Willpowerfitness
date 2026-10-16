@@ -384,7 +384,8 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
  * The Home feed: posts from every crew you are in, and the public posts of people you follow (a person's posts only reach
  * followers when their profile is public), newest first. Null when the backend is not configured.
  */
-export function useHomeFeed(crewIds: string[], userId: string | null) {
+export type FeedTab = 'all' | 'crews' | 'following'
+export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedTab = 'all') {
   const [posts, setPosts] = useState<CrewPost[]>([])
   const [tick, setTick] = useState(0)
   const refresh = useCallback(() => setTick((t) => t + 1), [])
@@ -395,9 +396,10 @@ export function useHomeFeed(crewIds: string[], userId: string | null) {
     const load = async () => {
       const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
       const following = (f ?? []).map((r) => r.friend_id as string)
+      // what you can see is decided by the database (crew mates, and the public posts of public profiles); this only says whose
       const parts: string[] = []
-      if (crewIds.length) parts.push(`crew_id.in.(${crewIds.join(',')})`)
-      if (following.length) parts.push(`and(user_id.in.(${following.join(',')}),is_public.eq.true)`)
+      if (tab !== 'following' && crewIds.length) parts.push(`crew_id.in.(${crewIds.join(',')})`)
+      if (tab !== 'crews' && following.length) parts.push(`user_id.in.(${following.join(',')})`)
       if (!parts.length) { if (alive) setPosts([]); return }
       const { data: rows } = await supabase!.from('crew_posts').select('id,crew_id,user_id,name,kind,text,image_path,image_paths,meta,created_at').or(parts.join(',')).order('created_at', { ascending: false }).limit(60)
       const ids = (rows ?? []).map((r) => r.id as number)
@@ -420,7 +422,7 @@ export function useHomeFeed(crewIds: string[], userId: string | null) {
     window.addEventListener(FEED_EVENT, changed)
     return () => { alive = false; clearInterval(id); window.removeEventListener(FEED_EVENT, changed) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, userId, tick])
+  }, [key, userId, tab, tick])
   return supabase ? { posts, refresh } : null
 }
 

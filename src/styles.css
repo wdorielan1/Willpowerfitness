@@ -1175,7 +1175,8 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-strip-item:active { transform: none; opacity: .85; }
 .post-strip-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .post-strip[data-count="1"] { --w: 100%; }
-.post-strip[data-count="1"] .post-strip-item { aspect-ratio: 4 / 3; }
+.post-strip[data-count="1"] .post-strip-item { aspect-ratio: auto; } /* one picture shows whole, at its own shape */
+.post-strip[data-count="1"] .post-strip-item img { height: auto; max-height: 82vh; object-fit: contain; }
 .post-strip[data-count="2"] { --w: calc((100% - var(--gap)) / 2); }
 .post-strip[data-count="3"] { --w: calc((100% - var(--gap) * 2) / 3); }
 .post-strip[data-count="4"] { --w: calc((100% - var(--gap) * 2) / 3.25); }
@@ -1481,3 +1482,14 @@ p.focus-note { margin: -4px 0 0; }
 .profile-friends { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
 .profile-friends .grow { display: grid; gap: 2px; min-width: 0; }
 .friends-back { justify-self: start; }
+
+/* a post is its picture, with the words under it as a caption */
+.post-caption { margin: 0; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post.has-media .post-strip { border-radius: 10px; }
+.share-caption { display: grid; gap: 6px; }
+.share-caption textarea { min-height: 64px; }
+
+/* which feed: everything, just your crews, or just the people you follow */
+.feed-tabs { display: flex; gap: 6px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.feed-tabs button { flex: 1; min-width: 0; min-height: 40px; padding: 8px 6px; background: transparent; font-size: 13px; border-radius: 8px; }
+.feed-tabs button.on { background: var(--card2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }

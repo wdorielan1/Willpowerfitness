@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
+import { buildShareCard, summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
 import { autoShareCrews, postedKey, workoutPost } from '../workoutPost'
 import { useMyCrews } from '../CrewPicker'
 import { DoneSheet } from '../WorkoutShare'
@@ -646,7 +646,17 @@ export default function Workout() {
     if (willPost) {
       const shared = workoutPost(sum, entries, plan.day, data.settings.shareLifts !== false, { at: finishedAt, place: data.settings.postPlace })
       setSharedTo(autoCrews)
-      void postTo(autoCrews, { kind: 'workout', text: shared.text, meta: shared.meta }).then(({ errors }) => {
+      // The post is a picture, like anything else in the feed: a card of the session in the style they last chose. Weights are on
+      // the card, so with "Show my weights" off it goes out as the plain card text instead. The place on it is only the one they set for posts.
+      const picture = async (): Promise<Blob | undefined> => {
+        if (data.settings.shareLifts === false) return undefined
+        try {
+          const saved = data.settings.shareCardStyle
+          const style = saved === 'receipt' ? 'receipt' : saved === 'pr' && sum.prs.length ? 'pr' : 'scorecard'
+          return await buildShareCard({ ...sum, place: data.settings.postPlace?.trim() || undefined }, 'post', { style })
+        } catch { return undefined }
+      }
+      void picture().then((photo) => postTo(autoCrews, { kind: 'workout', text: shared.text, meta: shared.meta, photos: photo ? [photo] : undefined })).then(({ errors }) => {
         // a crew that did not get it can be tried again from Share this workout
         if (errors.length) update((d) => ({ ...d, workoutPosted: Object.fromEntries(Object.entries(d.workoutPosted ?? {}).filter(([k]) => !errors.some((e) => k === postedKey(today, e.id, d.primary)))) }))
       })

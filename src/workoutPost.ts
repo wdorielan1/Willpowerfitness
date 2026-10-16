@@ -17,6 +17,9 @@ export const shareableLogs = (logs: WorkoutLog[]) => logs.filter((l) => !l.basel
 /** A typed gym or town: one line, no longer than the share card allows. */
 export const cleanPlace = (s: string) => s.replace(/\s+/g, ' ').trim().slice(0, 40)
 
+/** What someone wrote under a shared workout: trimmed and kept to a sensible length. */
+export const cleanCaption = (s: string) => s.trim().slice(0, 500)
+
 /** One lift on a shared workout: its name and the best set (weight and reps). */
 export interface PostLift { n: string; w: number; r: number }
 
@@ -37,7 +40,7 @@ const bestSet = (e: LogEntry) => e.sets.reduce((b, s) => (e1rm(s.weight, s.reps)
  * What a finished workout shares with the crew: the text people see in lists, and the details the workout card is drawn from.
  * With `shareLifts` off, no weights go out at all: no lift list, no total weight, and a PR is just the lift's name.
  */
-export function workoutPost(sum: WorkoutSummary, entries: LogEntry[], day: DayType, shareLifts: boolean, opts: { at?: number; place?: string } = {}): { text: string; meta: Record<string, unknown> } {
+export function workoutPost(sum: WorkoutSummary, entries: LogEntry[], day: DayType, shareLifts: boolean, opts: { at?: number; place?: string; caption?: string } = {}): { text: string; meta: Record<string, unknown> } {
   const pr = sum.prs[0]
   const text = `Finished ${sum.title}${sum.minutes ? ` in ${sum.minutes} min` : ''}${pr ? ` · New PR: ${shareLifts ? prLine(pr) : pr.name}` : ''}`
   const lifts: PostLift[] = entries.filter((e) => e.sets.length).slice(0, 3).map((e) => { const s = bestSet(e); return { n: e.name.slice(0, 48), w: s.weight, r: s.reps } })
@@ -46,6 +49,7 @@ export function workoutPost(sum: WorkoutSummary, entries: LogEntry[], day: DayTy
     date: sum.date, // the day it was done, which can be earlier than the day it was posted
     ...(opts.at ? { at: opts.at } : {}), // when it was finished
     ...(opts.place?.trim() ? { place: cleanPlace(opts.place) } : {}), // a gym or town the person typed, never a live location
+    ...(opts.caption?.trim() ? { caption: cleanCaption(opts.caption) } : {}), // what they wrote when they shared it
     ...(sum.minutes ? { minutes: sum.minutes } : {}),
     prs: sum.prs.slice(0, 3).map((p) => (shareLifts ? p : { name: p.name })),
     ...(shareLifts ? { volume: sum.volume, lifts } : {}),
@@ -62,6 +66,8 @@ export interface WorkoutView {
   at?: number
   /** A gym or town the person chose to show. */
   place?: string
+  /** What they wrote when they shared it. */
+  caption?: string
 }
 
 /** Reads any shared workout, new or old, into what the card shows. Older posts only carry a sentence and three numbers. */
@@ -79,5 +85,6 @@ export function readWorkoutPost(p: Pick<CrewPost, 'text' | 'meta'>): WorkoutView
   const date = typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.date) ? m.date : undefined
   const at = num(m.at)
   const place = typeof m.place === 'string' && m.place.trim() ? cleanPlace(m.place) : undefined
-  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined, date, at, place }
+  const caption = typeof m.caption === 'string' && m.caption.trim() ? cleanCaption(m.caption) : undefined
+  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined, date, at, place, caption }
 }

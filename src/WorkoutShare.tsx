@@ -21,7 +21,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
   /** `crews` are the crews you are in; `done` already have this workout; `defaultTo` is picked to start with. */
   crewPost?: { crews: MyCrew[]; done: string[]; defaultTo?: string; /** `place` is the gym or town shown on the picture, if the person left it on: the post's header says it too. */
-    onPost: (blob: Blob, crewIds: string[], opts?: { place?: string }) => Promise<string | null> }
+    onPost: (blob: Blob, crewIds: string[], opts?: { place?: string; caption?: string }) => Promise<string | null> }
   /** Something to show right under the recap, such as the offer to save this workout. */
   extra?: ReactNode
 }) {
@@ -39,6 +39,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
     const free = (crewPost?.crews ?? []).map((c) => c.id).filter((id) => !crewPost?.done.includes(id))
     return crewPost?.defaultTo && free.includes(crewPost.defaultTo) ? [crewPost.defaultTo] : free.slice(0, 1)
   })
+  const [caption, setCaption] = useState('')
   const [message, setMessage] = useState('')
   const [imageError, setImageError] = useState('')
   const [composed, setComposed] = useState<{ key: string; blob: Blob } | null>(null)
@@ -165,7 +166,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
     if (!crewPost || allPosted || !image || busy || !going.length) return 'Choose an available crew and try again.'
     setBusy(true); setMessage('')
     if (showPlace) onPrefs({ gymName: place.trim() })
-    const failed = await crewPost.onPost(image, going, showPlace && place.trim() ? { place: place.trim() } : {}).catch(() => 'Could not post. Please try again.')
+    const failed = await crewPost.onPost(image, going, { ...(showPlace && place.trim() ? { place: place.trim() } : {}), ...(caption.trim() ? { caption: caption.trim() } : {}) }).catch(() => 'Could not post. Please try again.')
     setBusy(false)
     if (failed) setMessage(failed); else onClose()
     return failed
@@ -207,6 +208,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
       </div>
       {extra}
       {crewPost && <PostTo crews={crewPost.crews} value={going} onChange={setTo} done={crewPost.done} disabled={busy} />}
+      {crewPost && <label className="share-caption"><span className="small mute">Caption (optional)</span><textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} placeholder="Say something about this workout…" disabled={busy} aria-label="Caption" /></label>}
       <div className="share-section-heading"><div><span className="share-eyebrow">MAKE IT YOURS</span><h3>Workout stickers</h3></div><span className="small mute">Transparent PNG</span></div>
       <div className="share-segments" role="group" aria-label="Sticker style">{STYLES.map(([value, label]) => <button type="button" key={value} className={style === value ? 'on' : ''} aria-pressed={style === value} onClick={() => { setStyle(value); onPrefs({ shareStickerStyle: value }); setMessage('') }}>{label}</button>)}</div>
       <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { manualColor.current = true; setColorNote(''); setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>
