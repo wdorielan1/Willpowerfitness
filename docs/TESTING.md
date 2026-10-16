@@ -461,6 +461,14 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] A post from someone you follow in a crew you are not in has the comment bubble but no heart
 - [ ] Profile pages still show the old "Comment" button that opens comments inline (unchanged)
 
+## Home: suggested athletes and invite friends (right above the feed)
+- [ ] Under the share box and above the feed there is a row: "Suggested athletes" (with "Find more"), a scrolling row of cards, and an "Invite friends" card at the end
+- [ ] People who already follow you come first, marked "Follows you" with a "Follow back" button; then people in your crews you do not follow, marked "In your crew" with their streak and a "Follow" button
+- [ ] Tap Follow: the card turns to "Following" and the person is in your Following list on the Friends page. Tap a card's name or photo: their profile opens
+- [ ] Invite friends > Invite: on a phone the share sheet opens with your link; on a computer the link is copied and it says "Invite link copied". The link has your handle, your crew and a code, and when a friend joins with it you follow each other (same as the Friends page)
+- [ ] With nobody to suggest (or no account online) the heading is just "Invite friends" and there is only the Invite card
+- [ ] Friends page: Share invite and Copy link still work exactly as before
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
