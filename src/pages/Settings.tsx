@@ -74,6 +74,7 @@ export default function Settings() {
         <h2>Workout</h2>
         <Toggle label="Share finished workouts to my crew" hint="Posts a quick summary to your crew’s feed when you finish." on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
         <Toggle label="Offer to save my workout when I finish" hint="Save it as your Leg Day or Push Day, and we offer it first next time you train that day." on={s.askSave !== false} onClick={() => setS({ askSave: s.askSave === false })} />
+        <Toggle label="Show my weights in crew posts" hint="Your shared workout shows your top lifts, the total weight and the weight of a PR. Off: your crew only sees the session, time, sets and streak." on={s.shareLifts !== false} onClick={() => setS({ shareLifts: s.shareLifts === false })} />
         <Toggle label="Check in when I skip lifts or workouts" hint="After a couple of skipped lifts, or two missed workouts, we ask what’s in the way and offer a fix. We never change anything until you tap." on={s.askSkips !== false} onClick={() => setS({ askSkips: s.askSkips === false })} />
         <Toggle label="Ask how hard my last set felt (RPE)" hint="One quick rating at the end of each exercise. Helps the app decide when to add weight." on={s.rpeEnabled} onClick={() => setS({ rpeEnabled: !s.rpeEnabled })} />
         <h3>Workout length</h3>

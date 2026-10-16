@@ -101,6 +101,7 @@ export interface Settings {
   equipAsked?: number // when we first asked what equipment they use (so it only pops up once)
   askSave?: boolean // offer to save a finished workout as "your Leg Day" (on unless they said don't ask again)
   askSkips?: boolean // check in after skipped lifts or missed workouts (on unless they said don't ask again)
+  shareLifts?: boolean // show weights in crew posts: the top lifts, total weight and the PR's weight (on unless they turned it off)
   gymName?: string // optional place shown on share pictures (never live location)
   shareFormat?: 'story' | 'post' // last share picture size
   shareHideWeight?: boolean // body weight graph sticker: leave out the actual weights (default on)

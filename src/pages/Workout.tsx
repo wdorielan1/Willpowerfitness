@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { prLine, summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
+import { summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
+import { workoutPost } from '../workoutPost'
 import { DoneSheet } from '../WorkoutShare'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
@@ -611,8 +612,8 @@ export default function Workout() {
       }
     })
     if (willPost) {
-      const prText = sum.prs.length ? ` · New PR: ${prLine(sum.prs[0])}` : ''
-      void postToCrew({ kind: 'workout', text: `Finished ${sessionName}${minutes ? ` in ${minutes} min` : ''}${prText}`, meta: { sets: sum.sets, volume: sum.volume, exercises: sum.exercises, prs: sum.prs.slice(0, 3) } })
+      const shared = workoutPost(sum, entries, plan.day, data.settings.shareLifts !== false)
+      void postToCrew({ kind: 'workout', text: shared.text, meta: shared.meta })
     }
     timer.stop()
     setSaved(true)

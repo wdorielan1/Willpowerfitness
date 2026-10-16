@@ -5,6 +5,8 @@ import { CommentThread } from '../Comments'
 import { LikersSheet, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
+import { WorkoutCard } from '../WorkoutCard'
+import { readWorkoutPost, workoutPost } from '../workoutPost'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
@@ -137,9 +139,11 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   /** Post today's workout, with the picture the person chose, to this crew (once a day). */
   const shareWorkout = async (blob: Blob): Promise<string | null> => {
     if (!todaysLog || shared) return 'Today\u2019s workout is already shared with this crew.'
-    const sets = todaysLog.entries.reduce((a, e) => a + e.sets.length, 0)
-    const vol = todaysLog.entries.reduce((a, e) => a + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0)
-    const error = await submit({ kind: 'workout', text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets, volume: Math.round(vol), exercises: todaysLog.entries.length }, photos: [blob] })
+    const sum = summaryFromLog(data, todaysLog)
+    const wp = sum
+      ? workoutPost(sum, todaysLog.entries, todaysLog.dayType, data.settings.shareLifts !== false)
+      : { text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets: todaysLog.entries.reduce((a, e) => a + e.sets.length, 0), exercises: todaysLog.entries.length } }
+    const error = await submit({ kind: 'workout', text: wp.text, meta: wp.meta, photos: [blob] })
     if (!error) {
       update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, [sharedKey]: true } }))
       setSharedNote(true); setTimeout(() => setSharedNote(false), 5000)
@@ -187,7 +191,7 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   )
 }
 
-export default function Feed({ crewId }: { crewId: string }) {
+export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: { done: number; members: number } }) {
   const { data, update, userId, avatarUrl } = useApp()
   const crewAvatars = useCrewAvatars(crewId)
   const { feed } = usePostActions(crewId)
@@ -240,23 +244,19 @@ export default function Feed({ crewId }: { crewId: string }) {
         const hasCover = !!clip && (clip.cover ?? all.length > 0)
         const cover = hasCover && all[0] ? urls[all[0].id] : undefined
         const images = all.slice(hasCover ? 1 : 0).map((photo) => urls[photo.id]).filter(Boolean)
-        const meta = p.meta as { sets?: number; volume?: number; exercises?: number; q?: string } | undefined
+        const meta = p.meta as { q?: string } | undefined
+        const wk = p.kind === 'workout' ? readWorkoutPost(p) : null
+        // the crew's count for today sits on the newest workout posted today, not on every one
+        const first = posts.find((x) => x.kind === 'workout' && new Date(x.ts).toDateString() === new Date().toDateString())
         return (
-          <article key={p.id} className="card post">
+          <article key={p.id} className={`card post${wk ? ' wk' : ''}`}>
             <div className="row">
               <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? crewAvatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute">{timeAgo(p.ts)}</div></div></div>
               {p.kind === 'qotd' && <span className="tag accent">Question of the day</span>}
-              {p.kind === 'workout' && <span className="tag ok">Workout</span>}
+              {wk && <span className="wk-chip">{wk.chip}</span>}
             </div>
             {p.kind === 'qotd' && meta?.q && <div className="small mute">“{meta.q}”</div>}
-            {p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
-            {p.kind === 'workout' && meta && (
-              <div className="grid3">
-                <div className="stat"><b>{meta.exercises ?? 0}</b><span>exercises</span></div>
-                <div className="stat"><b>{meta.sets ?? 0}</b><span>sets</span></div>
-                <div className="stat"><b>{meta.volume ? `${Math.round(meta.volume / 100) / 10}k` : '—'}</b><span>lb lifted</span></div>
-              </div>
-            )}
+            {wk ? <WorkoutCard w={wk} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
             {clip
               ? (images.length === 0
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />

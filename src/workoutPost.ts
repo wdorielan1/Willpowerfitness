@@ -1,0 +1,57 @@
+import { e1rm } from './engine'
+import { prLine, type WorkoutSummary } from './shareCard'
+import type { CrewPost, DayType, LogEntry } from './types'
+
+/** One lift on a shared workout: its name and the best set (weight and reps). */
+export interface PostLift { n: string; w: number; r: number }
+
+const TITLES: Record<string, string> = { Push: 'Push Day', Pull: 'Pull Day', Legs: 'Leg Day', 'Full Body': 'Full Body Day' }
+const CHIPS: Record<string, string> = {
+  Push: 'PUSH', Pull: 'PULL', Legs: 'LEGS', 'Shoulders + Abs': 'SHOULDERS + ABS', 'Full Body': 'FULL BODY', 'Chest + Triceps': 'CHEST + TRICEPS', 'Back + Biceps': 'BACK + BICEPS', 'Custom workout': 'CUSTOM',
+}
+/** Older posts called the shoulders session "Shoulders/Abs". */
+const clean = (name: string) => (name === 'Shoulders/Abs' ? 'Shoulders + Abs' : name)
+export const cardTitle = (name: string) => TITLES[clean(name)] ?? clean(name)
+export const cardChip = (name: string) => CHIPS[clean(name)] ?? clean(name).toUpperCase().slice(0, 18)
+/** 8400 becomes "8.4k"; small numbers stay as they are. */
+export const fmtVolume = (v?: number) => (v === undefined ? '—' : v >= 1000 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v)))
+
+const bestSet = (e: LogEntry) => e.sets.reduce((b, s) => (e1rm(s.weight, s.reps) > e1rm(b.weight, b.reps) ? s : b))
+
+/**
+ * What a finished workout shares with the crew: the text people see in lists, and the details the workout card is drawn from.
+ * With `shareLifts` off, no weights go out at all: no lift list, no total weight, and a PR is just the lift's name.
+ */
+export function workoutPost(sum: WorkoutSummary, entries: LogEntry[], day: DayType, shareLifts: boolean): { text: string; meta: Record<string, unknown> } {
+  const pr = sum.prs[0]
+  const text = `Finished ${sum.title}${sum.minutes ? ` in ${sum.minutes} min` : ''}${pr ? ` · New PR: ${shareLifts ? prLine(pr) : pr.name}` : ''}`
+  const lifts: PostLift[] = entries.filter((e) => e.sets.length).slice(0, 3).map((e) => { const s = bestSet(e); return { n: e.name.slice(0, 48), w: s.weight, r: s.reps } })
+  const meta: Record<string, unknown> = {
+    v: 2, title: sum.title, day, sets: sum.sets, exercises: sum.exercises, streak: sum.streak,
+    ...(sum.minutes ? { minutes: sum.minutes } : {}),
+    prs: sum.prs.slice(0, 3).map((p) => (shareLifts ? p : { name: p.name })),
+    ...(shareLifts ? { volume: sum.volume, lifts } : {}),
+  }
+  return { text, meta }
+}
+
+export interface WorkoutView {
+  title: string; chip: string; minutes?: number; exercises: number; sets: number; volume?: number
+  prs: { name: string; weight?: number; reps?: number }[]
+  lifts: PostLift[]; more: number; streak?: number
+}
+
+/** Reads any shared workout, new or old, into what the card shows. Older posts only carry a sentence and three numbers. */
+export function readWorkoutPost(p: Pick<CrewPost, 'text' | 'meta'>): WorkoutView {
+  const m = (p.meta ?? {}) as Record<string, unknown>
+  const num = (x: unknown) => (typeof x === 'number' && isFinite(x) ? x : undefined)
+  const old = /^Finished (.+?)(?: in (\d+) min)?(?: · New PR: (.+))?$/.exec((p.text ?? '').trim())
+  const name = typeof m.title === 'string' ? m.title : old ? old[1] : 'Workout'
+  const minutes = num(m.minutes) ?? (old?.[2] ? Number(old[2]) : undefined)
+  const prs: WorkoutView['prs'] = Array.isArray(m.prs) ? (m.prs as Record<string, unknown>[]).filter((x) => typeof x?.name === 'string').map((x) => ({ name: x.name as string, weight: num(x.weight), reps: num(x.reps) })) : []
+  if (!prs.length && old?.[3]) prs.push({ name: old[3] })
+  const lifts = Array.isArray(m.lifts) ? (m.lifts as Record<string, unknown>[]).filter((x) => typeof x?.n === 'string').slice(0, 3).map((x) => ({ n: x.n as string, w: num(x.w) ?? 0, r: num(x.r) ?? 0 })) : []
+  const exercises = num(m.exercises) ?? 0
+  const streak = num(m.streak)
+  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined }
+}

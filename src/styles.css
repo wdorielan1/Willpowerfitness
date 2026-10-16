@@ -240,6 +240,33 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .feed-empty h3 { font-size: 17px; font-weight: 500; }
 .feed-empty p { font-size: 12px; line-height: 1.6; color: var(--mute); }
 .shell .post { border: 0; border-bottom: 1px solid var(--line); background: transparent; padding: 0 0 20px; border-radius: 0; }
+/* a shared workout in the crew feed: a card with a thin accent edge, the session as the headline, then the numbers */
+.shell .post.wk { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; padding: 16px 16px 8px; background: linear-gradient(180deg, #1d1e23 0%, #17181c 100%); gap: 14px; }
+.shell .post.wk::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--accent), #ff9d7a); }
+.wk-chip { font-size: 11px; font-weight: 900; letter-spacing: 1.2px; color: var(--accent2); background: #3a1810; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.wk-body { display: grid; gap: 14px; }
+.wk-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wk-title h3 { font-size: 24px; letter-spacing: -.4px; line-height: 1.1; }
+.wk-title span { font-size: 14px; color: var(--mute); font-weight: 600; white-space: nowrap; }
+.wk-pr { display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg, #3a1810, #2a1510); border: 1px solid #5a2a1c; border-radius: 14px; padding: 10px 12px; }
+.wk-pr b { font-size: 15px; }
+.wk-pr span { font-size: 13px; color: var(--accent2); }
+.wk-pr .wk-badge { flex: none; font-size: 11px; font-weight: 900; letter-spacing: 1px; color: #1b0f0a; background: var(--accent); border-radius: 8px; padding: 5px 8px; }
+.wk-pr .wk-more { font-size: 12px; color: var(--mute); white-space: nowrap; }
+.wk-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.wk-strip > div { padding: 12px 0 11px; text-align: center; }
+.wk-strip > div + div { border-left: 1px solid var(--line); }
+.wk-strip b { display: block; font-size: 26px; letter-spacing: -.5px; line-height: 1.05; }
+.wk-strip em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--mute); text-transform: uppercase; }
+.wk-lifts { list-style: none; margin: 0; padding: 0; display: grid; }
+.wk-lifts li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #2c2e36; font-size: 14px; }
+.wk-lifts li b { font-weight: 600; }
+.wk-lifts li span { color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wk-lifts li:last-child { border-bottom: 0; }
+.wk-lifts .wk-more-lifts { display: block; font-size: 12px; color: var(--mute); padding: 6px 0 0; }
+.wk-foot { display: flex; gap: 8px; flex-wrap: wrap; }
+.wk-pill { font-size: 12px; font-weight: 700; color: #d9dbe2; background: var(--card2); border-radius: 999px; padding: 6px 10px; }
+.wk-pill i { font-style: normal; color: var(--accent2); }
 .post-like { display: flex; gap: 7px; padding: 8px 0; background: transparent; color: var(--mute); min-height: 40px; font-size: 13px; }
 .post-like.on { color: var(--accent); }
 .post-like.on svg { fill: var(--accent); }
