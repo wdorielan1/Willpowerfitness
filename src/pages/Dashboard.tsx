@@ -10,6 +10,7 @@ import type { WorkoutLog } from '../types'
 import { FeedComposer, HomeFeed, ShareWorkoutSheet } from './Feed'
 import { WeekStrip, useWeekMove } from '../WeekStrip'
 import { useMyCrews } from '../CrewPicker'
+import { HomePeople } from '../HomePeople'
 
 /** "Good evening, Will" at the top of the page. It re-reads the clock every minute so it changes on its own at 5, 12, 17 and 22 o'clock. */
 function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boolean }) {
@@ -67,6 +68,7 @@ export default function Dashboard() {
         : justHid && <p className="small mute today-nutrition-hidden" role="status">Nutrition is hidden from Home. Bring it back in Settings. <button type="button" className="quiet-action" onClick={() => { setHidden(false); setJustHid(false) }}>Undo</button></p>}
 
       {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
+      <HomePeople />
       <HomeFeed />
 
       {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}

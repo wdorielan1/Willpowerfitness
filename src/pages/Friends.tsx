@@ -5,7 +5,8 @@ import { Icon } from '../icons'
 import { Avatar } from '../components'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
-import { cloudEnabled, createInviteCode, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
+import { useInvite } from '../useInvite'
+import { cloudEnabled, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
 import { streak } from '../engine'
 
 type ContactPicker = { select: (props: string[], opts: { multiple: boolean }) => Promise<{ email?: string[] }[]> }
@@ -22,8 +23,6 @@ export default function Friends() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<PublicProfile[] | null>(null)
   const [conn, setConn] = useState<{ friends: Person[]; following: Person[]; followers: Person[]; suggestions: Person[] }>({ friends: [], following: [], followers: [], suggestions: [] })
-  const [copied, setCopied] = useState(false)
-  const [showLink, setShowLink] = useState(false)
   const canPickContacts = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window
 
   const load = () => { if (userId && cloudEnabled) void fetchConnections(userId, data.joined).then(setConn).catch(() => {}) }
@@ -34,37 +33,7 @@ export default function Friends() {
     void ensureProfileCard(userId, data.name || 'Member', null, email).then((r) => { if (r) { setHandle(r.handle); update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic })) } }).catch(() => {})
   }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A one-time code makes the follow go both ways when they join (supabase/invites.sql). It is made ahead of the tap, because
-  // the phone's share sheet only opens straight from a tap. Without one (not set up yet, or offline) the plain link still works.
-  const [inviteCode, setInviteCode] = useState<string | null>(null)
-  const codeKey = userId ? `wpf.inviteCode.${userId}` : ''
-  const freshCode = () => {
-    if (!userId || !cloudEnabled) return
-    void createInviteCode(userId).then((c) => {
-      setInviteCode(c)
-      try { if (c) localStorage.setItem(codeKey, `${c}|${Date.now()}`); else localStorage.removeItem(codeKey) } catch { /* storage unavailable */ }
-    }).catch(() => {})
-  }
-  useEffect(() => {
-    if (!userId || !cloudEnabled) return
-    let kept: string[] = []
-    try { kept = (localStorage.getItem(codeKey) ?? '').split('|') } catch { /* storage unavailable */ }
-    if (kept[0] && Date.now() - Number(kept[1]) < 7 * 86400000) setInviteCode(kept[0]) // a code nobody has been sent yet
-    else freshCode()
-  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
-  const usedCode = () => { setInviteCode(null); try { localStorage.removeItem(codeKey) } catch { /* storage unavailable */ } freshCode() }
-
-  const link = `${location.origin}${location.pathname}#/join?${[userId ? `u=${userId}` : '', data.handle ? `ref=${encodeURIComponent(data.handle)}` : '', data.primary ? `crew=${encodeURIComponent(data.primary)}` : '', inviteCode ? `inv=${inviteCode}` : ''].filter(Boolean).join('&')}`
-  const share = async () => {
-    const text = 'Train with me on Will Power. Your workout. Your crew.'
-    try { if (navigator.share) { await navigator.share({ title: 'Will Power', text, url: link }); if (inviteCode) usedCode(); return } } catch { /* cancelled */ }
-    try { await navigator.clipboard.writeText(link); setCopied(true); if (inviteCode) usedCode() } catch { setShowLink(true); setMsg('Copy your invite link below.') }
-  }
-
-  const copyLink = async () => {
-    try { await navigator.clipboard.writeText(link); setCopied(true); if (inviteCode) usedCode() }
-    catch { setShowLink(true); setMsg('Copy your invite link below.') }
-  }
+  const { link, inviteCode, copied, showLink, share, copy: copyLink } = useInvite()
 
   const saveCard = async (next: { handle?: string; findByHandle?: boolean; findByEmail?: boolean }) => {
     const h = (next.handle ?? handle).toLowerCase()
@@ -91,7 +60,7 @@ export default function Friends() {
   const unfollow = async (p: Person) => { if (userId) { await unfollowCloud(userId, p.userId); load() } }
   const joinTheirCrew = (id: string) => {
     if (data.joined.includes(id)) return
-    if (data.joined.length >= MAX_CREWS) { setMsg(`You’re in ${MAX_CREWS} crews already. Leave one on the Feed tab first.`); return }
+    if (data.joined.length >= MAX_CREWS) { setMsg(`You’re in ${MAX_CREWS} crews already. Leave one on the Crew page first.`); return }
     update((d) => ({ ...d, joined: [...d.joined, id], primary: d.primary ?? id }))
     if (userId) void joinCrewCloud(id, userId, data.name || 'Member', streak(data))
     setMsg('Joined!')
@@ -176,7 +145,7 @@ export default function Friends() {
         <form className="social-input-action" onSubmit={(event) => { event.preventDefault(); void saveCard({ handle }) }}><label>Your handle<input value={handle} onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="e.g. alex_lifts" maxLength={20} autoComplete="off" /></label><button className="primary" type="submit">Save</button></form>
         <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByHandle} onClick={() => void saveCard({ findByHandle: !data.findByHandle })}><span>Let people find me by name or handle</span><span className={`tag ${data.findByHandle ? 'ok' : ''}`}>{data.findByHandle ? 'On' : 'Off'}</span></button>
         <button className="friends-discovery-toggle" role="switch" aria-checked={!!data.findByEmail} onClick={() => void saveCard({ findByEmail: !data.findByEmail })}><span>Let friends find me by email<br /><span className="small mute">Uses a hash of your email for matching.</span></span><span className={`tag ${data.findByEmail ? 'ok' : ''}`}>{data.findByEmail ? 'On' : 'Off'}</span></button>
-        {msg && <p className="social-feedback" role="status">{msg}</p>}
+        {(msg || showLink) && <p className="social-feedback" role="status">{msg || 'Copy your invite link below.'}</p>}
       </section>
     </div>
   )
