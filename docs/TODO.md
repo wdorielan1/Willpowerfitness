@@ -51,6 +51,24 @@ Nothing here is built. Rule of thumb: each extra Google permission can trigger G
 - [ ] **Starter / baseline crews**: real crews run by a Will Power team account (never fake members). Waiting on: which local areas to start with (e.g. Woodbridge), and creating the team account. Starter crews would be exempt from the 35-day auto-archive.
 - [ ] **Member-count fix** (onboarding showed placeholder numbers like "184 members"). Saved on local branch `backup/member-count-fix`, commit `8fa1172`. Re-apply when ready. Note: placeholder counts are still visible in the live sign-up suggestions until then.
 
+## Security audit (owner request, Oct 2026; to do, nothing run yet)
+Ask: run a full security audit of the app and fix what is found. **How to run it:** first give the owner one prioritized list of every issue ranked **critical, high or medium** (before changing anything), then fix them in that order, and flag everything the owner has to do by hand (rotating keys, dashboard settings, 2FA). Keep real keys, project URLs and topics out of chat, files and the repo. Commit locally and hold the push until the owner says "push".
+- [ ] **1. API keys and secrets.** Search the whole codebase and the full Git history for hardcoded keys, tokens and passwords. Move any found to environment variables, make sure `.env` files are in `.gitignore`, and say which keys must be rotated because they were exposed. (A first look, Oct 2026: `.gitignore` already lists `.env` and `.env.local`, and the only env-style file that was ever committed is `.env.example`. The content scan of every revision has not been run yet.)
+- [ ] **2. AI calls.** Confirm every call to an AI provider happens on the server, never from the web app or a mobile client, and refactor any that don't. (Believed to be none today: the AI coach and weekly recap are still on the Bigger projects list. Confirm with a search.)
+- [ ] **3. Endpoint protection.** Every AI and data endpoint requires sign-in. Add per-user rate limiting and cap input and output length on AI requests. Includes the Supabase functions (`delete-account`, `expire-videos`).
+- [ ] **4. Prompt protection.** System prompts live only on the server and hold no secrets, with basic handling of prompt-injection attempts. (Matters when the AI features are built.)
+- [ ] **5. Database security.** Confirm Supabase row-level security is on and that people can only read and write their own data, for every table and storage bucket in `supabase/*.sql`. List any table that is currently open.
+- [ ] **6. User data protection.**
+  - Test that one signed-in user cannot see or change another user's data by swapping ids, and show the results.
+  - Confirm passwords are handled by the auth provider and never stored or logged by us (check the device-only local mode too).
+  - List every piece of personal data we collect, and flag anything we don't need.
+  - Encrypt sensitive fields at rest. Never send personal or health data to an AI provider unless a feature requires it.
+  - Make sure people can delete their account and all their data (built; re-check every table).
+  - Never handle card numbers directly: payments go through Stripe or a similar provider (matters for paid challenges).
+- [ ] **7. Dependencies.** Run a dependency audit and update anything with a known vulnerability.
+- [ ] **8. Basics.** Confirm HTTPS everywhere, correct CORS settings, and no sensitive data in URLs, logs or error messages.
+- Related items already on this list: Turnstile (Next features item 15), the sign-up alert, and the owner checklist from the "random user signed up" question (2FA on Supabase, GitHub, AWS and Google; Security Advisor; storage file limits; backups).
+
 ## Next features (suggested order)
 1. [ ] **Real-phone testing pass** on the live app. Collect bugs before adding more.
 2. [ ] **Smarter workouts: where you train, what you use, fewer "no"s** (plan agreed with the owner Oct 2026; **steps 1, 2 and 3 are built, step 4 is not**). Why: on a real gym morning the owner got leg days they didn't want, kettlebell and band moves at a gym, swaps that took so long only a couple of lifts got done, and 6 lifts they hadn't asked for.
