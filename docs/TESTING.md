@@ -354,6 +354,16 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] "Not now" quiets it for a week; "Don't ask again" turns it off. A brand-new account, or someone who is training again (latest session done), is never asked
 - [ ] On a Shoulders + Abs day with Legs as a focus area (so a leg lift is in the plan): swipe right on the leg lift. You get a shoulders or abs lift, not more leg work. Swipe right on a shoulders lift: you still get another shoulders lift
 
+## Crew shared workout card
+- [ ] Finish a workout with "Share finished workouts to my crew" on (Settings > Workout). Open the Crew page: your post is a card with a thin orange edge, a chip like PUSH or LEGS, the session as the headline ("Push Day") with the time beside it, three numbers in one strip, and your top three lifts with the weight and reps
+- [ ] Set a personal record: the card has an orange NEW PR bar with the lift and weight. With two or more PRs it says "+1 more"
+- [ ] A streak of 2 or more days shows a streak pill. On the newest workout posted today, an online crew also shows "3 of 5 crew done today"
+- [ ] Older workout posts (from before this change) show the same card without the lift list
+- [ ] Like, comment and Delete still work on the card, and a normal text post looks the same as before
+- [ ] Settings > Workout > "Show my weights in crew posts": turn it off, finish another workout. The post shows the session, time, exercises, sets and streak, but no lifts, no total weight, and a PR is only the lift's name
+- [ ] The manual "share with a picture" from the finish screen still posts, and the card shows above the picture
+- [ ] Looks right at 360 and 390 px wide, and the lift names don't squash the weights
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
