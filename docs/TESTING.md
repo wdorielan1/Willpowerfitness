@@ -480,6 +480,14 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] No console errors on the main screens
 - [ ] Nothing shows fake users, fake counts or fake activity
 
+## Save card goes to your photos (real phones only)
+- [ ] iPhone: after finishing a workout, the card button says "Save to photos". Tap it: the share sheet opens with just the picture. Tap Save Image, then open the Photos app: the card is there as a picture, not in Files
+- [ ] Android: same button. The share sheet opens with the picture; choose Photos or Gallery. The card shows in the gallery, not only in Downloads
+- [ ] If the phone's browser can't share a file, the card appears big with "Press and hold the picture, then choose Add to Photos" (iPhone) or "Download image" (Android). Do that and check it lands in Photos. Done closes it
+- [ ] Cancelling the share sheet shows no error
+- [ ] On a computer the button still says "Save card" and downloads a PNG
+- [ ] "Share card" is unchanged (Instagram and the rest of the share sheet)
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
