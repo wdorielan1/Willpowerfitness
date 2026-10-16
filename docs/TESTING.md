@@ -460,6 +460,10 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Tap the heart on a comment, then its count: a second popup lists who liked that comment, on top of the first
 - [ ] A post from someone you follow in a crew you are not in has the comment bubble but no heart
 - [ ] Profile pages still show the old "Comment" button that opens comments inline (unchanged)
+- [ ] A post with comments has a small preview under the caption: the latest two comments (first name in bold, then what they said, long ones cut at two lines), newest last
+- [ ] With more than two comments, "View all 5 comments" sits above them; with one or two there is no such link, just the comments
+- [ ] Tap the link or either comment: the popup opens on Comments. Post a new comment, Close: the preview now shows it
+- [ ] A post with no comments shows no preview, and nothing extra shows when you are not signed in
 
 ## Home: suggested athletes and invite friends (right above the feed)
 - [ ] Under the share box and above the feed there is a row: "Suggested athletes" (with "Find more"), a scrolling row of cards, and an "Invite friends" card at the end
