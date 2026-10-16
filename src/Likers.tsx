@@ -2,10 +2,10 @@ import { Avatar, Sheet } from './components'
 
 export interface LikerRow { userId: string; name: string; avatar?: string | null }
 
-/** "Liked by" list for a post or a comment. People who left the crew show as "Former member". */
-export function LikersSheet({ title = 'Liked by', people, onClose }: { title?: string; people: LikerRow[] | null; onClose: () => void }) {
+/** The people who liked something. People who left the crew show as "Former member". */
+export function LikersList({ people }: { people: LikerRow[] | null }) {
   return (
-    <Sheet title={title} onClose={onClose}>
+    <>
       {people === null && <p className="small mute">Loading…</p>}
       {people?.length === 0 && <p className="small mute">No likes yet.</p>}
       <div className="likers">
@@ -16,6 +16,15 @@ export function LikersSheet({ title = 'Liked by', people, onClose }: { title?: s
           </div>
         ))}
       </div>
+    </>
+  )
+}
+
+/** "Liked by" popup for a post or a comment. */
+export function LikersSheet({ title = 'Liked by', people, onClose, z }: { title?: string; people: LikerRow[] | null; onClose: () => void; z?: number }) {
+  return (
+    <Sheet title={title} onClose={onClose} z={z}>
+      <LikersList people={people} />
     </Sheet>
   )
 }

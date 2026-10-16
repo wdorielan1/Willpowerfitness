@@ -4,8 +4,8 @@ import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox, Sheet } from '../components'
 import { PostTo, useMyCrews, type MyCrew } from '../CrewPicker'
 import { BodyIcon } from '../BodyIcon'
-import { CommentThread } from '../Comments'
-import { LikersSheet, type LikerRow } from '../Likers'
+import { CommentsPanel } from '../Comments'
+import { LikersList, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
@@ -310,12 +310,7 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
     return crews.length > 1 || names.includes('Following') ? [...new Set(names)].join(' · ') : ''
   }
 
-  const [likers, setLikers] = useState<{ title: string; people: LikerRow[] | null } | null>(null)
-  const showLikers = (p: CrewPost) => {
-    if (!userId) return
-    setLikers({ title: 'Liked by', people: null })
-    void fetchPostLikers(p.id, p.crewId).then((people) => setLikers({ title: 'Liked by', people })).catch(() => setLikers({ title: 'Liked by', people: [] }))
-  }
+  const [activity, setActivity] = useState<{ post: FeedPost; tab: 'likes' | 'comments' } | null>(null) // the popup: who liked it, and the comments
   const like = (p: CrewPost) => {
     if (userId) { void toggleLikeCloud(p.id, userId, p.liked).then(() => refresh?.()); return }
     update((d) => ({ ...d, posts: d.posts.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)) }))
@@ -377,25 +372,47 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />
                 : <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} lead={<PostVideo tile video={clip} cover={cover} ts={p.ts} hold={!!watch} onOpen={() => setWatch({ video: clip, cover })} />} />)
               : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
-            <div className="row">
-              {p.crews.some((id) => crews.some((c) => c.id === id)) ? <div className="post-like-group">
-                <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
-                {p.likes > 0 && (userId
-                  ? <button className="post-like-count" onClick={() => showLikers(p)} aria-label={`See who liked this post, ${p.likes} ${p.likes === 1 ? 'like' : 'likes'}`}>{p.likes} {p.likes === 1 ? 'like' : 'likes'}</button>
-                  : <span className="post-like-count">{p.likes}</span>)}
-              </div> : <span /> /* a post from someone you follow, in a crew you are not in: likes are for crew members (comments still work) */}
+            <div className="row post-actions">
+              <div className="post-action-group">
+                {p.crews.some((id) => crews.some((c) => c.id === id)) && <div className="post-like-group">
+                  <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={22} /></button>
+                  {p.likes > 0 && (userId
+                    ? <button className="post-like-count" onClick={() => setActivity({ post: p, tab: 'likes' })} aria-label={`See who liked this post, ${p.likes} ${p.likes === 1 ? 'like' : 'likes'}`}>{p.likes}</button>
+                    : <span className="post-like-count">{p.likes}</span>)}
+                </div>}
+                {userId && <div className="post-like-group">
+                  <button className="post-like" aria-label={(p.comments ?? 0) > 0 ? `See the ${p.comments} ${p.comments === 1 ? 'comment' : 'comments'}` : 'Comment on this post'} onClick={() => setActivity({ post: p, tab: 'comments' })}><Icon name="comment" size={22} /></button>
+                  {(p.comments ?? 0) > 0 && <button className="post-like-count" onClick={() => setActivity({ post: p, tab: 'comments' })} aria-label={`See the ${p.comments} ${p.comments === 1 ? 'comment' : 'comments'}`}>{p.comments}</button>}
+                </div>}
+              </div>
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
             {caption && <p className="post-caption"><b>{p.name.split(' ')[0]}</b> {caption}</p>}
-            {userId && <CommentThread postId={p.id} count={p.comments} me={{ id: userId }} postMine={p.mine} />}
           </article>
         )
       })}
-      {likers && <LikersSheet title={likers.title} people={likers.people} onClose={() => setLikers(null)} />}
+      {activity && userId && <PostActivity post={activity.post} tab={activity.tab} me={userId} onClose={() => { setActivity(null); refresh?.() }} />}
       {big && <Lightbox srcs={big.srcs} start={big.start} onClose={() => setBig(null)} />}
       {watch && <VideoViewer video={watch.video} cover={watch.cover} onClose={() => setWatch(null)} />}
       {del && <ConfirmSheet title="Delete this post?" message="Are you sure you want to delete this post? It will be removed for everyone in the crew." confirmLabel="Yes, delete it" onConfirm={() => void remove(del)} onCancel={() => setDel(null)} />}
     </>
+  )
+}
+
+/** The popup behind the heart count and the comment button: who liked the post, and what people said (with the box to say something). */
+function PostActivity({ post, tab: first, me, onClose }: { post: FeedPost; tab: 'likes' | 'comments'; me: string; onClose: () => void }) {
+  const [tab, setTab] = useState(first)
+  const [likers, setLikers] = useState<LikerRow[] | null>(null)
+  const [comments, setComments] = useState(post.comments)
+  useEffect(() => { void fetchPostLikers(post.id, post.crewId).then(setLikers).catch(() => setLikers([])) }, [post.id, post.crewId])
+  return (
+    <Sheet title="Likes and comments" onClose={onClose}>
+      <div className="activity-tabs" role="group" aria-label="Likes or comments">
+        <button type="button" className={tab === 'likes' ? 'on' : ''} aria-pressed={tab === 'likes'} onClick={() => setTab('likes')}>Likes{likers ? ` ${likers.length}` : ''}</button>
+        <button type="button" className={tab === 'comments' ? 'on' : ''} aria-pressed={tab === 'comments'} onClick={() => setTab('comments')}>Comments {comments}</button>
+      </div>
+      {tab === 'likes' ? <LikersList people={likers} /> : <CommentsPanel postId={post.id} me={{ id: me }} postMine={post.mine} onCount={setComments} />}
+    </Sheet>
   )
 }
 

@@ -12,15 +12,12 @@ const ago = (ts: number) => {
 }
 
 /**
- * Comments under one post. Anyone signed in can write one; the poster can remove any comment on
- * their post, and everyone can remove their own. Signed-out visitors can read and are asked to join.
+ * The comments on one post, with the box to write one. Anyone signed in can write one; the poster can remove any comment on
+ * their post, and everyone can remove their own. Signed-out visitors can read and are asked to join. `onCount` hears the
+ * number of comments whenever it is read.
  */
-export function CommentThread({ postId, count: initial = 0, me, postMine = false }: {
-  postId: string; count?: number; me: { id: string } | null; postMine?: boolean
-}) {
-  const [open, setOpen] = useState(false)
+export function CommentsPanel({ postId, me, postMine = false, onCount }: { postId: string; me: { id: string } | null; postMine?: boolean; onCount?: (n: number) => void }) {
   const [items, setItems] = useState<PostComment[] | null>(null)
-  const [count, setCount] = useState(initial)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -28,20 +25,18 @@ export function CommentThread({ postId, count: initial = 0, me, postMine = false
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [seeLikes, setSeeLikes] = useState<string | null>(null)
 
-  useEffect(() => { setCount(initial) }, [initial])
-
   const load = useCallback(async () => {
     const rows = await fetchComments(postId)
-    setItems(rows); setCount(rows.length)
+    setItems(rows); onCount?.(rows.length)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId])
 
-  // load when opened, then keep it fresh while it stays open
+  // load when shown, then keep it fresh while it stays on screen
   useEffect(() => {
-    if (!open) return
     void load()
     const id = setInterval(() => { void load() }, 15000)
     return () => clearInterval(id)
-  }, [open, load])
+  }, [load])
 
   const send = async () => {
     if (!me || busy || !text.trim()) return
@@ -72,12 +67,7 @@ export function CommentThread({ postId, count: initial = 0, me, postMine = false
   }
 
   return (
-    <div className="comments">
-      <button type="button" className={`post-comments-toggle ${open ? 'on' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <Icon name="comment" size={18} />{count === 0 ? 'Comment' : `${count} comment${count === 1 ? '' : 's'}`}
-      </button>
-      {open && (
-        <div className="comments-panel">
+    <div className="comments-panel">
           {items === null && <p className="small mute">Loading…</p>}
           {items?.length === 0 && <p className="small mute">No comments yet. Be the first.</p>}
           {items?.map((c) => {
@@ -106,10 +96,28 @@ export function CommentThread({ postId, count: initial = 0, me, postMine = false
             </form>
           ) : <p className="small mute"><a href="/#/join" style={{ textDecoration: 'underline' }}>Log in or join free</a> to comment.</p>}
           {note && <p className="small ok-text" role="status">{note}</p>}
-          {seeLikes && <LikersSheet title="Liked this comment" people={items?.find((x) => x.id === seeLikes)?.likers ?? []} onClose={() => setSeeLikes(null)} />}
+          {seeLikes && <LikersSheet title="Liked this comment" people={items?.find((x) => x.id === seeLikes)?.likers ?? []} onClose={() => setSeeLikes(null)} z={60} />}
           {err && <p className="small err" role="alert">{err}</p>}
-        </div>
-      )}
+    </div>
+  )
+}
+
+/**
+ * Comments under one post, behind a button: the original inline version (used on profile pages). The feed opens
+ * the same panel in a popup instead (see PostActivity).
+ */
+export function CommentThread({ postId, count: initial = 0, me, postMine = false }: {
+  postId: string; count?: number; me: { id: string } | null; postMine?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [count, setCount] = useState(initial)
+  useEffect(() => { setCount(initial) }, [initial])
+  return (
+    <div className="comments">
+      <button type="button" className={`post-comments-toggle ${open ? 'on' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Icon name="comment" size={18} />{count === 0 ? 'Comment' : `${count} comment${count === 1 ? '' : 's'}`}
+      </button>
+      {open && <CommentsPanel postId={postId} me={me} postMine={postMine} onCount={setCount} />}
     </div>
   )
 }
