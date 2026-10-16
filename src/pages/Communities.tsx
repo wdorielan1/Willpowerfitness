@@ -15,7 +15,6 @@ import CrewMapPanel from '../CrewMapPanel'
 import PlacePicker from '../PlacePicker'
 import AreaPicker from '../AreaPicker'
 import { roundCoord, type Place } from '../geo'
-import Feed, { FeedComposer } from './Feed'
 import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
 import { Icon } from '../icons'
 
@@ -227,8 +226,6 @@ export default function Communities() {
           </header>
           <SocialTabs />
 
-          <FeedComposer crewId={crew.id} />
-
           <Qotd viewing={crew.id} />
 
           <section className="crew-streaks card">
@@ -255,8 +252,6 @@ export default function Communities() {
             {checkedInDone && <p className="small mute checkin-note">Your completed workout stays checked in.</p>}
             {checkinError && <p className="err" role="alert">{checkinError}</p>}
           </section>
-
-          <Feed key={crew.id} crewId={crew.id} crewDone={cloudEnabled && cc ? { done: cc.done, members: cc.members } : undefined} />
 
           <details className="crew-optional card"><summary>About this crew</summary><p className="small mute">{crew.vibe}</p>{crew.blurb && <p className="small mute">{crew.blurb}</p>}{cloudEnabled && cc && <p className="small mute">{cc.active} active in the last {INACTIVE_DAYS} days.</p>}</details>
 

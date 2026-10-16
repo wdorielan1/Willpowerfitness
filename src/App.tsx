@@ -129,13 +129,14 @@ export default function App() {
       </main>
       <nav className="tabbar" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && (['/challenges', '/friends'].includes(loc.pathname) || loc.pathname.startsWith('/friend/'))) ? 'on' : '')}>
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || (to === '/crew' && loc.pathname === '/challenges') ? 'on' : '')}>
             <Icon name={icon} /><span className="tab-label">{label}</span>
           </NavLink>
         ))}
       </nav>
       {accountMenu && <Sheet title="Your account" onClose={() => setAccountMenu(false)}>
         <Link className="account-link" to="/profile"><Icon name="person" />Profile</Link>
+        <Link className="account-link" to="/friends"><Icon name="crew" />Friends</Link>
         <Link className="account-link" to="/settings"><Icon name="settings" />Settings</Link>
         <Link className="account-link" to="/shortcuts"><Icon name="clock" />Siri & Apple Shortcuts</Link>
       </Sheet>}

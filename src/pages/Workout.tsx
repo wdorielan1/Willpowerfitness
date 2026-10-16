@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
 import { autoShareCrews, postedKey, workoutPost } from '../workoutPost'
 import { useMyCrews } from '../CrewPicker'
@@ -15,6 +15,7 @@ import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { ShareWorkoutSheet, usePostActions } from './Feed'
+import { TodaySession } from '../TodaySession'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
@@ -163,6 +164,19 @@ const sessionChoices = (suggested: DayType, saved: { id: string; name: string; i
   { id: 'build', day: 'Full Body', focus: 'custom', label: 'Build your own' },
 ]
 
+/** The workout buttons: the usual ones first, then (only when there are any) a line and the person's saved workouts under it. */
+function ChoiceGroups({ choices, selected, onPick, extra }: { choices: SessionChoice[]; selected?: string; onPick: (c: SessionChoice) => void; extra?: (c: SessionChoice) => ReactNode }) {
+  const general = choices.filter((c) => !c.id.startsWith('my:')), saved = choices.filter((c) => c.id.startsWith('my:'))
+  const button = (c: SessionChoice) => <button key={c.id} aria-pressed={selected === undefined ? undefined : selected === c.id} onClick={() => onPick(c)}>{c.label}{extra?.(c)}</button>
+  return <>
+    <div className="train-session-choices" role="group" aria-label="Choose workout">{general.map(button)}</div>
+    {saved.length > 0 && <section className="train-saved" aria-label="Your saved workouts">
+      <div className="train-saved-head"><span className="train-saved-line" aria-hidden="true" /><h3>Your saved workouts</h3></div>
+      <div className="train-session-choices">{saved.map(button)}</div>
+    </section>}
+  </>
+}
+
 const FINDER_GEAR = 'wpf.finder.gear'
 const readFinderGear = () => { try { return localStorage.getItem(FINDER_GEAR) || 'All' } catch { return 'All' } }
 const saveFinderGear = (g: string) => { try { localStorage.setItem(FINDER_GEAR, g) } catch { /* storage unavailable */ } }
@@ -294,7 +308,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
       <div className="row"><button type="button" className="quiet-action" onClick={answered}>Not now</button><button type="button" className="quiet-action" onClick={() => { update((d) => ({ ...d, settings: { ...d.settings, askSkips: false } })); setMissOpen(false) }}>Don’t ask again</button></div>
     </div>}
     {missNote && <p className="small ok-text" role="status">{missNote}</p>}
-    <div className="train-session-choices" role="group" aria-label="Choose workout">{choices.map((item) => <button key={item.id} aria-pressed={selected === item.id} onClick={() => pickSession(item.id)}>{item.label}{item.id === 'usual' && <span>{workoutName(suggested)}</span>}</button>)}</div>
+    <ChoiceGroups choices={choices} selected={selected} onPick={(item) => pickSession(item.id)} extra={(item) => (item.id === 'usual' ? <span>{workoutName(suggested)}</span> : null)} />
     {fixing === 'lifts' && miss && <Sheet title="Which lifts don’t you like?" onClose={() => setFixing(null)}>
       <p className="small mute">Tap the ones to stop suggesting. You can bring them back any time in Settings.</p>
       {generateWorkout(today, data, short, miss.day).items.map(({ ex }) => <button key={ex.id} type="button" className="ghost sheet-choice" aria-pressed={dislikes.includes(ex.id)} onClick={() => setDislikes(dislikes.includes(ex.id) ? dislikes.filter((x) => x !== ex.id) : [...dislikes, ex.id])}><b>{dislikes.includes(ex.id) ? '✓ ' : ''}{ex.name}</b><span className="small mute">{ex.muscle}</span></button>)}
@@ -379,7 +393,7 @@ export default function Workout() {
   const [swipeSeen, setSwipeSeen] = useState(() => { try { return localStorage.getItem('wpf.swipeSeen') === '1' } catch { return false } })
   const seeSwipe = () => { setSwipeSeen(true); try { localStorage.setItem('wpf.swipeSeen', '1') } catch { /* private mode: it just shows again next time */ } }
   useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 7000); return () => clearTimeout(t) }, [undo])
-  const [ask, setAsk] = useState<null | 'discard' | 'delete'>(null)
+  const [ask, setAsk] = useState<null | 'discard' | 'delete' | 'undo'>(null)
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string } | { kind: 'dislike'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
@@ -659,7 +673,7 @@ export default function Workout() {
   // ---------- before the workout starts ----------
   if (!active) {
     return (
-      <div className="workout-chooser"><WeekCard onPick={chooseDay} /><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
+      <div className="workout-chooser"><TodaySession onChange={() => document.getElementById('train-chooser')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /><WeekCard onPick={chooseDay} /><div id="train-chooser" /><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
         onStart={beginWith}
         onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
         onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
@@ -678,7 +692,7 @@ export default function Workout() {
   const DaySheet = sheet?.kind === 'day' && (
     <Sheet title="Change today's workout" onClose={() => setSheet(null)}>
       <p className="small mute">Change this session while keeping your usual weekly plan.</p>
-      <div className="train-session-choices">{sessionChoices(suggested, data.myWorkouts ?? []).map((choice) => <button key={choice.id} onClick={() => (choice.id === 'build' ? setSheet({ kind: 'build' }) : chooseDay(choice.day, choice.focus, choice.ids))}>{choice.label}</button>)}</div>
+      <ChoiceGroups choices={sessionChoices(suggested, data.myWorkouts ?? [])} onPick={(choice) => (choice.id === 'build' ? setSheet({ kind: 'build' }) : chooseDay(choice.day, choice.focus, choice.ids))} />
     </Sheet>
   )
   const BuildSheet = sheet?.kind === 'build' && (
@@ -725,6 +739,7 @@ export default function Workout() {
       <div key={page} className={`workout-page ${dir.current >= 0 ? 'pg-r' : 'pg-l'}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {page === 0 && (
           <>
+            {todaysLog && ci.done && <p className="small mute workout-logged-note">This workout is logged. <button type="button" className="quiet-action" onClick={() => setAsk('undo')}>Undo completion</button></p>}
             <WeekCard onPick={chooseDay} />
             <section className="card workout-warmup">
               <div className="overline">BEFORE YOU LIFT</div>
@@ -846,6 +861,7 @@ export default function Workout() {
             </section>
             {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><Link className="btn ghost" to="/log">Log cardio</Link></section>}
             {todaysLog && todaysLog.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => setResharing(true)}>Share this workout</button>}
+            {todaysLog && ci.done && <button className="quiet-action" onClick={() => setAsk('undo')}>Undo completion</button>}
             <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? 'Delete this workout' : 'Discard this workout'}</button>
           </>
         )}
@@ -866,6 +882,7 @@ export default function Workout() {
       </footer>
 
       {ask === 'discard' && <ConfirmSheet title="Discard this workout?" message="Are you sure you want to discard this workout? The sets you entered and the workout timer will be cleared." confirmLabel="Yes, discard it" onConfirm={discard} onCancel={() => setAsk(null)} />}
+      {ask === 'undo' && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAsk(null); ci.undo() }} onCancel={() => setAsk(null)} />}
       {ask === 'delete' && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and today's check-in will be undone. This can't be undone." confirmLabel="Yes, delete it" onConfirm={deleteLogged} onCancel={() => setAsk(null)} />}
       {DaySheet}
       {BuildSheet}

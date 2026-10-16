@@ -105,6 +105,7 @@ export interface Settings {
   askSkips?: boolean // check in after skipped lifts or missed workouts (on unless they said don't ask again)
   shareCrews?: string[] // which crews a finished workout is posted to automatically (unset: just my main crew)
   shareLifts?: boolean // show weights in crew posts: the top lifts, total weight and the PR's weight (on unless they turned it off)
+  hideNutrition?: boolean // the nutrition widget on Home is hidden (it can be brought back in Settings)
   postPlace?: string // a gym or town shown on my crew workout posts (typed by me; never a live location)
   gymName?: string // optional place shown on share pictures (never live location)
   shareCardStyle?: 'scorecard' | 'photo' | 'receipt' | 'pr'

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Icon } from '../icons'
 import { useApp } from '../store'
 import ProfileView from '../ProfileView'
 import { CommentThread } from '../Comments'
@@ -64,6 +65,11 @@ export default function Profile() {
       />
       <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it.' : 'Your profile is private.'}</p>
 
+      <Link to="/friends" className="card profile-friends" aria-label="Open Friends">
+        <span className="icon-surface"><Icon name="crew" /></span>
+        <span className="grow"><b>Friends</b><span className="small mute">{counts ? `${counts.followers} follower${counts.followers === 1 ? '' : 's'} · ${counts.following} following` : 'Followers, following, and who to invite'}</span></span>
+        <Icon name="chevron" />
+      </Link>
       <section className="card">
         <h3>Your details</h3>
         <span className="small mute">{email}</span>

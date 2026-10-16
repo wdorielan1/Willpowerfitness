@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox, Sheet } from '../components'
 import { PostTo, useMyCrews, type MyCrew } from '../CrewPicker'
@@ -10,7 +11,7 @@ import { summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
 import { postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
 import { postWhen } from '../postWhen'
-import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
+import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewFeed, useFeedAvatars, useHomeFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
@@ -256,16 +257,51 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   )
 }
 
-export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: { done: number; members: number } }) {
+/** A post as the feed shows it: the same thing posted to several crews is one card, marked with each crew. */
+export type FeedPost = CrewPost & { crews: string[] }
+
+/** Folds the copies of one post (same person, same content, minutes apart) that went to different crews into one card. */
+export function groupPosts(posts: CrewPost[]): FeedPost[] {
+  const out: FeedPost[] = [], seen = new Map<string, FeedPost[]>()
+  for (const p of [...posts].sort((a, b) => b.ts - a.ts)) {
+    const m = (p.meta ?? {}) as Record<string, unknown>
+    const sig = `${p.userId ?? (p.mine ? 'me' : p.name)}|${p.kind}|${p.text}|${m.at ?? ''}|${m.date ?? ''}|${m.q ?? ''}|${p.imagePaths.length}`
+    const twin = (seen.get(sig) ?? []).find((x) => Math.abs(x.ts - p.ts) < 10 * 60000)
+    if (twin) { if (!twin.crews.includes(p.crewId)) twin.crews.push(p.crewId); continue }
+    const card: FeedPost = { ...p, crews: [p.crewId] }
+    out.push(card); seen.set(sig, [...(seen.get(sig) ?? []), card])
+  }
+  return out
+}
+
+/**
+ * The Home feed: posts from all your crews and the public posts of people you follow, newest first. Needs no crew to read;
+ * with none it says how to get started.
+ */
+export function HomeFeed() {
+  const { data, userId } = useApp()
+  const crews = useMyCrews()
+  const crewIds = crews.map((c) => c.id)
+  const feed = useHomeFeed(crewIds, userId)
+  const raw = feed ? feed.posts : data.posts.filter((p) => crewIds.includes(p.crewId))
+  const posts = useMemo(() => groupPosts(raw), [raw])
+  const avatars = useFeedAvatars(posts.map((p) => p.userId ?? ''), crewIds)
+  return <PostList posts={posts} refresh={feed?.refresh} avatars={avatars} crews={crews} />
+}
+
+/** The posts themselves: cards with likes, comments, photos and video. Used by the Home feed. */
+function PostList({ posts, refresh, avatars, crews }: { posts: FeedPost[]; refresh?: () => void; avatars: Record<string, string>; crews: MyCrew[] }) {
   const { data, update, userId, avatarUrl } = useApp()
-  const crewAvatars = useCrewAvatars(crewId)
-  const { feed } = usePostActions(crewId)
   const [err, setErr] = useState('')
   const [del, setDel] = useState<CrewPost | null>(null)
   const [big, setBig] = useState<{ srcs: string[]; start: number } | null>(null)
   const [watch, setWatch] = useState<{ video: VideoMeta; cover?: string } | null>(null) // a clip open full screen
-  const posts = feed ? feed.posts : data.posts.filter((p) => p.crewId === crewId).sort((a, b) => b.ts - a.ts)
   const urls = usePhotoUrls(posts.flatMap(postPhotos), CREW_BUCKET)
+  // say which crew a post is in when there is more than one place it could be from
+  const crewLine = (p: FeedPost) => {
+    const names = p.crews.map((id) => crews.find((c) => c.id === id)?.name ?? 'Following')
+    return crews.length > 1 || names.includes('Following') ? [...new Set(names)].join(' · ') : ''
+  }
 
   const [likers, setLikers] = useState<{ title: string; people: LikerRow[] | null } | null>(null)
   const showLikers = (p: CrewPost) => {
@@ -274,7 +310,7 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
     void fetchPostLikers(p.id, p.crewId).then((people) => setLikers({ title: 'Liked by', people })).catch(() => setLikers({ title: 'Liked by', people: [] }))
   }
   const like = (p: CrewPost) => {
-    if (userId) { void toggleLikeCloud(p.id, userId, p.liked).then(() => feed?.refresh()); return }
+    if (userId) { void toggleLikeCloud(p.id, userId, p.liked).then(() => refresh?.()); return }
     update((d) => ({ ...d, posts: d.posts.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)) }))
   }
   const remove = async (p: CrewPost) => {
@@ -294,14 +330,16 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
         const key = postedKey(day, p.crewId, data.primary)
         update((d) => ({ ...d, workoutPosted: Object.fromEntries(Object.entries(d.workoutPosted ?? {}).filter(([k]) => k !== key)) }))
       }
-      feed?.refresh(); setDel(null)
+      refresh?.(); setDel(null)
     } catch (error) { setDel(null); setErr(error instanceof Error ? error.message : String(error)) }
   }
 
   return (
     <>
       {err && <p role="alert" className="err small">{err}</p>}
-      {posts.length === 0 && <section className="feed-empty"><span className="icon-surface"><Icon name="weight" /></span><h3>No posts yet.</h3><p>Post a workout, ask a question,<br />or let your crew know you’re coming.</p></section>}
+      {posts.length === 0 && (crews.length === 0
+        ? <section className="feed-empty"><span className="icon-surface"><Icon name="crew" /></span><h3>Your feed starts with a crew.</h3><p>Join a crew, or follow friends,<br />and their workouts show up here.</p><Link to="/crew" className="btn primary">Find a crew</Link></section>
+        : <section className="feed-empty"><span className="icon-surface"><Icon name="weight" /></span><h3>No posts yet.</h3><p>Post a workout, ask a question,<br />or let your crew know you’re coming.</p></section>)}
       {posts.map((p) => {
         const clip = postVideo(p.meta)
         const all = postPhotos(p)
@@ -312,29 +350,27 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
         const meta = p.meta as { q?: string } | undefined
         const wk = p.kind === 'workout' ? readWorkoutPost(p) : null
         const when = postWhen(p)
-        // the crew's count for today sits on the newest workout posted today, not on every one
-        const first = posts.find((x) => x.kind === 'workout' && new Date(x.ts).toDateString() === new Date().toDateString())
         return (
           <article key={p.id} className={`card post${wk ? ' wk' : ''}`}>
             <div className="row">
-              <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? crewAvatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute post-when">{when.text}{when.place && <> · <span className="post-place" title="Where they trained">{when.place}</span></>}</div></div></div>
+              <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? avatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute post-when">{when.text}{when.place && <> · <span className="post-place" title="Where they trained">{when.place}</span></>}</div>{crewLine(p) && <div className="small mute post-crew">{crewLine(p)}</div>}</div></div>
               {p.kind === 'qotd' && <span className="tag accent">Question of the day</span>}
               {wk && <span className="wk-chip">{wk.chip}</span>}
             </div>
             {p.kind === 'qotd' && meta?.q && <div className="small mute">“{meta.q}”</div>}
-            {wk ? <WorkoutCard w={wk} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
+            {wk ? <WorkoutCard w={wk} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
             {clip
               ? (images.length === 0
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />
                 : <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} lead={<PostVideo tile video={clip} cover={cover} ts={p.ts} hold={!!watch} onOpen={() => setWatch({ video: clip, cover })} />} />)
               : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row">
-              <div className="post-like-group">
+              {p.crews.some((id) => crews.some((c) => c.id === id)) ? <div className="post-like-group">
                 <button className={`post-like ${p.liked ? 'on' : ''}`} aria-label={p.liked ? 'Unlike post' : 'Like post'} aria-pressed={p.liked} onClick={() => like(p)}><Icon name="heart" size={20} /></button>
                 {p.likes > 0 && (userId
                   ? <button className="post-like-count" onClick={() => showLikers(p)} aria-label={`See who liked this post, ${p.likes} ${p.likes === 1 ? 'like' : 'likes'}`}>{p.likes} {p.likes === 1 ? 'like' : 'likes'}</button>
                   : <span className="post-like-count">{p.likes}</span>)}
-              </div>
+              </div> : <span /> /* a post from someone you follow, in a crew you are not in: likes are for crew members (comments still work) */}
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
             {userId && <CommentThread postId={p.id} count={p.comments} me={{ id: userId }} postMine={p.mine} />}

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
 import { Icon } from '../icons'
 import { Avatar } from '../components'
-import SocialTabs from '../SocialTabs'
 import { allCommunities } from './Crew'
 import { MAX_CREWS } from './Communities'
 import { cloudEnabled, createInviteCode, ensureProfileCard, fetchConnections, findByEmails, findByHandle, followCloud, joinCrewCloud, saveMyDiscovery, unfollowCloud, type Person, type PublicProfile } from '../cloud'
@@ -112,7 +111,7 @@ export default function Friends() {
 
   return (
     <div className="friends-page">
-      <SocialTabs />
+      <Link to="/profile" className="quiet-action friends-back"><Icon name="back" size={16} />Profile</Link>
       <div className="social-page-heading"><p className="overline">Your people</p><h1>Friends</h1><p>Train with people you know.</p></div>
 
       <section className="card friends-invite">

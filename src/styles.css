@@ -1456,3 +1456,28 @@ p.focus-note { margin: -4px 0 0; }
 /* when (and where) a post was done, at the top of every crew post */
 .post-when { line-height: 1.4; }
 .post-place { color: var(--text); }
+
+/* saved workouts: their own section under the usual ones, with a line (shown only when there are saved workouts) */
+.train-saved { display: grid; gap: 10px; margin-top: 6px; }
+.train-saved-head { display: grid; gap: 10px; }
+.train-saved-line { display: block; height: 1px; background: var(--line); }
+.train-saved-head h3 { font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); font-weight: 700; }
+
+/* Home: the nutrition widget can be hidden; the feed under it says which crew a post is in */
+.today-nutrition-actions { display: inline-flex; align-items: center; gap: 4px; }
+.today-nutrition-hidden { display: flex; align-items: center; gap: 8px; margin: 0; }
+.post-crew { line-height: 1.4; }
+.feed-empty .btn { margin-top: 10px; }
+
+/* Will Power Fantasy Fitness: the green tab (the money side) and its welcome popup */
+:root { --money: #2fbf71; }
+.social-tabs .social-tab.fantasy { background: transparent; border: 0; border-bottom: 2px solid var(--money); color: var(--money); font-weight: 700; padding: 10px 0; cursor: pointer; }
+.social-tabs .social-tab.fantasy svg { color: var(--money); }
+.fantasy-welcome { display: grid; gap: 12px; }
+.fantasy-tagline { font-size: 20px; font-weight: 800; letter-spacing: -.3px; color: var(--money); margin: 0; }
+.fantasy-welcome ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; }
+.fantasy-closer { font-weight: 700; margin: 0; }
+
+.profile-friends { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.profile-friends .grow { display: grid; gap: 2px; min-width: 0; }
+.friends-back { justify-self: start; }

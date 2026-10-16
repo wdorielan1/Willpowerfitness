@@ -15,11 +15,11 @@ interface Hit { id: string; title: string; sub?: string; to?: string; open?: () 
 interface Group { key: string; label: string; hits: Hit[] }
 
 const PAGES: { title: string; to: string; icon: IconName; words: string }[] = [
-  { title: 'Today', to: '/', icon: 'home', words: 'home dashboard this week streak check in' },
+  { title: 'Today and the feed', to: '/', icon: 'home', words: 'home dashboard this week streak check in feed posts share photo video comment crews following' },
   { title: 'Train: start a workout', to: '/workout', icon: 'weight', words: 'workout lift gym session build your own custom exercises warm up' },
-  { title: 'Crew feed', to: '/crew', icon: 'crew', words: 'crews community posts feed share comment qotd question of the day' },
+  { title: 'Crew', to: '/crew', icon: 'crew', words: 'crews community check in leaderboard qotd question of the day find crews' },
   { title: 'Find friends', to: '/friends', icon: 'person', words: 'friends follow followers following invite contacts people add' },
-  { title: 'Challenges', to: '/challenges', icon: 'chart', words: 'challenge compete leaderboard prize steps gym rat' },
+  { title: 'Free Challenges', to: '/challenges', icon: 'chart', words: 'challenge compete leaderboard prize steps gym rat free fantasy fitness points' },
   { title: 'Progress', to: '/progress', icon: 'chart', words: 'charts graphs history strength consistency stats records pr one rep max' },
   { title: 'Log body weight', to: '/log?t=weight', icon: 'plus', words: 'weigh in scale bodyweight weight log' },
   { title: 'Log cardio', to: '/log?t=cardio', icon: 'plus', words: 'run walk bike swim cardio minutes log' },

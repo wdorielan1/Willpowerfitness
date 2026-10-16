@@ -74,6 +74,11 @@ export default function Settings() {
       </section>
 
       <section className="card">
+        <h2>Home</h2>
+        <Toggle label="Show nutrition on Home" hint="Today’s calories and protein, under your week. Hide it if you don’t track food." on={s.hideNutrition !== true} onClick={() => setS({ hideNutrition: s.hideNutrition !== true })} />
+      </section>
+
+      <section className="card">
         <h2>Workout</h2>
         <Toggle label="Share finished workouts to my crew" hint={myCrews.length > 1 ? "Posts a workout card to the crews you pick below when you finish. You can also share any workout later, with a photo, to the crews you choose." : "Posts a workout card to your crew’s feed when you finish."} on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
         {s.autoShare && myCrews.length > 1 && <PostTo crews={myCrews} value={autoShareCrews(data)} onChange={(ids) => setS({ shareCrews: ids })} label="Share to" />}

@@ -380,6 +380,73 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
   return supabase ? { posts, refresh } : null
 }
 
+/**
+ * The Home feed: posts from every crew you are in, and the public posts of people you follow (a person's posts only reach
+ * followers when their profile is public), newest first. Null when the backend is not configured.
+ */
+export function useHomeFeed(crewIds: string[], userId: string | null) {
+  const [posts, setPosts] = useState<CrewPost[]>([])
+  const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
+  const key = crewIds.join(',')
+  useEffect(() => {
+    if (!supabase || !userId) return
+    let alive = true
+    const load = async () => {
+      const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
+      const following = (f ?? []).map((r) => r.friend_id as string)
+      const parts: string[] = []
+      if (crewIds.length) parts.push(`crew_id.in.(${crewIds.join(',')})`)
+      if (following.length) parts.push(`and(user_id.in.(${following.join(',')}),is_public.eq.true)`)
+      if (!parts.length) { if (alive) setPosts([]); return }
+      const { data: rows } = await supabase!.from('crew_posts').select('id,crew_id,user_id,name,kind,text,image_path,image_paths,meta,created_at').or(parts.join(',')).order('created_at', { ascending: false }).limit(60)
+      const ids = (rows ?? []).map((r) => r.id as number)
+      const { data: likes } = ids.length ? await supabase!.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
+      const counts = await fetchCommentCounts(ids.map(String))
+      if (!alive) return
+      setPosts((rows ?? []).map((r) => {
+        const l = (likes ?? []).filter((x) => x.post_id === r.id)
+        return {
+          id: String(r.id), crewId: r.crew_id as string, userId: r.user_id as string, name: r.name as string, kind: r.kind as PostKind, text: r.text as string,
+          imagePaths: r.image_paths?.length ? r.image_paths as string[] : r.image_path ? [r.image_path as string] : [],
+          imagePath: (r.image_path as string | null) ?? undefined, meta: (r.meta as Record<string, unknown>) ?? {}, ts: Date.parse(r.created_at as string),
+          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId), comments: counts[String(r.id)] ?? 0,
+        }
+      }))
+    }
+    void load()
+    const id = setInterval(load, 20000)
+    const changed = () => { void load() }
+    window.addEventListener(FEED_EVENT, changed)
+    return () => { alive = false; clearInterval(id); window.removeEventListener(FEED_EVENT, changed) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, userId, tick])
+  return supabase ? { posts, refresh } : null
+}
+
+/** Photos for the people in a feed (crew mates and people you follow), keyed by user id. */
+export function useFeedAvatars(userIds: string[], crewIds: string[]): Record<string, string> {
+  const [map, setMap] = useState<Record<string, string>>({})
+  const ukey = [...new Set(userIds)].sort().join(','), ckey = crewIds.join(',')
+  useEffect(() => {
+    if (!supabase || !ukey) return
+    let alive = true
+    const ids = ukey.split(',')
+    void (async () => {
+      const out: Record<string, string> = {}
+      const cards = await cardQuery((q) => q.in('user_id', ids))
+      for (const c of cards) if (c.avatar_url) out[c.user_id] = c.avatar_url
+      for (const crew of ckey ? ckey.split(',') : []) {
+        const { data: m } = await selectMembers(crew)
+        for (const x of m ?? []) if (x.avatar_url) out[x.user_id] = x.avatar_url
+      }
+      if (alive) setMap(out)
+    })()
+    return () => { alive = false }
+  }, [ukey, ckey])
+  return map
+}
+
 // ---------------- challenges ----------------
 export interface ChallengeRow { userId: string; name: string; score: number }
 export async function pushScore(cohort: string, userId: string, name: string, score: number) {

@@ -2,34 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store'
 import { useCheckin } from '../actions'
-import { carbPlanFor, dayFor, fmtTime, fromISO, generateWorkout, macroPlan, restFor, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { carbPlanFor, dayFor, fromISO, generateWorkout, macroPlan, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { greeting } from '../greeting'
-import { Avatar, ConfirmSheet, Sheet, fmtClock } from '../components'
-import { useCrew } from './Crew'
-import { useLiveCrew } from '../cloud'
+import { Sheet } from '../components'
 import { Icon } from '../icons'
-import type { DayType, WorkoutLog } from '../types'
-import { summaryFromLog } from '../shareCard'
-import { ShareWorkoutSheet } from './Feed'
+import type { WorkoutLog } from '../types'
+import { FeedComposer, HomeFeed, ShareWorkoutSheet } from './Feed'
 import { WeekStrip, useWeekMove } from '../WeekStrip'
-
-const sessionDescription: Record<DayType, string> = {
-  Push: 'Chest, shoulders & triceps',
-  Pull: 'Back & biceps',
-  Legs: 'Quads, hamstrings & glutes',
-  'Shoulders/Abs': 'Shoulders & core',
-  'Full Body': 'A little of everything',
-  'Rest/Cardio': 'Easy movement. Time to recover.',
-}
-
-function SessionElapsed({ since }: { since: number }) {
-  const [now, setNow] = useState(Date.now())
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(interval)
-  }, [])
-  return <span className="session-elapsed"><Icon name="clock" />{fmtClock(now - since)} elapsed</span>
-}
+import { useMyCrews } from '../CrewPicker'
 
 /** "Good evening, Will" at the top of the page. It re-reads the clock every minute so it changes on its own at 5, 12, 17 and 22 o'clock. */
 function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boolean }) {
@@ -39,37 +19,23 @@ function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boo
 }
 
 export default function Dashboard() {
-  const { data, update, userId, avatarUrl } = useApp()
+  const { data, update } = useApp()
   const p = data.profile!
   const ci = useCheckin()
-  const crew = useCrew()
+  const crews = useMyCrews()
   const today = todayISO()
   const nav = useNavigate()
-  const day = dayFor(today, data)
-  const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.skipped)
-  // the time you actually finished, not the time you planned to train
-  const shareSummary = todaysLog ? summaryFromLog(data, todaysLog) : null
-  const [sharing, setSharing] = useState<WorkoutLog | null>(null)
-  const [askUndo, setAskUndo] = useState(false)
-  const finishedLabel = todaysLog?.finishedAt ? new Date(todaysLog.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
-  const rest = day === 'Rest/Cardio'
-  const plan = generateWorkout(today, data, !!data.short[today])
-  const estimatedMinutes = Math.round(plan.items.reduce((minutes, item) => minutes + item.sets * (restFor(item.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
+  const rest = dayFor(today, data) === 'Rest/Cardio'
   const nutrition = carbPlanFor(today, data)
   const targets = macroPlan(p, data.settings.nutrition)[nutrition.carb]
   const food = (data.foodLog[today] ?? []).reduce((total, entry) => ({ cal: total.cal + entry.cal, p: total.p + entry.p }), { cal: 0, p: 0 })
-  const focus = data.workoutFocus?.[today]
-  const sessionName = workoutName(day, focus)
   const week = weekSchedule(data, today)
   const completedThisWeek = week.filter((d) => d.status === 'done').length
-  const live = useLiveCrew(crew?.id ?? null, userId)
-  const people = live?.people ?? (ci.going ? [{ name: data.name || 'You', status: ci.done ? 'done' as const : 'going' as const, mine: true }] : [])
   const [peek, setPeek] = useState<WeekDay | null>(null)
+  const [sharing, setSharing] = useState<WorkoutLog | null>(null)
+  const [justHid, setJustHid] = useState(false)
   const mover = useWeekMove(week, today)
-  const start = () => {
-    ci.start()
-    nav('/workout')
-  }
+  const setHidden = (hideNutrition: boolean) => update((d) => ({ ...d, settings: { ...d.settings, hideNutrition } }))
 
   return (
     <>
@@ -87,80 +53,22 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="today-heading">
-        <p className="overline">{ci.done ? 'TODAY’S SESSION' : rest ? 'YOUR RECOVERY' : 'YOUR NEXT SESSION'}</p>
-        <h1>{ci.done ? <>{todaysLog ? 'Workout logged.' : 'Workout complete.'}</> : rest ? <>Recovery<br />day.</> : <>Your next<br />workout.</>}</h1>
-      </div>
+      {/* a widget: anyone can hide it (Settings brings it back); later it can sit behind premium */}
+      {!data.settings.hideNutrition
+        ? <section className="today-nutrition" aria-label="Today’s nutrition">
+            <div className="section-head"><h2>Today’s nutrition</h2><span className="today-nutrition-actions"><Link to="/nutrition" className="quiet-action">Open<Icon name="chevron" /></Link><button type="button" className="quiet-action" aria-label="Hide nutrition from Home" onClick={() => { setHidden(true); setJustHid(true) }}><Icon name="close" size={16} /></button></span></div>
+            <p className="today-nutrition-plan">{nutrition.carb[0].toUpperCase() + nutrition.carb.slice(1)} carb day · {data.settings.nutrition.meals} meals</p>
+            <div className="today-nutrition-targets">
+              <div><span>Calories</span><p><b>{Math.round(food.cal).toLocaleString()}</b> / {targets.cal.toLocaleString()}</p></div>
+              <div><span>Protein</span><p><b>{Math.round(food.p)}g</b> / {targets.p}g</p></div>
+            </div>
+            <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
+          </section>
+        : justHid && <p className="small mute today-nutrition-hidden" role="status">Nutrition is hidden from Home. Bring it back in Settings. <button type="button" className="quiet-action" onClick={() => { setHidden(false); setJustHid(false) }}>Undo</button></p>}
 
-      <section className="session-card" aria-label="Today’s workout">
-        <div className="session-topline">
-          <span className="section-label">{ci.done ? 'COMPLETE' : ci.started && !rest ? 'IN PROGRESS' : 'PLANNED'}{ci.done ? (finishedLabel ? ` · ${finishedLabel}` : '') : ` · ${fmtTime(p.time)}`}</span>
-          <span className="icon-surface"><Icon name={ci.done ? 'check' : 'weight'} /></span>
-        </div>
-        <h2 className="session-heading">{rest ? 'Recovery' : sessionName}</h2>
-        <p className="session-subtitle">{focus ? (focus === 'chest-triceps' ? 'Chest & triceps · today’s choice' : 'Back & biceps · today’s choice') : sessionDescription[day]}</p>
-        {!rest && <div className="session-meta">
-          <span><Icon name="weight" />{plan.items.length} {plan.items.length === 1 ? 'exercise' : 'exercises'}</span>
-          {ci.started && !ci.done
-            ? <SessionElapsed since={ci.started} />
-            : todaysLog?.minutes
-              ? <span><Icon name="clock" />{todaysLog.minutes} min logged</span>
-              : estimatedMinutes > 0 && <span><Icon name="clock" />About {estimatedMinutes} min</span>}
-        </div>}
+      {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
+      <HomeFeed />
 
-        {ci.done
-          ? <Link to="/workout" className="btn primary session-primary">{todaysLog ? 'View logged workout' : 'View workout'}<Icon name="arrow" /></Link>
-          : rest
-            ? <Link to="/workout" className="btn primary session-primary">See recovery plan<Icon name="arrow" /></Link>
-            : <button className="primary session-primary" onClick={start}>{ci.started ? 'Resume workout' : 'Start workout'}<Icon name="arrow" /></button>}
-
-        {ci.done && shareSummary && todaysLog && <button className="ghost" onClick={() => setSharing(todaysLog)}>Share this workout</button>}
-
-        <div className="session-secondary">
-          {!ci.done && <Link to="/workout?change=1" className="quiet-action">Change workout</Link>}
-          {ci.done && todaysLog && <Link to="/workout" className="quiet-action">Edit logged sets</Link>}
-          {ci.done && <button className="quiet-action" onClick={() => setAskUndo(true)}>Undo completion</button>}
-        </div>
-
-      </section>
-
-      <section className="today-nutrition" aria-label="Today’s nutrition">
-        <div className="section-head"><h2>Today’s nutrition</h2><Link to="/nutrition" className="quiet-action">Open<Icon name="chevron" /></Link></div>
-        <p className="today-nutrition-plan">{nutrition.carb[0].toUpperCase() + nutrition.carb.slice(1)} carb day · {data.settings.nutrition.meals} meals</p>
-        <div className="today-nutrition-targets">
-          <div><span>Calories</span><p><b>{Math.round(food.cal).toLocaleString()}</b> / {targets.cal.toLocaleString()}</p></div>
-          <div><span>Protein</span><p><b>{Math.round(food.p)}g</b> / {targets.p}g</p></div>
-        </div>
-        <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
-      </section>
-
-      <div className="dashboard-shortcuts">
-        <Link to="/log" className="quiet-action"><Icon name="plus" />Quick log</Link>
-        <Link to="/shortcuts" className="quiet-action"><Icon name="clock" />Siri shortcuts</Link>
-      </div>
-
-      {crew ? <section className="crew-summary" aria-label="Your crew">
-        <div className="crew-summary-top">
-          <span className="icon-surface"><Icon name="crew" /></span>
-          <div className="grow"><h2>{crew.name}</h2><p className="crew-summary-meta">{fmtTime(crew.time)} training time</p></div>
-          <Link to="/crew" className="icon-button" aria-label={`Open ${crew.name}`}><Icon name="chevron" /></Link>
-        </div>
-        {live && live.members > 0 && <p className="crew-summary-meta">{live.done} of {live.members} {live.members === 1 ? 'member' : 'members'} completed today</p>}
-        {people.length > 0 ? <div className="crew-summary-people">
-          {people.slice(0, 3).map((person, i) => <div className="crew-summary-person" key={`${person.name}-${i}`}>
-            <Avatar className={person.status} name={person.name} url={person.mine ? avatarUrl : (person as { avatar?: string | null }).avatar} />
-            <span className="grow">{person.name}{person.mine ? ' (you)' : ''}</span>
-            <span className="small mute">{person.status === 'done' ? 'Done' : 'Training today'}</span>
-          </div>)}
-          {people.length > 3 && <Link to="/crew" className="quiet-action">View all check-ins</Link>}
-        </div> : <p className="crew-summary-meta">No check-ins to show yet.</p>}
-        {!live && <p className="crew-summary-meta">Your check-in is saved on this device.</p>}
-      </section> : <Link to="/crew" className="crew-summary crew-summary-link">
-        <span className="icon-surface"><Icon name="crew" /></span>
-        <div className="grow"><h2>Find your crew</h2><p className="crew-summary-meta">People who train when you do.</p></div>
-        <Icon name="chevron" />
-      </Link>}
-      {askUndo && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAskUndo(false); ci.undo() }} onCancel={() => setAskUndo(false)} />}
       {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}
       {peek && (() => {
         const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
