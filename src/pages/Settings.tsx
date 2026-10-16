@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
 import { DAY_NAMES, EXERCISES, GOALS, LEVELS, REST_PRESETS } from '../data'
-import { fmtRest, macroPlan, restFor } from '../engine'
+import { DEFAULT_LIFTS, fmtRest, macroPlan, restFor } from '../engine'
 import MatchQuestions from '../MatchQuestions'
 import ProfileSettings from '../ProfileSettings'
 import { FocusPicker, SexPicker } from '../ProfilePickers'
@@ -90,6 +90,9 @@ export default function Settings() {
         <div className="chips">{(Object.keys(LEVELS) as Level[]).map((l) => <button key={l} className={`chip ${p.level === l ? 'on' : ''}`} onClick={() => setP('level', l)}>{LEVELS[l]}</button>)}</div>
         <h3>Style</h3>
         <div className="chips">{([['hypertrophy', 'Bodybuilding'], ['strength', 'Strength'], ['mixed', 'Mixed']] as const).map(([k, l]) => <button key={k} className={`chip ${p.style === k ? 'on' : ''}`} onClick={() => setP('style', k)}>{l}</button>)}</div>
+        <h3>Lifts per workout</h3>
+        <div className="chips lifts-chips" role="group" aria-label="Lifts per workout">{[4, 5, 6, 7, 8].map((n) => <button key={n} className={`chip ${(p.lifts ?? DEFAULT_LIFTS[p.level]) === n ? 'on' : ''}`} aria-pressed={(p.lifts ?? DEFAULT_LIFTS[p.level]) === n} onClick={() => setP('lifts', n === DEFAULT_LIFTS[p.level] && p.lifts === undefined ? undefined : n)}>{n}</button>)}</div>
+        <p className="small mute">{p.lifts ? `Each workout has ${p.lifts} lifts, including any extra a body part you chose to focus on adds.` : `Usually ${DEFAULT_LIFTS[p.level]} for your level, plus any extra a body part you chose to focus on adds.`}{p.lifts !== undefined && <> <button type="button" className="quiet-action" onClick={() => setP('lifts', undefined)}>Back to usual ({DEFAULT_LIFTS[p.level]})</button></>}</p>
         <h3>Training days</h3>
         <div className="chips">{DAY_NAMES.map((n, i) => <button key={n} className={`chip ${p.days.includes(i) ? 'on' : ''}`} onClick={() => toggleDay(i)}>{n}</button>)}</div>
         <label>Workout time<input type="time" value={p.time} onChange={(e) => setP('time', e.target.value)} /></label>

@@ -20,6 +20,8 @@ export interface Profile {
   gear: Gear
   /** How often they use each kind of equipment. Anything they haven't picked follows the recommended default for their gear. */
   equip?: Partial<Record<EquipKind, EquipUse>>
+  /** Lifts in a workout, 4 to 8. Unset keeps the usual count for their level (beginner 4, intermediate 5, advanced 6). */
+  lifts?: number
   /** Set when equipment is changed in the middle of a workout: today's plan keeps `equipWas` so nothing already done disappears, and the new choices apply from tomorrow. */
   equipWas?: Partial<Record<EquipKind, EquipUse>>
   equipSince?: string
@@ -145,6 +147,10 @@ export interface AppData {
   removed: Record<string, string[]> // date -> exercise ids removed
   skipAsked?: string // the day we last asked about skipped lifts mid-workout (at most once a day)
   missedAsked?: string // the day we last asked "what's in the way?" after missed workouts (not again for a week)
+  /** Where they said they train: the last choice and the day they made it. Home swaps in dumbbell and bodyweight lifts. The app never knows where they actually are. */
+  place?: { at: 'gym' | 'home'; date: string }
+  /** The place a day's plan was built for, stamped when that day's workout starts so a later change can't reshuffle lifts already done. */
+  planPlace?: Record<string, 'gym' | 'home'>
   atHome?: Record<string, boolean> // days they said they were at home: Swap and Add use dumbbell and bodyweight lifts that day, and swaps made because of it are not counted as lifts they turned away
   started: Record<string, number> // date -> start timestamp
   photos: Photo[]

@@ -51,9 +51,10 @@ const allowed = (ex: Exercise, p: Profile) => available(ex, p.gear) && !isHidden
  * The profile a plan for `date` is built from. A lift hidden today (or later) still counts as planned today, so hiding
  * one in the middle of a workout never reshuffles the other lifts; it is just removed for the day.
  */
-const planProfile = (p: Profile, date: string): Profile => {
+const planProfile = (p: Profile, date: string, at: 'gym' | 'home' = 'gym'): Profile => {
   // equipment changed in the middle of today's workout: today keeps the old choices, so a lift already done can't drop out of the plan
-  const q = p.equipSince === date ? { ...p, equip: p.equipWas } : p
+  const q0 = p.equipSince === date ? { ...p, equip: p.equipWas } : p
+  const q = at === 'home' ? homeProfile(q0) : q0
   if (!q.hidden) return q
   const before = Object.fromEntries(Object.entries(q.hidden).filter(([, since]) => since < date))
   return Object.keys(before).length === Object.keys(q.hidden).length ? q : { ...q, hidden: before }
@@ -98,6 +99,22 @@ export const kindLabel = (k: EquipKind) => (EQUIP_KINDS.find((x) => x.id === k)?
 export const stepDown = (u: EquipUse): EquipUse => (u === 'often' ? 'sometimes' : 'never')
 /** The same person at home: no gym equipment, so dumbbells and bodyweight (kettlebells and bands stay as they chose). */
 export const homeProfile = (p: Profile): Profile => (p.gear === 'gym' ? { ...p, gear: 'db' } : p)
+/**
+ * Where a day's plan is built for: the place stamped when that day's workout started, otherwise their last choice (from today on;
+ * earlier days have no say, so history never changes). Someone set up for dumbbells or bodyweight is never "at a gym".
+ */
+export const placeFor = (d: AppData, date: string): 'gym' | 'home' =>
+  d.profile?.gear !== 'gym' ? 'gym' : d.planPlace?.[date] ?? (date >= todayISO() ? d.place?.at : undefined) ?? 'gym'
+/**
+ * Saves where they say they train. If that day's workout is already under way, today's plan is stamped with the place it was built
+ * for first, so the new choice only applies from the next plan and can't reshuffle lifts they have already worked on.
+ */
+export const withPlace = (d: AppData, at: 'gym' | 'home', date: string): AppData => ({
+  ...d, place: { at, date },
+  ...((d.started?.[date] || d.drafts?.[date]) && !d.planPlace?.[date] ? { planPlace: { ...d.planPlace, [date]: placeFor(d, date) } } : {}),
+})
+/** The profile Swap, Add and the plan use for a day: at home means no gym equipment. */
+export const profileFor = (d: AppData, date: string): Profile => (placeFor(d, date) === 'home' ? homeProfile(d.profile!) : d.profile!)
 
 const avoided = (ex: Exercise, avoid: string) => {
   const words = avoid.toLowerCase().split(/[,;\n]/).map((w) => w.trim()).filter((w) => w.length > 2)
@@ -274,13 +291,18 @@ export function dayTypeFor(date: string, p: Profile, logs: WorkoutLog[]): DayTyp
 export const dayFor = (date: string, d: AppData): DayType =>
   d.dayOverride?.[date] ?? dayTypeFor(date, d.profile!, d.logs)
 
-export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string }
+export interface PlannedExercise { ex: Exercise; sets: number; swapped: boolean; orig: string; /** why this lift is here when a focus area put it there */ focus?: string }
+
+/** The usual number of lifts in a workout for each level. */
+export const DEFAULT_LIFTS: Record<Level, number> = { beginner: 4, intermediate: 5, advanced: 6 }
+export const MIN_LIFTS = 4, MAX_LIFTS = 8
+const NOUN: Record<string, string> = { Legs: 'leg', Chest: 'chest', Back: 'back', Shoulders: 'shoulder', Arms: 'arm', Abs: 'ab', Glutes: 'glute' }
 
 export const workoutName = (day: DayType, focus?: WorkoutFocus) =>
   day === 'Push' && focus === 'chest-triceps' ? 'Chest + Triceps' : day === 'Pull' && focus === 'back-biceps' ? 'Back + Biceps' : focus === 'custom' ? 'Custom workout' : day === 'Shoulders/Abs' ? 'Shoulders + Abs' : day === 'Rest/Cardio' ? 'Cardio' : day
 
 export function generateWorkout(date: string, d: AppData, short: boolean, forceDay?: DayType, forceFocus?: WorkoutFocus) {
-  const p = planProfile(d.profile!, date)
+  const p = planProfile(d.profile!, date, placeFor(d, date))
   const day = forceDay ?? dayFor(date, d)
   if (day === 'Rest/Cardio') return { day, items: [] as PlannedExercise[] }
   const focus = forceDay === undefined ? d.workoutFocus?.[date] : forceFocus
@@ -298,8 +320,11 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
   const baseMust = focusedMuscles ? [focusedMuscles[focusedMuscles.length - 1]] : MUST_HAVE[day] ?? []
   const mustHave = [...new Set([...focusToday, ...baseMust])]
   const wantsFocus = focusAreas(p).length > 0
-  const nAcc = (short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3) + (wantsFocus && !short && focusToday.length ? 1 : 0)
   const keys = pickKeys(all, day, block, focusedMuscles)
+  // their own count (4 to 8) is the whole workout, so a focus extra takes a spot instead of adding one; without it the usual counts apply
+  const wanted = p.lifts ? Math.min(MAX_LIFTS, Math.max(MIN_LIFTS, Math.round(p.lifts))) : null
+  const nAcc = wanted && !short ? Math.max(1, wanted - keys.length) : (short ? 1 : p.level === 'beginner' ? 2 : p.level === 'advanced' ? 4 : 3) + (wantsFocus && !short && focusToday.length ? 1 : 0)
+  const why = new Map<string, string>() // lifts a focus area put in the workout, and why
   // accessories prefer single-joint and bodyweight work, so they add to the main lifts instead of repeating them
   const leftover = all.filter((x) => !keys.includes(x) && !x.key)
   const lighter = leftover.filter((x) => !x.lib || !x.compound)
@@ -314,7 +339,11 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
       const often = (x: Exercise) => Number(equipUse(p, x) !== 'often')
       const pool = EXERCISES.filter(fits).sort((a2, b2) => often(a2) - often(b2) || Number(!!a2.compound) - Number(!!b2.compound) || affinity(b2, p) - affinity(a2, p) || hash(a2.id) - hash(b2.id))
       const pickOne = pool.length ? pool[(period + hash(day)) % Math.min(pool.length, 8)] : undefined
-      if (pickOne) accessories.push(pickOne)
+      if (pickOne) {
+        if (wanted && !short) accessories.pop()
+        accessories.push(pickOne)
+        why.set(pickOne.id, `Extra ${NOUN[area.label] ?? area.label.toLowerCase()} work added because ${area.label} is your focus.`)
+      }
     }
   }
   const strengthBias = p.style === 'strength' || p.goal === 'strength'
@@ -324,7 +353,9 @@ export function generateWorkout(date: string, d: AppData, short: boolean, forceD
     const ex = tune(swap ? EXERCISES.find((x) => x.id === swap) ?? ex0 : ex0, p)
     let sets = ex.sets + (strengthBias && ex.key ? 1 : 0) + (!ex.key && inFocus(ex, p) && p.level !== 'beginner' ? 1 : 0) - (p.level === 'beginner' ? 1 : 0)
     if (short) sets -= 1
-    return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id }
+    const area = !ex.key && p.level !== 'beginner' ? focusAreas(p).find((a) => a.match.test(ex.muscle)) : undefined
+    const note = ex.id === ex0.id ? why.get(ex0.id) ?? (area ? `One extra set because ${area.label} is your focus.` : undefined) : undefined
+    return { ex, sets: Math.max(2, sets), swapped: ex.id !== ex0.id, orig: ex0.id, ...(note ? { focus: note } : {}) }
   }
   const customIds = focus === 'custom' ? (d.customSession?.[date] ?? []) : null
   const picked = customIds ? customIds.map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x && !isHidden(x, p)) : null
@@ -592,6 +623,8 @@ export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
  */
 export function missedCheckIn(d: AppData, today = todayISO()): { reason: 'row' | 'type'; day: DayType; latest: string } | null {
   if (!d.profile) return null
+  // a new account has no first day yet, so nothing can have been missed (weekSchedule would treat each earlier Sunday as its own first day)
+  if (![...d.logs.map((l) => l.date), ...Object.keys(d.checkins)].length) return null
   const sessions: WeekDay[] = []
   const monday = addDays(today, -((fromISO(today).getDay() + 6) % 7))
   for (let k = 0; k < 4; k++) {

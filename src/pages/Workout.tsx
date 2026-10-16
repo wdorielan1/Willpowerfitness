@@ -8,7 +8,7 @@ import { useCheckin } from '../actions'
 import { ConfirmSheet, fmtClock, Lightbox, Sheet } from '../components'
 import { EXERCISES, GOALS, SPLIT, WARMUP } from '../data'
 import type { Exercise } from '../types'
-import { BODY_AREAS, addAfterPick, addDays, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, homeProfile, isHidden, kindLabel, missedCheckIn, readSkips, recommend, restFor, skipCounts, skippedOn, stepDown, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
+import { BODY_AREAS, addAfterPick, addDays, addableExercises, cardioFinisher, dayTypeFor, emptySets, fmtRest, fromISO, generateWorkout, historyOf, homeProfile, isHidden, kindLabel, missedCheckIn, placeFor, profileFor, readSkips, withPlace, recommend, restFor, skipCounts, skippedOn, stepDown, streak, swapOptions, todayISO, weekSchedule, workoutName, type WeekDay } from '../engine'
 import { EQUIP_KINDS, equipKind, equipUse, kindUse } from '../equipment'
 import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
@@ -255,7 +255,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
   const isBuild = choice.id === 'build'
   const isSaved = choice.id.startsWith('my:')
-  const made = isBuild ? { day: choice.day, items: [] as { ex: Exercise; sets: number; orig: string }[] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets, orig: ex.id })) } : generateWorkout(today, { ...data, removed: { ...data.removed, [today]: removedIds }, extras: { ...data.extras, [today]: addedIds } }, short, choice.day, choice.focus)
+  const made = isBuild ? { day: choice.day, items: [] as { ex: Exercise; sets: number; orig: string; focus?: string }[] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets, orig: ex.id, focus: undefined as string | undefined })) } : generateWorkout(today, { ...data, removed: { ...data.removed, [today]: removedIds }, extras: { ...data.extras, [today]: addedIds } }, short, choice.day, choice.focus)
   const preview = { day: made.day, items: applyOrder(made.items, orderIds) }
   const generated = !isBuild && !isSaved && choice.day !== 'Rest/Cardio'
   // one nudge at a time: first the saved workout for this session, otherwise a lift they keep turning away
@@ -269,6 +269,16 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const name = isBuild ? 'Build your own' : isSaved ? choice.label : workoutName(choice.day, choice.focus)
   return <>
     <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
+    {data.profile!.gear === 'gym' && (() => {
+      const at = placeFor(data, today)
+      const set = (to: 'gym' | 'home') => update((d) => withPlace(d, to, today))
+      return <div className="train-place">
+        <div className="seg" role="group" aria-label="Where are you training today?"><span className="train-place-label">Today I’m at</span>
+          <button type="button" className={at === 'gym' ? 'on' : ''} aria-pressed={at === 'gym'} onClick={() => set('gym')}>Gym</button>
+          <button type="button" className={at === 'home' ? 'on' : ''} aria-pressed={at === 'home'} onClick={() => set('home')}>Home</button></div>
+        {at === 'home' && <p className="small mute">Home plans use dumbbell and bodyweight lifts only. It stays on Home until you switch it back.</p>}
+      </div>
+    })()}
     {showMiss && miss && <div className="rec start train-offer" role="group" aria-label="What's in the way?">
       <b>What’s in the way?</b>
       <span className="small">{miss.reason === 'row' ? 'You’ve missed your last two workouts.' : `You’ve missed ${workoutName(miss.day)} twice.`} Pick the closest one and we’ll adjust. Nothing changes unless you tap.</span>
@@ -304,9 +314,9 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
         </div>}
         <button className="train-short-toggle" aria-pressed={short} onClick={onShort}><Icon name="clock" /><span>Shorter session</span><span>{short ? 'On' : 'Off'}</span></button>
         {preview.items.length > 1 && <p className="small mute train-reorder-hint">Press and hold a lift, then drag it up or down to change the order.</p>}
-        <ReorderList label="Exercises in this workout" items={preview.items} getKey={(x) => x.ex.id} onReorder={(next) => setOrderIds(next.map((x) => x.orig))}>{({ ex, sets, orig }) => <div className={`train-preview-lift${isSaved ? '' : ' has-remove'}`}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span></div>{!isSaved && <button className="quiet-action train-remove" aria-label={`Remove ${ex.name}`} onClick={() => (addedIds.includes(ex.id) ? setAdded(addedIds.filter((x) => x !== ex.id)) : setRemoved([...removedIds, orig]))}>✕</button>}</div>}</ReorderList>
+        <ReorderList label="Exercises in this workout" items={preview.items} getKey={(x) => x.ex.id} onReorder={(next) => setOrderIds(next.map((x) => x.orig))}>{({ ex, sets, orig, focus }) => <div className={`train-preview-lift${isSaved ? '' : ' has-remove'}`}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span>{focus && <span className="focus-note">{focus}</span>}</div>{!isSaved && <button className="quiet-action train-remove" aria-label={`Remove ${ex.name}`} onClick={() => (addedIds.includes(ex.id) ? setAdded(addedIds.filter((x) => x !== ex.id)) : setRemoved([...removedIds, orig]))}>✕</button>}</div>}</ReorderList>
         {!isSaved && <button className="ghost" onClick={() => setAdding(true)}><Icon name="plus" />Add an exercise</button>}
-        {adding && <Sheet title="Add an exercise" onClose={() => setAdding(false)}><ExerciseFinder best prefer={choice.day} pool={addableExercises(preview.items.map((i) => i.ex.id), data.profile!, historyOf(data), choice.day)} onPick={(x) => { setAdded([...addedIds, x.id]); setRemoved(removedIds.filter((id) => id !== x.id)); setAdding(false) }} /></Sheet>}
+        {adding && <Sheet title="Add an exercise" onClose={() => setAdding(false)}><ExerciseFinder best prefer={choice.day} pool={addableExercises(preview.items.map((i) => i.ex.id), profileFor(data, today), historyOf(data), choice.day)} onPick={(x) => { setAdded([...addedIds, x.id]); setRemoved(removedIds.filter((id) => id !== x.id)); setAdding(false) }} /></Sheet>}
         {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session, or turn more equipment on in Settings.</p>}
         {equipNote && <p className="small ok-text" role="status">Your plan now follows the equipment you use. Tap Start lifting when you're ready.</p>}
         <button className="primary" disabled={!preview.items.length} onClick={() => {
@@ -333,7 +343,7 @@ export default function Workout() {
   const nav = useNavigate()
   const p = data.profile!
   const today = todayISO()
-  const here = data.atHome?.[today] ? homeProfile(p) : p // what Swap and Add may offer today: at home means no gym equipment
+  const here = data.atHome?.[today] ? homeProfile(p) : profileFor(data, today) // what Swap and Add may offer today: at home means no gym equipment
   const skippedIds = skippedOn(data, today) // planned lifts removed or swapped away in today's workout
   const short = !!data.short[today]
   const suggested = dayTypeFor(today, p, data.logs)
@@ -519,7 +529,7 @@ export default function Workout() {
     update((d) => ({ ...d, extras: { ...d.extras, [today]: [...(d.extras[today] ?? []), id] }, removed: { ...d.removed, [today]: (d.removed[today] ?? []).filter((x) => x !== id) } }))
     setSheet(null); go(items.length + 1)
   }
-  const wipeToday = (d: AppData): AppData => ({ ...d, exOrder: stripToday(d.exOrder ?? {}), workoutPosted: stripToday(d.workoutPosted ?? {}), drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
+  const wipeToday = (d: AppData): AppData => ({ ...d, exOrder: stripToday(d.exOrder ?? {}), workoutPosted: stripToday(d.workoutPosted ?? {}), drafts: stripToday(d.drafts), started: stripToday(d.started), extras: stripToday(d.extras), removed: stripToday(d.removed), swaps: stripToday(d.swaps), planPlace: stripToday(d.planPlace ?? {}), dayOverride: stripToday(d.dayOverride), short: stripToday(d.short), workoutFocus: stripToday(d.workoutFocus ?? {}), customSession: stripToday(d.customSession ?? {}) })
   const discard = () => { timer.stop(); update(wipeToday); ci.reset(); setAsk(null); nav('/') }
   const deleteLogged = () => { timer.stop(); update((d) => ({ ...wipeToday(d), logs: d.logs.filter((l) => !(l.date === today && !l.baseline)) })); ci.reset(); setAsk(null); nav('/') }
 
@@ -528,7 +538,7 @@ export default function Workout() {
   useEffect(() => {
     if (!active || todaysLog || skippedIds.length < 2 || data.skipAsked === today || data.settings.askSkips === false) return
     update((d) => ({ ...d, skipAsked: today }))
-    setCheck({ atGym: false })
+    setCheck({ atGym: data.place?.date === today }) // said where they are today: no need to ask the gym question
   }, [skippedIds.length, active]) // eslint-disable-line react-hooks/exhaustive-deps
   /** Swap the lifts not started yet that `needs` replacing for the best alternatives under `prof`, in one step that Undo puts back. Lifts already worked on never move. */
   const rebuild = (needs: (x: Exercise) => boolean, prof: Profile, label: (n: number) => string, patch: (d: AppData) => AppData = (d) => d, restore: (d: AppData) => AppData = (d) => d) => {
@@ -557,9 +567,11 @@ export default function Workout() {
   const lifts = (n: number) => `${n} ${n === 1 ? 'lift' : 'lifts'}`
   /** "I'm at home": the rest of today's lifts that need a gym become dumbbell and bodyweight ones. */
   const goHome = () => {
+    const prevPlace = data.place, prevPlan = data.planPlace
     setCheck(null)
     rebuild((x) => x.gear === 'gym', homeProfile(p), (n) => n ? `Rebuilt the rest for home: ${lifts(n)} swapped for dumbbell or bodyweight ones.` : 'The rest of your workout already works at home.',
-      (d) => ({ ...d, atHome: { ...d.atHome, [today]: true } }), (d) => ({ ...d, atHome: Object.fromEntries(Object.entries(d.atHome ?? {}).filter(([k]) => k !== today)) }))
+      (d) => ({ ...withPlace(d, 'home', today), atHome: { ...d.atHome, [today]: true } }),
+      (d) => ({ ...d, atHome: Object.fromEntries(Object.entries(d.atHome ?? {}).filter(([k]) => k !== today)), place: prevPlace, planPlace: prevPlan }))
   }
   /**
    * Equipment changed in the middle of a workout. Today's plan keeps the old choices (so nothing already done can drop out of it), the lifts
@@ -731,6 +743,7 @@ export default function Workout() {
         {ex && st && (
           <section className="ex workout-exercise">
             <div className="overline">EXERCISE {page} OF {items.length} · {ex.ex.muscle}{ex.ex.key ? ' · KEY LIFT' : ''}</div>
+            {ex.focus && <p className="small focus-note">{ex.focus}</p>}
             <h1 className="exercise-title">{ex.ex.name}</h1>
             <div className="exercise-meta">
               <span><Icon name="weight" />{st.rows.length} sets · {ex.ex.reps[0]}–{ex.ex.reps[1]} reps</span>

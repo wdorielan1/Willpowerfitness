@@ -1,5 +1,5 @@
 import { useApp } from './store'
-import { streak, todayISO } from './engine'
+import { addDays as addDaysISO, placeFor, streak, todayISO } from './engine'
 import { pushCheckin } from './cloud'
 
 export function useCheckin() {
@@ -16,7 +16,8 @@ export function useCheckin() {
   }
   const start = () => {
     set({ going: true })
-    update((d) => (d.started[today] ? d : { ...d, started: { ...d.started, [today]: Date.now() } }))
+    // the plan keeps the place it was built for from here on, so changing it later can't reshuffle lifts already done
+    update((d) => (d.started[today] ? d : { ...d, started: { ...d.started, [today]: Date.now() }, planPlace: { ...Object.fromEntries(Object.entries(d.planPlace ?? {}).filter(([k]) => k >= addDaysISO(today, -14))), [today]: placeFor(d, today) } }))
   }
   return {
     start,

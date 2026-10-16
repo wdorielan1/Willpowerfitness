@@ -3,13 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useCheckin } from '../actions'
 import { useApp } from '../store'
 import { allCommunities } from './Crew'
+import { todayISO, withPlace } from '../engine'
 
-/** Deep links used by Apple Shortcuts: going, complete, cardio, weight, workout, start, arrive */
+/** Deep links used by Apple Shortcuts: going, complete, cardio, weight, workout, start, arrive, gym, home */
 export default function Go() {
   const { action } = useParams()
   const nav = useNavigate()
   const ci = useCheckin()
-  const { data } = useApp()
+  const { data, update } = useApp()
   useEffect(() => {
     switch (action) {
       case 'going': ci.imGoing(); nav('/', { replace: true }); break
@@ -18,7 +19,14 @@ export default function Go() {
       case 'weight': nav('/log?t=weight', { replace: true }); break
       case 'workout': nav('/workout', { replace: true }); break
       case 'start': ci.start(); nav('/workout', { replace: true }); break
+      // the phone (Apple's own location) tells us where they are; the app is only told the answer and never sees a place
+      case 'gym':
+      case 'home':
+        update((d) => withPlace(d, action, todayISO()))
+        nav('/workout', { replace: true })
+        break
       case 'arrive': {
+        update((d) => withPlace(d, 'gym', todayISO()))
         // Automatic start only for members of a crew whose time is within 90 minutes of now.
         const crew = allCommunities(data.custom).find((c) => c.id === data.primary)
         const now = new Date()
