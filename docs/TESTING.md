@@ -441,6 +441,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Crew page tabs: only "Free Challenges" and "Will Power Fantasy Fitness" (green). Tap the green one: a popup "Welcome to Will Power Fantasy Fitness" with "Think fantasy football meets fitness.", the points/join/create/public/solo/crew lines and "Test your Will Power. Earn some points for being fit." Its button opens the free challenges. Nothing in it costs or pays money
 - [ ] Friends: the account bubble (top right) has Friends; it opens the Friends page with a Profile link back. The Profile page has a Friends card (followers and following). The bottom Crew tab is NOT lit on the Friends page
 
+## Feed posts as pictures, captions, and the feed switch
+- [ ] A workout post with a picture is JUST the picture in the feed: no title, numbers, lifts or colored chip above it. Under the picture there is a like button, then the poster's caption (their name first) if they wrote one
+- [ ] The picture is never cropped: a 4:5 card shows whole, a tall story card shows whole (capped to the screen height), a wide photo shows whole. No dark bars beside it
+- [ ] Share a workout: the share sheet has a "Caption (optional)" box above the picture options. Write one, post a card: the caption shows under the picture. Leave it empty: no caption line
+- [ ] Finish a workout with auto-share on: the post that goes to the crew is a card picture (the style you last chose in Workout cards: Scorecard, Training Receipt or PR Poster). Settings > Show my weights OFF: that post is the plain text card instead, with no weights
+- [ ] The post's small line still says "Finished today at ..." with a little emoji in front (picture posts only), and the gym/town if set
+- [ ] A photo post with words: the picture comes first and the words are under it. A text-only post is just its words
+- [ ] Home feed switch (needs an account online): All, My crews, Following. Following shows posts from people you follow (their public posts, and posts in crews you share). My crews shows only your crews. Your choice is remembered. On a local-mode device there is no switch
+- [ ] Following with nobody followed: "Nobody to show yet" with a Find friends button
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
