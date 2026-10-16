@@ -5,7 +5,7 @@ import { useApp } from '../store'
 import { Sheet } from '../components'
 import MyFoods from '../MyFoods'
 import { FOODS, FOOD_CATS, MEAL_NAMES, MEAL_SHARE } from '../foods'
-import { addDays, carbPlanFor, fromISO, macroPlan, MEALS, projectDays, todayISO } from '../engine'
+import { addDays, carbPlanFor, fromISO, macroPlan, MEALS, projectDays, todayISO, workoutName } from '../engine'
 import { GOALS } from '../data'
 import { solveMeal, sumPicks, type Pick } from '../mealgen'
 import type { CarbDay, FoodEntry, FoodItem } from '../types'
@@ -70,6 +70,10 @@ export default function Nutrition() {
   const [rangeEnd, setRangeEnd] = useState(addDays(today, 6))
   const [bulkCarb, setBulkCarb] = useState<CarbDay | 'plan'>('medium')
   const [calendarNotice, setCalendarNotice] = useState('')
+  // a week at a time is easier to read than a whole month, so that is where it starts
+  const sundayOf = (date: string) => addDays(date, -fromISO(date).getDay())
+  const [calView, setCalView] = useState<'week' | 'month'>(() => { try { return localStorage.getItem('wpf.nutCal') === 'month' ? 'month' : 'week' } catch { return 'week' } })
+  const [weekStart, setWeekStart] = useState(() => sundayOf(today))
   const [params] = useSearchParams()
   const [tab, setTab] = useState<'meals' | 'foods'>(params.get('tab') === 'foods' ? 'foods' : 'meals')
   useEffect(() => { if (params.get('tab') === 'foods') setTab('foods') }, [params])
@@ -131,6 +135,18 @@ export default function Nutrition() {
   const maxYm = maxDate.slice(0, 7)
   const shiftYm = (k: number) => { const x = new Date(first.getFullYear(), first.getMonth() + k, 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}` }
   const open = dayOpen ? carbPlanFor(dayOpen, data, today, proj) : null
+  const pickView = (v: 'week' | 'month') => {
+    if (v === calView) return
+    if (v === 'month') setYm(addDays(weekStart, 3).slice(0, 7))
+    else setWeekStart(sundayOf(ym === today.slice(0, 7) ? today : `${ym}-01`))
+    setCalView(v)
+    try { localStorage.setItem('wpf.nutCal', v) } catch { /* private mode */ }
+  }
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const weekEnd = weekDays[6]
+  const short = (date: string, opts: Intl.DateTimeFormatOptions) => fromISO(date).toLocaleDateString(undefined, opts)
+  const weekLabel = `${short(weekStart, { month: 'short', day: 'numeric' })} – ${weekStart.slice(0, 7) === weekEnd.slice(0, 7) ? short(weekEnd, { day: 'numeric' }) : short(weekEnd, { month: 'short', day: 'numeric' })}, ${weekEnd.slice(0, 4)}`
+  const thisWeek = sundayOf(today)
   const rangeDays: string[] = []
   if (rangeStart && rangeEnd && rangeStart <= rangeEnd && rangeEnd <= maxDate) {
     for (let date = rangeStart; date <= rangeEnd && rangeDays.length <= 90; date = addDays(date, 1)) rangeDays.push(date)
@@ -208,9 +224,11 @@ export default function Nutrition() {
         <p className="nutrition-help">Follow your workouts, or adjust several days at once.</p>
         {editingCalendar && <div className="nutrition-calendar-editor">
           <div className="nutrition-plan-switch" aria-label="Choose dates"><button type="button" className={selectionMode === 'days' ? 'on' : ''} aria-pressed={selectionMode === 'days'} onClick={() => setSelectionMode('days')}>Pick days</button><button type="button" className={selectionMode === 'range' ? 'on' : ''} aria-pressed={selectionMode === 'range'} onClick={() => setSelectionMode('range')}>Date range</button></div>
-          {selectionMode === 'range' ? <div className="nutrition-date-range"><label>From<input type="date" value={rangeStart} max={maxDate} onChange={(e) => setRangeStart(e.target.value)} /></label><label>Through<input type="date" value={rangeEnd} max={maxDate} onChange={(e) => setRangeEnd(e.target.value)} /></label></div> : <p className="nutrition-help">Tap dates below to select them. You can move between months.</p>}
+          {selectionMode === 'range' ? <div className="nutrition-date-range"><label>From<input type="date" value={rangeStart} max={maxDate} onChange={(e) => setRangeStart(e.target.value)} /></label><label>Through<input type="date" value={rangeEnd} max={maxDate} onChange={(e) => setRangeEnd(e.target.value)} /></label></div> : <p className="nutrition-help">Tap dates below to select them. You can move between {calView === 'week' ? 'weeks' : 'months'}.</p>}
           {selectionMode === 'range' && rangeError && <p className="err" role="alert">{rangeError}</p>}
         </div>}
+        <div className="nutrition-plan-switch" role="group" aria-label="Calendar view"><button type="button" className={calView === 'week' ? 'on' : ''} aria-pressed={calView === 'week'} onClick={() => pickView('week')}>Week</button><button type="button" className={calView === 'month' ? 'on' : ''} aria-pressed={calView === 'month'} onClick={() => pickView('month')}>Month</button></div>
+        {calView === 'month' ? <>
         <div className="nutrition-month-nav"><button type="button" className="ghost" aria-label="Previous month" onClick={() => setYm(shiftYm(-1))}>‹</button><h3>{month(ym)}</h3><button type="button" className="ghost" aria-label="Next month" onClick={() => setYm(shiftYm(1))} disabled={ym >= maxYm}>›</button></div>
         <div className="nutrition-calendar-grid">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <span key={d} className="nutrition-weekday">{d}</span>)}
@@ -222,6 +240,21 @@ export default function Nutrition() {
             return <button type="button" key={date} className={`nutrition-calendar-day ${date === today ? 'is-today' : ''} ${selected ? 'is-selected' : ''}`} onClick={() => toggleDay(date)} disabled={date > maxDate} aria-pressed={editingCalendar ? selected : undefined} aria-label={`${dateLabel(date)}: ${c.carb} carb${c.manual ? ', set by you' : ''}`} aria-current={date === today ? 'date' : undefined}><span>{i + 1}</span><span className={`nutrition-carb-dot ${c.manual ? 'is-manual' : ''}`} style={{ background: COLOR[c.carb] }} /></button>
           })}
         </div>
+        </> : <>
+          <div className="nutrition-month-nav"><button type="button" className="ghost" aria-label="Previous week" onClick={() => setWeekStart(addDays(weekStart, -7))}>‹</button><h3>{weekLabel}</h3><button type="button" className="ghost" aria-label="Next week" onClick={() => setWeekStart(addDays(weekStart, 7))} disabled={addDays(weekStart, 7) > maxDate}>›</button></div>
+          <div className="nutrition-week">
+            {weekDays.map((date) => {
+              const c = carbPlanFor(date, data, today, proj)
+              const selected = editingCalendar && bulkDates.includes(date)
+              return <button type="button" key={date} className={`nutrition-week-day ${date === today ? 'is-today' : ''} ${selected ? 'is-selected' : ''}`} onClick={() => toggleDay(date)} disabled={date > maxDate} aria-pressed={editingCalendar ? selected : undefined} aria-label={`${dateLabel(date)}: ${c.carb} carb${c.manual ? ', set by you' : ''}`} aria-current={date === today ? 'date' : undefined}>
+                <span className="nutrition-week-date"><b>{short(date, { weekday: 'short' })}</b>{short(date, { month: 'short', day: 'numeric' })}</span>
+                <span className="nutrition-week-plan">{c.day === 'Rest/Cardio' ? 'Rest day' : workoutName(c.day)}</span>
+                <span className="nutrition-week-carb"><span className={`nutrition-carb-dot ${c.manual ? 'is-manual' : ''}`} style={{ background: COLOR[c.carb] }} />{title(c.carb)} carb</span>
+              </button>
+            })}
+          </div>
+          {weekStart !== thisWeek && <button type="button" className="quiet-action nutrition-this-week" onClick={() => setWeekStart(thisWeek)}>Back to this week</button>}
+        </>}
         <div className="nutrition-calendar-legend">{CARB_DAYS.map((k) => <span key={k}><i style={{ background: COLOR[k] }} />{title(k)}</span>)}<span><i className="is-manual" />Set by you</span></div>
         {editingCalendar ? <div className="nutrition-bulk-actions">
           <div className="nutrition-bulk-count"><b>{bulkDates.length} day{bulkDates.length === 1 ? '' : 's'} selected</b>{selectionMode === 'days' && selectedDays.length > 0 && <button type="button" className="nutrition-text-action" onClick={() => setSelectedDays([])}>Clear</button>}</div>

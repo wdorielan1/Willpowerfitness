@@ -603,16 +603,56 @@ export function weekSchedule(d: AppData, today = todayISO()): WeekDay[] {
     const label = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]
     const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
     if (log) { out.push({ date, label, planned: log.dayType, status: log.skipped ? 'skipped' : 'done', logged: log }); if ((log.rotationDay ?? log.dayType) !== 'Rest/Cardio') cursor = log.rotationDay ?? log.dayType; continue }
-    const overridden = date === today && d.dayOverride[date]
-    if ((!isTrainingDay(date, p) && !overridden) || date < origin) { out.push({ date, label, planned: 'Rest/Cardio', status: 'rest' }); continue }
-    const planned = date === today && d.dayOverride[date] ? d.dayOverride[date] : next()
+    // a workout the person moved here (or chose for today) wins over the rotation, from today on
+    const moved = date >= today ? d.dayOverride[date] : undefined
+    const training = isTrainingDay(date, p)
+    if ((!training && !moved) || date < origin) { out.push({ date, label, planned: 'Rest/Cardio', status: 'rest' }); continue }
+    const natural = training ? next() : null // what the rotation would give; moving a workout never changes where the rotation is up to
+    const planned = moved ?? natural!
     if (date < today) out.push({ date, label, planned, status: 'missed' }) // rotation stays put, so this comes back
     else {
-      out.push({ date, label, planned, status: date === today ? 'today' : 'upcoming' })
-      const rotationDay = overridden ? dayTypeFor(date, p, d.logs) : planned
-      if (rotationDay !== 'Rest/Cardio') cursor = rotationDay
+      out.push({ date, label, planned, status: planned === 'Rest/Cardio' ? 'rest' : date === today ? 'today' : 'upcoming' })
+      if (natural) cursor = natural
     }
   }
+  return out
+}
+
+/** Strip everything chosen just for one day (the day's lifts, order, swaps and any sets typed in) so a different workout starts clean. */
+export function clearDayChoices(d: AppData, date: string): AppData {
+  const drop = <T,>(o: Record<string, T> | undefined): Record<string, T> => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => k !== date && !k.startsWith(`${date}|`)))
+  return { ...d, exOrder: drop(d.exOrder), customSession: drop(d.customSession), workoutFocus: drop(d.workoutFocus), extras: drop(d.extras), removed: drop(d.removed), swaps: drop(d.swaps), drafts: drop(d.drafts) }
+}
+
+/**
+ * Which days of this week's plan can be moved, and which can take a moved workout: only days that have not happened yet
+ * (today included, unless today's workout is already underway). A rest day can take a workout.
+ */
+export function moveRules(d: AppData, today = todayISO(), week: WeekDay[] = weekSchedule(d, today)): { from: Set<string>; to: Set<string> } {
+  const underway = !!d.started?.[today] || Object.keys(d.drafts?.[today]?.sets ?? {}).length > 0
+  const open = (w: WeekDay) => w.date >= today && !(w.date === today && underway)
+  return {
+    from: new Set(week.filter((w) => open(w) && (w.status === 'today' || w.status === 'upcoming') && w.planned !== 'Rest/Cardio').map((w) => w.date)),
+    to: new Set(week.filter((w) => open(w) && (w.status === 'today' || w.status === 'upcoming' || w.status === 'rest')).map((w) => w.date)),
+  }
+}
+
+/**
+ * Move a workout to another day of this week by swapping the two days: Monday's Push to Wednesday puts Wednesday's workout on
+ * Monday (or a rest day, if that is what Wednesday was). Where the rotation is up to does not change, so the days after carry on
+ * as planned. Does nothing if either day cannot be moved (see moveRules).
+ */
+export function moveWorkout(d: AppData, from: string, to: string, today = todayISO()): AppData {
+  const week = weekSchedule(d, today)
+  const a = week.find((w) => w.date === from), b = week.find((w) => w.date === to)
+  const rules = moveRules(d, today, week)
+  if (!a || !b || from === to || !rules.from.has(from) || !rules.to.has(to)) return d
+  // what the rotation alone would give each day, so a day put back to normal leaves no override behind
+  const natural = Object.fromEntries(weekSchedule({ ...d, dayOverride: {} }, today).map((w) => [w.date, w.planned]))
+  const dayOverride: Record<string, DayType> = { ...d.dayOverride, [from]: b.planned, [to]: a.planned }
+  for (const date of [from, to]) if (dayOverride[date] === natural[date]) delete dayOverride[date]
+  let out: AppData = { ...d, dayOverride }
+  for (const date of [from, to]) if (date === today) out = clearDayChoices(out, today)
   return out
 }
 
@@ -654,12 +694,12 @@ export function projectDays(d: AppData, today = todayISO(), n = 60): Record<stri
     const date = addDays(today, i)
     const log = d.logs.find((l) => l.date === date && !l.baseline && l.dayType !== 'Rest/Cardio')
     if (log) { out[date] = log.dayType; if ((log.rotationDay ?? log.dayType) !== 'Rest/Cardio') cursor = log.rotationDay ?? log.dayType; continue }
-    const overridden = i === 0 && d.dayOverride[date]
-    if (!isTrainingDay(date, p) && !overridden) { out[date] = 'Rest/Cardio'; continue }
-    const planned: DayType = i === 0 && d.dayOverride[date] ? d.dayOverride[date] : SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0]
-    out[date] = planned
-    const rotationDay = overridden ? dayTypeFor(date, p, d.logs) : planned
-    if (rotationDay !== 'Rest/Cardio') cursor = rotationDay
+    const moved = d.dayOverride[date] // a workout moved here, or chosen for today
+    const training = isTrainingDay(date, p)
+    if (!training && !moved) { out[date] = 'Rest/Cardio'; continue }
+    const natural = training ? SPLIT[cursor ? (SPLIT.indexOf(cursor) + 1) % SPLIT.length : 0] : null
+    out[date] = moved ?? natural!
+    if (natural) cursor = natural
   }
   return out
 }

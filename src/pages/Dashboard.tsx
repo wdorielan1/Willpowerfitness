@@ -11,6 +11,7 @@ import { Icon } from '../icons'
 import type { DayType, WorkoutLog } from '../types'
 import { summaryFromLog } from '../shareCard'
 import { ShareWorkoutSheet } from './Feed'
+import { WeekStrip, useWeekMove } from '../WeekStrip'
 
 const sessionDescription: Record<DayType, string> = {
   Push: 'Chest, shoulders & triceps',
@@ -64,6 +65,7 @@ export default function Dashboard() {
   const live = useLiveCrew(crew?.id ?? null, userId)
   const people = live?.people ?? (ci.going ? [{ name: data.name || 'You', status: ci.done ? 'done' as const : 'going' as const, mine: true }] : [])
   const [peek, setPeek] = useState<WeekDay | null>(null)
+  const mover = useWeekMove(week, today)
   const start = () => {
     ci.start()
     nav('/workout')
@@ -74,13 +76,7 @@ export default function Dashboard() {
       <Greeting name={data.name} done={ci.done} rest={rest} />
       <section className="week-summary" aria-label="This week’s training">
         <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
-        <div className="week-strip">
-          {week.map((d) => <button type="button" className={`week-day status-${d.status}${d.date === today ? ' is-today' : ''}`} key={d.date} onClick={() => setPeek(d)} title={`${d.label}: ${d.planned} · ${d.status}`} aria-label={`${d.label}, ${d.planned}, ${d.status}${d.date === today ? ', today' : ''}. Tap to see the workout.`}>
-            <span aria-hidden="true">{d.label[0]}</span>
-            <span className="week-day-dot" aria-hidden="true">{d.status === 'done' && <Icon name="check" />}</span>
-            <span className="week-day-plan" aria-hidden="true">{d.planned === 'Rest/Cardio' ? 'Rest' : d.planned === 'Shoulders/Abs' ? 'Sh/Abs' : d.planned === 'Full Body' ? 'Full' : d.planned}</span>
-          </button>)}
-        </div>
+        <WeekStrip week={week} today={today} mover={mover} onOpen={setPeek} />
       </section>
 
       {data.profile && !data.profile.sex && (
@@ -180,6 +176,11 @@ export default function Dashboard() {
               <div className="people">{preview.map((it) => <div className="person" key={it.ex.id}><span className="grow"><b>{it.ex.name}</b><br /><span className="small mute">{it.ex.muscle}</span></span><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></div>)}</div>
             )}
             {logged && logged.entries.some((e) => e.sets.length) && !logged.imported && <button className="ghost week-sheet-share" onClick={() => { setPeek(null); setSharing(logged) }}>Share this workout</button>}
+            {mover.rules.from.has(peek.date) && <div className="week-sheet-move">
+              <h3>Move this workout</h3>
+              <p className="small mute">Swaps it with the day you pick. A rest day takes it and this day becomes a rest day.</p>
+              <div className="chips">{week.filter((w) => mover.rules.to.has(w.date) && w.date !== peek.date).map((w) => <button type="button" key={w.date} className="chip" onClick={() => { mover.move(peek.date, w.date); setPeek(null) }}>{w.label} · {w.planned === 'Rest/Cardio' ? 'Rest' : workoutName(w.planned)}</button>)}</div>
+            </div>}
             {peek.date === today && !rest && peek.status !== 'done' && <button className="primary" onClick={() => { setPeek(null); nav('/workout') }}>Go to today’s workout</button>}
           </Sheet>
         )

@@ -1391,3 +1391,27 @@ p.focus-note { margin: -4px 0 0; }
 .progress-share:hover { color: var(--accent); border-color: var(--accent); }
 .progress-history-actions { display: flex; gap: 8px; flex: none; }
 .week-sheet-share { margin-top: 4px; }
+
+/* the nutrition calendar, one week at a time */
+.nutrition-week { display: grid; gap: 6px; }
+.nutrition-week-day { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 54px; padding: 8px 12px; background: var(--card2); border: 1px solid transparent; border-radius: 10px; text-align: left; font-size: 13px; font-weight: 400; color: var(--text); }
+.nutrition-week-day.is-today { border-color: var(--accent); }
+.nutrition-week-day.is-selected { box-shadow: inset 0 0 0 2px var(--text); background: #353740; }
+.nutrition-week-day:disabled { opacity: .25; }
+.nutrition-week-date { display: grid; gap: 1px; font-size: 11px; color: var(--mute); }
+.nutrition-week-date b { font-size: 14px; color: var(--text); font-weight: 700; }
+.nutrition-week-plan { min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nutrition-week-carb { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--mute); white-space: nowrap; }
+.nutrition-this-week { justify-self: center; }
+
+/* press and hold a day, then drag it onto another to move that workout */
+.week-day { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: opacity .15s, border-color .15s, box-shadow .15s, background-color .15s; }
+.week-strip.is-dragging .week-day:not(.is-target):not(.is-lifted) { opacity: .4; }
+.week-strip.is-dragging .week-day.is-target { border-style: dashed; border-color: var(--mute); }
+.week-strip.is-dragging .week-day.is-over { border-style: solid; border-color: var(--accent); background: var(--card2); color: var(--text); }
+.week-day.is-lifted { z-index: 5; background: var(--card2); border-color: var(--accent); color: var(--text); box-shadow: 0 12px 28px rgba(0, 0, 0, .55); transition: box-shadow .15s; touch-action: none; }
+.week-hint { margin: 2px 0 0; font-size: 12px; color: var(--mute); text-align: center; }
+.week-moved { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 13px; line-height: 1.4; }
+.week-moved span { flex: 1; min-width: 0; }
+.week-sheet-move { display: grid; gap: 8px; margin-top: 6px; }
+.week-sheet-move h3 { font-size: 15px; }
