@@ -81,6 +81,7 @@ export interface CrewPost {
   imagePaths: string[]; imageIds?: string[]
   imagePath?: string; imageId?: string // legacy single-photo posts
   meta?: Record<string, unknown>; ts: number; mine: boolean; likes: number; liked: boolean; isPublic?: boolean; comments?: number
+  preview?: { name: string; text: string }[] // the latest couple of comments, oldest first, for the little preview under the post
 }
 export interface StepLog { date: string; steps: number }
 export interface CustomCommunity { id: string; name: string; time: string; vibe: string; cat?: string; place?: string; lat?: number; lng?: number; created?: number }

@@ -285,6 +285,21 @@ export async function fetchCommentCounts(postIds: string[]): Promise<Record<stri
   for (const r of data ?? []) { const k = String((r as { post_id: number }).post_id); out[k] = (out[k] ?? 0) + 1 }
   return out
 }
+/** The comment count of each post and its latest two comments (oldest first), in one request, for the preview under a feed post. */
+export async function fetchCommentSummary(postIds: string[]): Promise<{ counts: Record<string, number>; preview: Record<string, { name: string; text: string }[]> }> {
+  const out = { counts: {} as Record<string, number>, preview: {} as Record<string, { name: string; text: string }[]> }
+  if (!supabase || !postIds.length) return out
+  const { data, error } = await supabase.from('crew_post_comments').select('post_id,name,text,created_at').in('post_id', postIds).order('created_at', { ascending: true })
+  if (error) return out
+  for (const r of data ?? []) {
+    const k = String((r as { post_id: number }).post_id)
+    out.counts[k] = (out.counts[k] ?? 0) + 1
+    const list = (out.preview[k] ??= [])
+    list.push({ name: ((r as { name: string }).name) || 'Member', text: ((r as { text: string }).text) ?? '' })
+    if (list.length > 2) list.shift()
+  }
+  return out
+}
 export async function addCommentCloud(postId: string, userId: string, text: string): Promise<string | null> {
   if (!supabase) return 'Comments need an internet connection.'
   const { error } = await supabase.from('crew_post_comments').insert({ post_id: postId, user_id: userId, text: text.trim().slice(0, 500) })
@@ -404,7 +419,7 @@ export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedT
       const { data: rows } = await supabase!.from('crew_posts').select('id,crew_id,user_id,name,kind,text,image_path,image_paths,meta,created_at').or(parts.join(',')).order('created_at', { ascending: false }).limit(60)
       const ids = (rows ?? []).map((r) => r.id as number)
       const { data: likes } = ids.length ? await supabase!.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
-      const counts = await fetchCommentCounts(ids.map(String))
+      const { counts, preview } = await fetchCommentSummary(ids.map(String))
       if (!alive) return
       setPosts((rows ?? []).map((r) => {
         const l = (likes ?? []).filter((x) => x.post_id === r.id)
@@ -412,7 +427,7 @@ export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedT
           id: String(r.id), crewId: r.crew_id as string, userId: r.user_id as string, name: r.name as string, kind: r.kind as PostKind, text: r.text as string,
           imagePaths: r.image_paths?.length ? r.image_paths as string[] : r.image_path ? [r.image_path as string] : [],
           imagePath: (r.image_path as string | null) ?? undefined, meta: (r.meta as Record<string, unknown>) ?? {}, ts: Date.parse(r.created_at as string),
-          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId), comments: counts[String(r.id)] ?? 0,
+          mine: r.user_id === userId, likes: l.length, liked: l.some((x) => x.user_id === userId), comments: counts[String(r.id)] ?? 0, preview: preview[String(r.id)] ?? [],
         }
       }))
     }

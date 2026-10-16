@@ -388,6 +388,12 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
               {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
             </div>
             {caption && <p className="post-caption"><b>{p.name.split(' ')[0]}</b> {caption}</p>}
+            {userId && (p.comments ?? 0) > 0 && (
+              <div className="post-preview">
+                {(p.comments ?? 0) > (p.preview?.length ?? 0) && <button type="button" className="post-preview-all" onClick={() => setActivity({ post: p, tab: 'comments' })}>View all {p.comments} comments</button>}
+                {p.preview?.map((c, i) => <button type="button" key={i} className="post-preview-line" aria-label={`${c.name.split(' ')[0]} said: ${c.text}. Open the comments.`} onClick={() => setActivity({ post: p, tab: 'comments' })}><b>{c.name.split(' ')[0]}</b> {c.text}</button>)}
+              </div>
+            )}
           </article>
         )
       })}
