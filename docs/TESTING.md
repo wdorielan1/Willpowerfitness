@@ -364,6 +364,18 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] The manual "share with a picture" from the finish screen still posts, and the card shows above the picture
 - [ ] Looks right at 360 and 390 px wide, and the lift names don't squash the weights
 
+## Smarter workouts step 4: Gym or Home, lifts per workout, focus labels
+- [ ] Train page: a "Today I'm at  Gym | Home" switch under the heading (not shown if your setup is dumbbells only or bodyweight). It starts on Gym
+- [ ] Tap Home: the planned lifts change to dumbbell and bodyweight lifts only (no machines, cables or barbells), and a line says so. Tap Gym: the usual plan is back
+- [ ] Leave the app and come back, and the next day: it is still on whatever you picked last
+- [ ] Start a Home workout, then open `#/go/gym` (or an Apple Shortcut): your workout's lifts do NOT change, and tomorrow's plan uses Gym
+- [ ] Skip two gym lifts after tapping Gym or Home today: the question goes straight to equipment ("Want fewer...?" or "Is your equipment set up right?") and does not ask "Are you at the gym today?". Without choosing anything today it still asks
+- [ ] Siri & Shortcuts page: entries for "Arrive at the gym" (says it also sets Gym), "Arrive at home" and "I'm at the gym", each with its link to copy
+- [ ] On an iPhone with the Arrive-at-the-gym automation: arriving sets Gym and starts your workout (note whether it opens Safari or the installed app, and whether you are still signed in there)
+- [ ] Settings > Training > Lifts per workout: choose 7. Your next workout preview has exactly 7 lifts, including any body-part extra. "Back to usual" returns to your level's number (4, 5 or 6)
+- [ ] With Legs chosen as a body part to focus on, open a Shoulders + Abs day: the extra leg lift says "Extra leg work added because Legs is your focus." in the preview and on its page. Swap it and the note goes
+- [ ] Brand-new account that trains every day: no "What's in the way?" card on the Train page
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
