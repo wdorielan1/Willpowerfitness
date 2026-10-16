@@ -376,6 +376,38 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] With Legs chosen as a body part to focus on, open a Shoulders + Abs day: the extra leg lift says "Extra leg work added because Legs is your focus." in the preview and on its page. Swap it and the note goes
 - [ ] Brand-new account that trains every day: no "What's in the way?" card on the Train page
 
+## Posting to the crew you choose (question of the day, posts, workouts)
+Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no chooser anywhere.
+- [ ] Join a second, then a third crew. The Crew page shows ONE "Question of the day" card whichever crew chip you tap, not one per crew
+- [ ] The question card has "Post to" chips with the crew you are looking at ticked. You can tick more than one, but you cannot untick the last one. Answer it: the answer shows in the crews you ticked and not in the others, and the card goes away
+- [ ] The post box at the top has the same "Post to" chips (starts on the crew you are looking at). Post a text, or a photo, to two crews: it appears in both feeds, and a line says "Posted to ..."
+- [ ] If one crew refuses (for example you were removed), your text stays in the box, the message names the crew that missed out, and the chips are set to just that crew. Post again: it only goes there
+- [ ] Share workout (post box): pick any finished workout from the list, today's or an earlier one. In the share sheet, "Post to" chips sit right under the numbers; choose crews, optionally add your photo, tap Post to {crew} / Post to 2 crews
+- [ ] The shared card shows "From Mon, Oct 12" when you shared an earlier day. Open Share workout again: that workout says "2 of 3" and the crews that have it are ticked and locked, the others are free
+- [ ] Delete one of those posts: that crew can be picked again for that workout
+- [ ] Progress > Workout history: each finished workout has a share button next to the bin. Tap it: the same share sheet for that day
+- [ ] Home or Train, tap a finished day on the week: "Share this workout" opens the same sheet. Home "Share this workout" (today) has the crew chooser and still has Share to Instagram
+- [ ] Settings > Workout > Share finished workouts to my crew: with 2+ crews a "Share to" chooser appears (your main crew picked by default). Pick two, finish a workout: it posts to both, and the finish screen says "Shared to A and B"
+- [ ] Leave one of the chosen crews: finishing a workout still goes to the others (or your main crew if none are left)
+
+## Home: hold and drag a workout to another day
+- [ ] Home "This week" strip: a hint says "Hold a workout and drag it to another day to move it." (only when something can move)
+- [ ] Press and hold Monday's Push for about half a second: it lifts (a little buzz on phones that have one), the other open days get a dashed outline. Drag it onto Wednesday: Wednesday lights up. Let go: Monday and Wednesday have swapped (Monday is Wed's workout, Wednesday is Push). A line says what happened, with Undo
+- [ ] Undo puts both days back. The line goes away by itself after a few seconds
+- [ ] Drop it on a rest day (Saturday): Push is on Saturday and Monday becomes a rest day
+- [ ] Let go over nothing, or back on the same day: nothing changes. A quick swipe over the strip (no hold) scrolls the page and does not lift a day. A normal tap still opens the day
+- [ ] Today's session card, the Train page and the Carb calendar all show the moved workouts. The days after carry on as planned (if Thursday was Shoulders it still is)
+- [ ] Finish the moved workouts: the rotation continues from where it was (no repeat, no skipped day) and no "What's in the way?" card appears
+- [ ] Days you already did (or skipped) cannot be picked up or dropped on. Today cannot move once you have started the workout
+- [ ] Tap a day with an unfinished workout: "Move this workout" with a button per day. Tap one: same swap (no dragging needed)
+- [ ] Works on an iPhone with a finger, and with a mouse on a computer
+
+## Nutrition: weekly carb calendar
+- [ ] Nutrition > Carb calendar opens on "Week" with a Week | Month switch. The week shows 7 rows: day, workout (or Rest day) and Low/Medium/High carb. Today has an orange outline
+- [ ] The arrows move a week at a time, "Back to this week" shows when you are away, and it stops about 90 days ahead like the month view
+- [ ] Tap a day: its sheet opens. Edit days: pick days (or a date range) in the week list and Apply works; a day you set yourself shows the ring marker
+- [ ] Month: the old grid is back. Reload: it remembers the last choice. Switching back to Week lands on this week
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
