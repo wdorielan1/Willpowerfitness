@@ -34,6 +34,7 @@ export default function Privacy() {
 
       <h2>Location and the crew map</h2>
       <p>Location is optional. When someone starts a crew they can pick a town or neighbourhood for it. We save only that general area, rounded to about one mile, and show it as a pin on the crew map. We never show where a member lives or where anyone is right now. If you choose “Use my area” (we encourage it, but it is optional), your browser asks for permission and we save a town-level pin, rounded to about one mile, in your private profile. We use it to suggest crews near you and to centre the map. Only you can see it, and you can remove it any time in Settings or on the map. We never save your exact location. If you tap “Locate me” on the map, your exact position appears as a blue dot on your own screen only. It is not sent to us or saved. If you tap “I’d join a crew here”, we save your general area (rounded to about one mile) so we can count how many people want a crew nearby. Other members only ever see that count. You can report a crew from its map card.</p>
+      <p>Your workout posts show the day and time you finished. They also show a gym or town name, but only if you type one in Settings (“Where I train”) or leave one on a share picture. It is just text you chose, never read from your phone, and you can clear it any time.</p>
 
       <h2>How we use information</h2>
       <ul>

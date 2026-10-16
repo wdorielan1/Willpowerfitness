@@ -1,13 +1,13 @@
 import { fmtDuration } from './shareCard'
+import { BodyIcon } from './BodyIcon'
 import { fmtVolume, type WorkoutView } from './workoutPost'
 
 /** The body of a shared workout in the crew feed: the session, any PR, the numbers, the top lifts and a streak. */
-export function WorkoutCard({ w, crewDone, from }: { w: WorkoutView; crewDone?: { done: number; members: number }; from?: string }) {
+export function WorkoutCard({ w, crewDone }: { w: WorkoutView; crewDone?: { done: number; members: number } }) {
   const pr = w.prs[0]
   return (
     <div className="wk-body">
-      <div className="wk-title"><h3>{w.title}</h3>{w.minutes ? <span>{fmtDuration(w.minutes)}</span> : null}</div>
-      {from && <p className="wk-from">From {from}</p>}
+      <div className="wk-title"><div className="wk-name"><span className="wk-icon"><BodyIcon name={w.title} size={30} /></span><h3>{w.title}</h3></div>{w.minutes ? <span className="wk-time">{fmtDuration(w.minutes)}</span> : null}</div>
       {pr && (
         <div className="wk-pr">
           <span className="wk-badge">NEW PR</span>

@@ -630,7 +630,7 @@ export default function Workout() {
       }
     })
     if (willPost) {
-      const shared = workoutPost(sum, entries, plan.day, data.settings.shareLifts !== false)
+      const shared = workoutPost(sum, entries, plan.day, data.settings.shareLifts !== false, { at: finishedAt, place: data.settings.postPlace })
       setSharedTo(autoCrews)
       void postTo(autoCrews, { kind: 'workout', text: shared.text, meta: shared.meta }).then(({ errors }) => {
         // a crew that did not get it can be tried again from Share this workout

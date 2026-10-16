@@ -245,9 +245,13 @@ ol.mini { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14p
 .shell .post.wk::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--accent), #ff9d7a); }
 .wk-chip { font-size: 11px; font-weight: 900; letter-spacing: 1.2px; color: var(--accent2); background: #3a1810; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
 .wk-body { display: grid; gap: 14px; }
-.wk-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wk-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wk-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .wk-title h3 { font-size: 24px; letter-spacing: -.4px; line-height: 1.1; }
-.wk-title span { font-size: 14px; color: var(--mute); font-weight: 600; white-space: nowrap; }
+.wk-title .wk-time { font-size: 14px; color: var(--mute); font-weight: 600; white-space: nowrap; }
+.wk-icon { flex: none; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); color: var(--mute); }
+.wk-icon:empty { display: none; }
+.pick-icon { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); color: var(--mute); }
 .wk-pr { display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg, #3a1810, #2a1510); border: 1px solid #5a2a1c; border-radius: 14px; padding: 10px 12px; }
 .wk-pr b { font-size: 15px; }
 .wk-pr span { font-size: 13px; color: var(--accent2); }
@@ -1380,7 +1384,6 @@ p.focus-note { margin: -4px 0 0; }
 .deleted-notice button { min-height: 36px; padding: 6px 14px; border-radius: 10px; }
 
 /* a workout shared on a later day, and the crew chooser on anything you post */
-.wk-from { margin: -4px 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--mute); text-transform: uppercase; }
 .post-to { display: grid; gap: 6px; }
 .post-to-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--mute); text-transform: uppercase; }
 .post-to .chips { flex-wrap: wrap; }
@@ -1423,3 +1426,7 @@ p.focus-note { margin: -4px 0 0; }
 .ai-prompt-text { white-space: pre-wrap; background: var(--card2); border-radius: 12px; padding: 12px; font-size: 13px; margin: 0; max-height: 260px; overflow: auto; }
 .import-more summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--mute); padding: 6px 0; }
 .import-more[open] { display: grid; gap: 10px; }
+
+/* when (and where) a post was done, at the top of every crew post */
+.post-when { line-height: 1.4; }
+.post-place { color: var(--text); }

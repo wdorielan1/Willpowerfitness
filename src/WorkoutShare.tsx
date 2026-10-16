@@ -43,7 +43,8 @@ export function useImageAsset(key: string, build: () => Promise<Blob>) {
 export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra }: {
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
   /** `crews` are the crews you are in; `done` already have this workout; `defaultTo` is picked to start with. */
-  crewPost?: { crews: MyCrew[]; done: string[]; defaultTo?: string; onPost: (blob: Blob, crewIds: string[]) => Promise<string | null> }
+  crewPost?: { crews: MyCrew[]; done: string[]; defaultTo?: string; /** `place` is the gym or town shown on the picture, if the person left it on: the post's header says it too. */
+    onPost: (blob: Blob, crewIds: string[], opts?: { place?: string }) => Promise<string | null> }
   /** Something to show right under the recap, such as the offer to save this workout. */
   extra?: ReactNode
 }) {
@@ -190,7 +191,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
     if (!crewPost || allPosted || !crewOutput || busy || !going.length) return
     setBusy(true); setMessage('')
     if (showPlace) onPrefs({ gymName: place.trim() })
-    const failed = await crewPost.onPost(crewOutput, going).catch(() => 'Could not post. Please try again.')
+    const failed = await crewPost.onPost(crewOutput, going, showPlace && place.trim() ? { place: place.trim() } : {}).catch(() => 'Could not post. Please try again.')
     setBusy(false)
     if (failed) setMessage(failed); else onClose()
   }
@@ -214,7 +215,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
 
   return <Sheet title={crewPost ? 'Share to your crew' : 'Workout complete'} onClose={onClose}>
     <div className="workout-share">
-      <p className="share-intro"><b>{summary.title}</b> {summary.date === todayISO() ? 'finished at' : `from ${fromISO(summary.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, finished at`} {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture to your crew, or share it to Instagram.' : 'Your work. Your photo. Your people.'}</span></p>
+      <p className="share-intro"><b>{summary.title}</b> {summary.date === todayISO() ? 'finished at' : `from ${fromISO(summary.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}, finished at`} {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture to your crew, or share it to Instagram.' : 'Your work. Your photo. Your people.'}</span></p>
       <div className="share-recap">
         <div className="share-recap-stats">
           <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>

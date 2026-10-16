@@ -2,26 +2,20 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../store'
 import { Avatar, ConfirmSheet, Lightbox, Sheet } from '../components'
 import { PostTo, useMyCrews, type MyCrew } from '../CrewPicker'
+import { BodyIcon } from '../BodyIcon'
 import { CommentThread } from '../Comments'
 import { LikersSheet, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
 import { postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
+import { postWhen } from '../postWhen'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
 import { fromISO, iso, todayISO, workoutName } from '../engine'
 import type { CrewPost, PostKind, VideoMeta, WorkoutLog } from '../types'
-
-const timeAgo = (ts: number) => {
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000))
-  if (s < 60) return 'just now'
-  if (s < 3600) return `${Math.floor(s / 60)}m`
-  if (s < 86400) return `${Math.floor(s / 3600)}h`
-  return `${Math.floor(s / 86400)}d`
-}
 
 /** Create posts in a crew's feed (cloud when connected, on-device otherwise). */
 export function usePostActions(crewId: string) {
@@ -107,17 +101,15 @@ export function useWorkoutSharing() {
   /** The crews that already have the workout from this day. */
   const posted = (date: string) => crews.filter((c) => data.workoutPosted?.[postedKey(date, c.id, data.primary)]).map((c) => c.id)
   /** Posts a workout (from today or any earlier day) to the chosen crews, with a picture if there is one. Returns an error message, or null. */
-  const share = async (log: WorkoutLog, ids: string[], blob?: Blob): Promise<string | null> => {
+  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string): Promise<string | null> => {
     const done = posted(log.date)
     const todo = ids.filter((id) => !done.includes(id))
     if (!todo.length) return 'That workout is already shared with this crew.'
     const sum = summaryFromLog(data, log)
     const wp = sum
-      ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false)
+      ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false, { at: log.finishedAt, place })
       : { text: `Finished ${log.dayType}${log.minutes ? ` in ${log.minutes} min` : ''}`, meta: { sets: log.entries.reduce((a, e) => a + e.sets.length, 0), exercises: log.entries.length } as Record<string, unknown> }
-    // a workout from an earlier day says so on its card
-    const meta = log.date === todayISO() ? wp.meta : { ...wp.meta, date: log.date }
-    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta, photos: blob ? [blob] : undefined })
+    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta: wp.meta, photos: blob ? [blob] : undefined })
     if (ok.length) {
       update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [postedKey(log.date, id, d.primary), true])) } }))
       announceFeedChanged()
@@ -133,7 +125,7 @@ export function ShareWorkoutSheet({ log, viewing, onClose }: { log: WorkoutLog; 
   const { crews, posted, share } = useWorkoutSharing()
   const summary = summaryFromLog(data, log)
   if (!summary) return null
-  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[]) => share(log, ids, blob) } : undefined
+  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string }) => share(log, ids, blob, opts?.place) } : undefined
   return <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={onClose} crewPost={crewPost} />
 }
 
@@ -151,8 +143,10 @@ function WorkoutPicker({ onPick, onClose }: { onPick: (log: WorkoutLog) => void;
         {logs.slice(0, shown).map((l) => {
           const done = posted(l.date)
           const all = crews.length > 0 && done.length === crews.length
+          const title = workoutName(l.dayType, data.workoutFocus?.[l.date])
           return <button key={l.date} type="button" className="minirow" onClick={() => onPick(l)}>
-            <span style={{ flex: 1, textAlign: 'left' }}><b>{workoutName(l.dayType, data.workoutFocus?.[l.date])}</b><br /><span className="small mute">{l.date === today ? 'Today' : fromISO(l.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {l.entries.reduce((a, e) => a + e.sets.length, 0)} sets{l.minutes ? ` · ${l.minutes} min` : ''}</span></span>
+            <span className="pick-icon"><BodyIcon name={title} size={26} /></span>
+            <span style={{ flex: 1, textAlign: 'left' }}><b>{title}</b><br /><span className="small mute">{l.date === today ? 'Today' : fromISO(l.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · {l.entries.reduce((a, e) => a + e.sets.length, 0)} sets{l.minutes ? ` · ${l.minutes} min` : ''}</span></span>
             {done.length > 0 && <span className={`tag ${all ? 'ok' : ''}`}>{all ? '✓ Shared' : `✓ ${done.length} of ${crews.length}`}</span>}
           </button>
         })}
@@ -317,19 +311,18 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
         const images = all.slice(hasCover ? 1 : 0).map((photo) => urls[photo.id]).filter(Boolean)
         const meta = p.meta as { q?: string } | undefined
         const wk = p.kind === 'workout' ? readWorkoutPost(p) : null
-        // a workout shared on a later day says which day it was
-        const from = wk?.date && wk.date !== iso(new Date(p.ts)) ? fromISO(wk.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : undefined
+        const when = postWhen(p)
         // the crew's count for today sits on the newest workout posted today, not on every one
         const first = posts.find((x) => x.kind === 'workout' && new Date(x.ts).toDateString() === new Date().toDateString())
         return (
           <article key={p.id} className={`card post${wk ? ' wk' : ''}`}>
             <div className="row">
-              <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? crewAvatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute">{timeAgo(p.ts)}</div></div></div>
+              <div className="person"><Avatar name={p.name} url={p.mine ? avatarUrl : p.userId ? crewAvatars[p.userId] : null} /><div><b>{p.name.split(' ')[0]}{p.mine ? ' (you)' : ''}</b><div className="small mute post-when">{when.text}{when.place && <> · <span className="post-place" title="Where they trained">{when.place}</span></>}</div></div></div>
               {p.kind === 'qotd' && <span className="tag accent">Question of the day</span>}
               {wk && <span className="wk-chip">{wk.chip}</span>}
             </div>
             {p.kind === 'qotd' && meta?.q && <div className="small mute">“{meta.q}”</div>}
-            {wk ? <WorkoutCard w={wk} from={from} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
+            {wk ? <WorkoutCard w={wk} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
             {clip
               ? (images.length === 0
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />
