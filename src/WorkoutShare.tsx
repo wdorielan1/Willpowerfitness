@@ -23,7 +23,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
   /** `crews` are the crews you are in; `done` already have this workout; `defaultTo` is picked to start with. */
   crewPost?: { crews: MyCrew[]; done: string[]; defaultTo?: string; /** `place` is the gym or town shown on the picture, if the person left it on: the post's header says it too. */
-    onPost: (blob: Blob, crewIds: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; progress?: (text: string) => void }) => Promise<string | null> }
+    onPost: (blob: Blob, crewIds: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }) => Promise<string | null> }
   /** Something to show right under the recap, such as the offer to save this workout. */
   extra?: ReactNode
 }) {
@@ -44,6 +44,8 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   const [caption, setCaption] = useState('')
   const [morePhotos, setMorePhotos] = useState<File[]>([]) // photos and a video that go in the post next to the picture
   const [moreVideo, setMoreVideo] = useState<PreparedVideo | null>(null)
+  const [cardLocked, setCardLocked] = useState(true) // the workout card is the first thing in the post, unless they unlock it and slide it back
+  const [cardAt, setCardAt] = useState(0)
   const [progress, setProgress] = useState('Posting…')
   const [message, setMessage] = useState('')
   const [imageError, setImageError] = useState('')
@@ -171,7 +173,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
     if (!crewPost || allPosted || !image || busy || !going.length) return 'Choose an available crew and try again.'
     setBusy(true); setMessage('')
     if (showPlace) onPrefs({ gymName: place.trim() })
-    const failed = await crewPost.onPost(image, going, { ...(showPlace && place.trim() ? { place: place.trim() } : {}), ...(caption.trim() ? { caption: caption.trim() } : {}), ...(morePhotos.length ? { photos: morePhotos } : {}), ...(moreVideo ? { video: moreVideo } : {}), progress: setProgress }).catch(() => 'Could not post. Please try again.')
+    const failed = await crewPost.onPost(image, going, { ...(showPlace && place.trim() ? { place: place.trim() } : {}), ...(caption.trim() ? { caption: caption.trim() } : {}), ...(morePhotos.length ? { photos: morePhotos } : {}), ...(moreVideo ? { video: moreVideo } : {}), cardAt: cardLocked ? 0 : cardAt, progress: setProgress }).catch(() => 'Could not post. Please try again.')
     setBusy(false)
     if (failed) setMessage(failed); else onClose()
     return failed
@@ -214,7 +216,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
       {extra}
       {crewPost && <PostTo crews={crewPost.crews} value={going} onChange={setTo} done={crewPost.done} disabled={busy} />}
       {crewPost && <label className="share-caption"><span className="small mute">Caption (optional)</span><textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} placeholder="Say something about this workout…" disabled={busy} aria-label="Caption" /></label>}
-      {crewPost && <ExtraMedia photos={morePhotos} onPhotos={setMorePhotos} video={moreVideo} onVideo={setMoreVideo} disabled={busy || allPosted} />}
+      {crewPost && <ExtraMedia photos={morePhotos} onPhotos={setMorePhotos} video={moreVideo} onVideo={setMoreVideo} disabled={busy || allPosted} locked={cardLocked} onLocked={setCardLocked} cardAt={cardAt} onCardAt={setCardAt} />}
       <div className="share-section-heading"><div><span className="share-eyebrow">MAKE IT YOURS</span><h3>Workout stickers</h3></div><span className="small mute">Transparent PNG</span></div>
       <div className="share-segments" role="group" aria-label="Sticker style">{STYLES.map(([value, label]) => <button type="button" key={value} className={style === value ? 'on' : ''} aria-pressed={style === value} onClick={() => { setStyle(value); onPrefs({ shareStickerStyle: value }); setMessage('') }}>{label}</button>)}</div>
       <div className="share-toolbar"><span className="small mute">Sticker text</span><div className="share-colors" role="group" aria-label="Sticker text color">{(['white', 'dark'] as const).map((value) => <button type="button" key={value} aria-pressed={color === value} className={color === value ? 'on' : ''} onClick={() => { manualColor.current = true; setColorNote(''); setColor(value); onPrefs({ shareStickerTextColor: value }); setMessage('') }}><i className={value} />{value === 'white' ? 'White' : 'Dark'}</button>)}</div></div>

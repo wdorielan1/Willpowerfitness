@@ -102,7 +102,7 @@ export function useWorkoutSharing() {
   /** The crews that already have the workout from this day. */
   const posted = (date: string) => crews.filter((c) => data.workoutPosted?.[postedKey(date, c.id, data.primary)]).map((c) => c.id)
   /** Posts a workout (from today or any earlier day) to the chosen crews, with a picture if there is one. Returns an error message, or null. */
-  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: { photos?: Blob[]; video?: PreparedVideo; progress?: (text: string) => void }): Promise<string | null> => {
+  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: { photos?: Blob[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }): Promise<string | null> => {
     const done = posted(log.date)
     const todo = ids.filter((id) => !done.includes(id))
     if (!todo.length) return 'That workout is already shared with this crew.'
@@ -110,9 +110,14 @@ export function useWorkoutSharing() {
     const wp = sum
       ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false, { at: log.finishedAt, place, caption })
       : { text: `Finished ${log.dayType}${log.minutes ? ` in ${log.minutes} min` : ''}`, meta: { sets: log.entries.reduce((a, e) => a + e.sets.length, 0), exercises: log.entries.length } as Record<string, unknown> }
-    // the picture of the workout first, then any photos they added, and a video if they added one
-    const photos = [...(blob ? [blob] : []), ...(more?.photos ?? [])]
-    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta: wp.meta, photos: photos.length ? photos : undefined, video: more?.video, progress: more?.progress })
+    // the workout picture goes first (it is locked to the front unless they slid it back), with the video, then their photos, around it
+    const extras: ('video' | Blob)[] = [...(more?.video ? ['video' as const] : []), ...(more?.photos ?? [])]
+    const order: ('video' | 'card' | Blob)[] = [...extras]
+    order.splice(Math.min(Math.max(0, more?.cardAt ?? 0), extras.length), 0, 'card')
+    const photos = order.flatMap((x) => (x === 'video' ? [] : x === 'card' ? (blob ? [blob] : []) : [x]))
+    const videoAt = order.indexOf('video') // where the clip sits among the pictures; older posts have none and lead with it
+    const meta = videoAt > 0 ? { ...wp.meta, videoAt } : wp.meta
+    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta, photos: photos.length ? photos : undefined, video: more?.video, progress: more?.progress })
     if (ok.length) {
       update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [postedKey(log.date, id, d.primary), true])) } }))
       announceFeedChanged()
@@ -128,7 +133,7 @@ export function ShareWorkoutSheet({ log, viewing, onClose }: { log: WorkoutLog; 
   const { crews, posted, share } = useWorkoutSharing()
   const summary = summaryFromLog(data, log)
   if (!summary) return null
-  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; progress?: (text: string) => void }) => share(log, ids, blob, opts?.place, opts?.caption, opts) } : undefined
+  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }) => share(log, ids, blob, opts?.place, opts?.caption, opts) } : undefined
   return <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={onClose} crewPost={crewPost} />
 }
 
@@ -372,7 +377,7 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
             {clip
               ? (images.length === 0
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />
-                : <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} lead={<PostVideo tile video={clip} cover={cover} ts={p.ts} hold={!!watch} onOpen={() => setWatch({ video: clip, cover })} />} />)
+                : <PostPhotos srcs={images} leadAt={typeof (p.meta as { videoAt?: unknown })?.videoAt === 'number' ? (p.meta as { videoAt: number }).videoAt : 0} onOpen={(start) => setBig({ srcs: images, start })} lead={<PostVideo tile video={clip} cover={cover} ts={p.ts} hold={!!watch} onOpen={() => setWatch({ video: clip, cover })} />} />)
               : images.length > 0 && <PostPhotos srcs={images} onOpen={(start) => setBig({ srcs: images, start })} />}
             <div className="row post-actions">
               <div className="post-action-group">
@@ -424,21 +429,23 @@ function PostActivity({ post, tab: first, me, onClose }: { post: FeedPost; tab: 
   )
 }
 
-/** A post's pictures: one fills the post, and with more you swipe through them one at a time, each full width like any social feed. */
-function PostPhotos({ srcs, onOpen, lead }: { srcs: string[]; onOpen: (i: number) => void; lead?: ReactNode }) {
+/**
+ * A post's pictures, like Strava: one fills the post; with more, the first is nearly full width and the edge of the next peeks in,
+ * so it is one panel you roll through freely, without having to swipe each one all the way. `leadAt` is where the video sits.
+ */
+function PostPhotos({ srcs, onOpen, lead, leadAt = 0 }: { srcs: string[]; onOpen: (i: number) => void; lead?: ReactNode; leadAt?: number }) {
   const total = srcs.length + (lead ? 1 : 0)
   const [at, setAt] = useState(0)
   const what = lead ? `A video and ${srcs.length} photo${srcs.length === 1 ? '' : 's'}` : `${srcs.length} photo${srcs.length === 1 ? '' : 's'}`
+  const items: ReactNode[] = srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)
+  if (lead) items.splice(Math.min(Math.max(0, leadAt), srcs.length), 0, <div className="post-strip-item post-strip-video" role="listitem" key="video">{lead}</div>)
+  const scrolled = (el: HTMLElement) => {
+    const step = ((el.firstElementChild as HTMLElement | null)?.offsetWidth ?? el.clientWidth) + 6
+    setAt(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 ? total - 1 : Math.min(total - 1, Math.max(0, Math.round(el.scrollLeft / step))))
+  }
   return <div className="post-carousel">
-    <div className="post-strip" data-count={Math.min(total, 4)} role="list" aria-label={`${what}${total > 1 ? ', swipe to see more' : ''}`}
-      onScroll={total > 1 ? (e) => { const el = e.currentTarget; setAt(Math.min(total - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, el.clientWidth + 6))))) } : undefined}>
-      {lead && <div className="post-strip-item post-strip-video" role="listitem">{lead}</div>}
-      {srcs.map((src, i) => <button className="post-strip-item" role="listitem" key={src} aria-label={`Open photo ${i + 1} of ${srcs.length}`} onClick={() => onOpen(i)}><img src={src} alt={`Post photo ${i + 1}`} loading="lazy" /></button>)}
-    </div>
-    {total > 1 && <>
-      <span className="post-count" aria-hidden="true">{at + 1}/{total}</span>
-      <div className="post-dots" aria-hidden="true">{Array.from({ length: total }, (_, i) => <i key={i} className={i === at ? 'on' : ''} />)}</div>
-    </>}
+    <div className="post-strip" data-count={Math.min(total, 4)} role="list" aria-label={`${what}${total > 1 ? ', swipe to see more' : ''}`} onScroll={total > 1 ? (e) => scrolled(e.currentTarget) : undefined}>{items}</div>
+    {total > 1 && <div className="post-dots" aria-hidden="true">{Array.from({ length: total }, (_, i) => <i key={i} className={i === at ? 'on' : ''} />)}</div>}
   </div>
 }
 

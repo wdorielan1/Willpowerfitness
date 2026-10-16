@@ -1177,12 +1177,11 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 .post-strip[data-count="1"] { --w: 100%; }
 .post-strip[data-count="1"] .post-strip-item { aspect-ratio: auto; } /* one picture shows whole, at its own shape */
 .post-strip[data-count="1"] .post-strip-item img { height: auto; max-height: 82vh; object-fit: contain; }
-/* with more than one picture each one is full width: swipe through them, with a count on the picture and dots under it */
-.post-strip:not([data-count="1"]) { --w: 100%; scroll-snap-type: x mandatory; }
-.post-strip:not([data-count="1"]) .post-strip-item { aspect-ratio: 4 / 5; scroll-snap-align: center; }
+/* with more than one picture the first is nearly full width and the next peeks in: one panel to roll through, no full swipe needed */
+.post-strip:not([data-count="1"]) { --w: 86%; scroll-snap-type: x proximity; }
+.post-strip:not([data-count="1"]) .post-strip-item { aspect-ratio: 4 / 5; scroll-snap-align: start; }
 .post-strip:not([data-count="1"]) .post-strip-item img { object-fit: contain; }
 .post-carousel { position: relative; display: grid; gap: 8px; min-width: 0; }
-.post-count { position: absolute; top: 10px; right: 10px; z-index: 1; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, .6); color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; }
 .post-dots { display: flex; justify-content: center; gap: 6px; }
 .post-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .post-dots i.on { background: var(--accent); }
@@ -1533,3 +1532,12 @@ p.focus-note { margin: -4px 0 0; }
 
 /* extra photos and a video added to the post in the share sheet */
 .extra-media { display: grid; gap: 8px; }
+
+/* the workout card in the order of a post, locked to the front until it is unlocked */
+.card-tile { position: relative; flex: 0 0 80px; height: 80px; display: grid; place-content: center; justify-items: center; gap: 4px; border-radius: 12px; border: 1px dashed var(--accent); background: var(--card2); text-align: center; font-size: 11px; }
+.card-tile.locked { border-style: solid; }
+.card-tile b { font-size: 11px; }
+.card-tile-moves { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; }
+.card-tile .card-tile-moves button { position: static; padding: 0; min-height: 28px; width: 28px; display: grid; place-items: center; background: #000b; border-radius: 8px; }
+.card-tile-moves { padding: 0 2px 2px; }
+.card-lock { align-items: center; justify-content: space-between; gap: 10px; }
