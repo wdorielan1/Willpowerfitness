@@ -227,9 +227,9 @@ export default function Communities() {
           </header>
           <SocialTabs />
 
-          <FeedComposer key={crew.id} crewId={crew.id} />
+          <FeedComposer crewId={crew.id} />
 
-          <Qotd key={crew.id} crewId={crew.id} />
+          <Qotd viewing={crew.id} />
 
           <section className="crew-streaks card">
             <div className="section-heading"><h2>Streak leaderboard</h2><Icon name="chart" size={19} /></div>

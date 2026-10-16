@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../store'
-import { Avatar, ConfirmSheet, Lightbox } from '../components'
+import { Avatar, ConfirmSheet, Lightbox, Sheet } from '../components'
+import { PostTo, useMyCrews, type MyCrew } from '../CrewPicker'
 import { CommentThread } from '../Comments'
 import { LikersSheet, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
 import { summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
-import { readWorkoutPost, workoutPost } from '../workoutPost'
+import { postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewAvatars, useCrewFeed } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
-import { todayISO } from '../engine'
-import type { CrewPost, PostKind, VideoMeta } from '../types'
+import { fromISO, iso, todayISO, workoutName } from '../engine'
+import type { CrewPost, PostKind, VideoMeta, WorkoutLog } from '../types'
 
 const timeAgo = (ts: number) => {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000))
@@ -27,7 +28,9 @@ export function usePostActions(crewId: string) {
   const { data, update, userId } = useApp()
   const feed = useCrewFeed(crewId, userId)
   const name = data.name || 'Member'
-  const post = async (p: { kind: PostKind; text: string; photos?: Blob[]; video?: PreparedVideo; meta?: Record<string, unknown>; progress?: (text: string) => void }): Promise<string | null> => {
+  /** `to` sends it to a different crew than the one this was opened for (a person in several crews picks where it goes). */
+  const post = async (p: { kind: PostKind; text: string; photos?: Blob[]; video?: PreparedVideo; meta?: Record<string, unknown>; progress?: (text: string) => void; to?: string }): Promise<string | null> => {
+    const target = p.to ?? crewId
     const imagePaths: string[] = [], imageIds: string[] = []
     const uploaded: { id: string; path?: string }[] = []
     let meta = p.meta
@@ -36,14 +39,14 @@ export function usePostActions(crewId: string) {
       if (p.video && (p.photos?.length ?? 0) > MAX_PHOTOS_WITH_VIDEO) throw new Error(`Choose up to ${MAX_PHOTOS_WITH_VIDEO} photos with a video.`)
       if (userId) {
         p.progress?.('Confirming membership…')
-        const m = await ensureMemberCloud(crewId, userId, name)
+        const m = await ensureMemberCloud(target, userId, name)
         if (m) throw new Error(`Couldn’t confirm your crew membership: ${m}`)
       }
       if (p.video) { // the clip goes up first; its still frame is saved like a photo, ahead of the post's own photos, and becomes the cover
         const size = `${Math.max(1, Math.round(p.video.file.size / 1048576))} MB`
         p.progress?.(`Uploading video (${size})…`)
         const vid = crypto.randomUUID()
-        const r = await saveVideoBlob(vid, p.video.file, p.video.type, userId, userId ? `${crewId}/${userId}` : '', (pct) => p.progress?.(`Uploading video ${pct}% of ${size}`))
+        const r = await saveVideoBlob(vid, p.video.file, p.video.type, userId, userId ? `${target}/${userId}` : '', (pct) => p.progress?.(`Uploading video ${pct}% of ${size}`))
         uploaded.push({ id: vid, path: r.path })
         const clip: VideoMeta = { ...(r.path ? { path: r.path } : { id: vid }), type: p.video.type, seconds: p.video.seconds, size: p.video.file.size, cover: !!p.video.poster }
         meta = { ...meta, video: clip }
@@ -53,7 +56,7 @@ export function usePostActions(crewId: string) {
         p.progress?.(p.video && !p.photos?.length ? 'Finishing…' : `Uploading ${i + 1} of ${stills.length}`)
         const small = await compress(photo)
         const id = crypto.randomUUID()
-        const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, userId ? `${crewId}/${userId}` : '')
+        const r = await savePhotoBlob(id, small, userId, CREW_BUCKET, userId ? `${target}/${userId}` : '')
         uploaded.push({ id, path: r.path })
         if (userId) {
           if (!r.path) throw new Error(r.error || 'Photo upload failed.')
@@ -62,11 +65,11 @@ export function usePostActions(crewId: string) {
       }
       p.progress?.('Posting…')
       if (userId) {
-        const error = await createPostCloud({ crewId, userId, name, kind: p.kind, text: p.text, imagePaths, meta, isPublic: !!data.profilePublic })
+        const error = await createPostCloud({ crewId: target, userId, name, kind: p.kind, text: p.text, imagePaths, meta, isPublic: !!data.profilePublic })
         if (error) throw new Error(error)
-        feed?.refresh()
+        if (target === crewId) feed?.refresh(); else announceFeedChanged()
       } else {
-        const local: CrewPost = { id: crypto.randomUUID(), crewId, name, kind: p.kind, text: p.text, imagePaths, imageIds, meta, ts: Date.now(), mine: true, likes: 0, liked: false }
+        const local: CrewPost = { id: crypto.randomUUID(), crewId: target, name, kind: p.kind, text: p.text, imagePaths, imageIds, meta, ts: Date.now(), mine: true, likes: 0, liked: false }
         update((d) => ({ ...d, posts: [local, ...d.posts] }))
       }
       return null
@@ -76,13 +79,94 @@ export function usePostActions(crewId: string) {
       return error instanceof Error ? error.message : String(error)
     }
   }
-  return { post, feed }
+  /** Posts the same thing to several crews, one after another. Says which went through and which did not. */
+  const postTo = async (ids: string[], p: Omit<Parameters<typeof post>[0], 'to'>) => {
+    const ok: string[] = [], errors: { id: string; error: string }[] = []
+    for (const id of ids) {
+      const error = await post({ ...p, to: id })
+      if (error) errors.push({ id, error }); else ok.push(id)
+    }
+    return { ok, errors }
+  }
+  return { post, postTo, feed }
+}
+
+/** Says what to tell the person after posting to several crews. Null when everything went through. */
+export function sendReport(crews: MyCrew[], ok: string[], errors: { id: string; error: string }[]): string | null {
+  if (!errors.length) return null
+  if (crews.length < 2) return errors[0].error
+  const names = (ids: string[]) => ids.map((id) => crews.find((c) => c.id === id)?.name ?? 'a crew').join(' and ')
+  return `${ok.length ? `Posted to ${names(ok)}. ` : ''}Couldn’t post to ${names(errors.map((e) => e.id))}: ${errors[0].error}`
+}
+
+/** Sharing workouts with crews: which crews already have a given day's workout, and posting one to the crews you pick. */
+export function useWorkoutSharing() {
+  const { data, update } = useApp()
+  const crews = useMyCrews()
+  const { postTo } = usePostActions('')
+  /** The crews that already have the workout from this day. */
+  const posted = (date: string) => crews.filter((c) => data.workoutPosted?.[postedKey(date, c.id, data.primary)]).map((c) => c.id)
+  /** Posts a workout (from today or any earlier day) to the chosen crews, with a picture if there is one. Returns an error message, or null. */
+  const share = async (log: WorkoutLog, ids: string[], blob?: Blob): Promise<string | null> => {
+    const done = posted(log.date)
+    const todo = ids.filter((id) => !done.includes(id))
+    if (!todo.length) return 'That workout is already shared with this crew.'
+    const sum = summaryFromLog(data, log)
+    const wp = sum
+      ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false)
+      : { text: `Finished ${log.dayType}${log.minutes ? ` in ${log.minutes} min` : ''}`, meta: { sets: log.entries.reduce((a, e) => a + e.sets.length, 0), exercises: log.entries.length } as Record<string, unknown> }
+    // a workout from an earlier day says so on its card
+    const meta = log.date === todayISO() ? wp.meta : { ...wp.meta, date: log.date }
+    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta, photos: blob ? [blob] : undefined })
+    if (ok.length) {
+      update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [postedKey(log.date, id, d.primary), true])) } }))
+      announceFeedChanged()
+    }
+    return sendReport(crews, ok, errors)
+  }
+  return { crews, posted, share }
+}
+
+/** The share screen for one finished workout, today's or an earlier one: pick the crews, add a picture, post. Or send it to Instagram. */
+export function ShareWorkoutSheet({ log, viewing, onClose }: { log: WorkoutLog; viewing?: string; onClose: () => void }) {
+  const { data, update } = useApp()
+  const { crews, posted, share } = useWorkoutSharing()
+  const summary = summaryFromLog(data, log)
+  if (!summary) return null
+  const crewPost = crews.length ? { crews, done: posted(log.date), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[]) => share(log, ids, blob) } : undefined
+  return <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={onClose} crewPost={crewPost} />
+}
+
+/** Pick which finished workout to share: today's, or any earlier one. */
+function WorkoutPicker({ onPick, onClose }: { onPick: (log: WorkoutLog) => void; onClose: () => void }) {
+  const { data } = useApp()
+  const { crews, posted } = useWorkoutSharing()
+  const logs = shareableLogs(data.logs)
+  const today = todayISO()
+  const [shown, setShown] = useState(8)
+  return (
+    <Sheet title="Share a workout" onClose={onClose}>
+      <p className="small mute">Pick the workout to share. Anything you have finished is here, not just today.</p>
+      <div className="pick-workouts">
+        {logs.slice(0, shown).map((l) => {
+          const done = posted(l.date)
+          const all = crews.length > 0 && done.length === crews.length
+          return <button key={l.date} type="button" className="minirow" onClick={() => onPick(l)}>
+            <span style={{ flex: 1, textAlign: 'left' }}><b>{workoutName(l.dayType, data.workoutFocus?.[l.date])}</b><br /><span className="small mute">{l.date === today ? 'Today' : fromISO(l.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {l.entries.reduce((a, e) => a + e.sets.length, 0)} sets{l.minutes ? ` · ${l.minutes} min` : ''}</span></span>
+            {done.length > 0 && <span className={`tag ${all ? 'ok' : ''}`}>{all ? '✓ Shared' : `✓ ${done.length} of ${crews.length}`}</span>}
+          </button>
+        })}
+      </div>
+      {logs.length > shown && <button type="button" className="ghost" onClick={() => setShown(shown + 8)}>Show more</button>}
+    </Sheet>
+  )
 }
 
 /** The "share something" box. It sits at the top of the crew page; the posts below it live in Feed. */
 export function FeedComposer({ crewId }: { crewId: string }) {
   const { data, update } = useApp()
-  const { post } = usePostActions(crewId)
+  const crews = useMyCrews()
+  const { postTo } = usePostActions(crewId)
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -110,52 +194,37 @@ export function FeedComposer({ crewId }: { crewId: string }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const file = useRef<HTMLInputElement>(null)
-  const today = todayISO()
-  const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.imported)
-  // one workout share per crew per day (the automatic share on finishing uses the main crew's key)
-  const sharedKey = crewId === data.primary ? today : `${today}|${crewId}`
-  const shared = !!data.workoutPosted?.[sharedKey]
-  const [askShare, setAskShare] = useState(false)
-  const [sharedNote, setSharedNote] = useState(false)
+  const logs = shareableLogs(data.logs)
+  const [picking, setPicking] = useState(false)
+  const [sharing, setSharing] = useState<WorkoutLog | null>(null)
+  // where it goes: the crew you are looking at, unless you pick others (you can be in up to three)
+  const [to, setTo] = useState<string[] | null>(null)
+  const targets = (to ?? [crewId]).filter((id) => crews.some((c) => c.id === id))
+  const goingTo = targets.length ? targets : [crewId]
+  const [note, setNote] = useState('')
 
-  /** Posts the box's text and photos, or the given post. Returns an error message, or null when it posted. */
-  const submit = async (override?: { kind: PostKind; text: string; meta?: Record<string, unknown>; photos?: Blob[] }): Promise<string | null> => {
-    if (posting.current) return 'Already posting. One moment.'
-    const selected = override ? (override.photos ?? []) : photos
-    const clip = override ? undefined : video ?? undefined
-    const body = override ?? { kind: (clip ? 'video' : selected.length ? 'photo' : 'post') as PostKind, text: text.trim() }
-    if (!body.text && !selected.length && !clip) return 'Nothing to post.'
-    posting.current = true; setBusy(true); setErr(''); setProgress('Posting…')
+  /** Posts the box's text and photos to the chosen crews. */
+  const submit = async () => {
+    if (posting.current) return
+    const clip = video ?? undefined
+    const body = { kind: (clip ? 'video' : photos.length ? 'photo' : 'post') as PostKind, text: text.trim() }
+    if (!body.text && !photos.length && !clip) return
+    posting.current = true; setBusy(true); setErr(''); setNote(''); setProgress('Posting…')
     try {
-      const error = await post({ ...body, photos: selected, video: clip, progress: setProgress })
-      if (error) { setErr(error); return error }
-      if (!override) { setText(''); setPhotos([]); setVideo(null) }
-      announceFeedChanged()
-      return null
-    } catch (error) { const m = error instanceof Error ? error.message : String(error); setErr(m); return m }
+      const { ok, errors } = await postTo(goingTo, { ...body, photos, video: clip, progress: setProgress })
+      const report = sendReport(crews, ok, errors)
+      if (ok.length) announceFeedChanged()
+      if (report) { setErr(report); setTo(errors.map((e) => e.id)); return } // keep what they wrote, and aim it at the crews that missed out
+      setText(''); setPhotos([]); setVideo(null); setTo(null)
+      if (crews.length > 1) { setNote(`Posted to ${ok.map((id) => crews.find((c) => c.id === id)?.name ?? 'your crew').join(' and ')}.`); setTimeout(() => setNote(''), 5000) }
+    } catch (error) { setErr(error instanceof Error ? error.message : String(error)) }
     finally { posting.current = false; setBusy(false) }
   }
-
-  /** Post today's workout, with the picture the person chose, to this crew (once a day). */
-  const shareWorkout = async (blob: Blob): Promise<string | null> => {
-    if (!todaysLog || shared) return 'Today\u2019s workout is already shared with this crew.'
-    const sum = summaryFromLog(data, todaysLog)
-    const wp = sum
-      ? workoutPost(sum, todaysLog.entries, todaysLog.dayType, data.settings.shareLifts !== false)
-      : { text: `Finished ${todaysLog.dayType}${todaysLog.minutes ? ` in ${todaysLog.minutes} min` : ''}`, meta: { sets: todaysLog.entries.reduce((a, e) => a + e.sets.length, 0), exercises: todaysLog.entries.length } }
-    const error = await submit({ kind: 'workout', text: wp.text, meta: wp.meta, photos: [blob] })
-    if (!error) {
-      update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, [sharedKey]: true } }))
-      setSharedNote(true); setTimeout(() => setSharedNote(false), 5000)
-    }
-    return error
-  }
-  const shareSummary = askShare && todaysLog ? summaryFromLog(data, todaysLog) : null
 
   return (
     <>
       <section className="card feed-composer">
-        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Share something with your crew..." maxLength={1000} />
+        <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={crews.length > 1 ? 'Share something with your crews...' : 'Share something with your crew...'} maxLength={1000} />
         {(video || previews.length > 0) && <div className="photo-previews">
           {video && <div className="video-cover">
             {videoCover ? <img src={videoCover} alt="Cover of your video" /> : <span className="video-cover-blank" role="img" aria-label="Video selected"><Icon name="video" size={26} /></span>}
@@ -175,18 +244,20 @@ export function FeedComposer({ crewId }: { crewId: string }) {
           e.target.value = ''
         }} />
         <input ref={videoFile} type="file" accept="video/*" disabled={busy} hidden onChange={(e) => { void pickVideo(e.target.files?.[0]); e.target.value = '' }} />
+        <PostTo crews={crews} value={goingTo} onChange={setTo} disabled={busy} />
         <div className="row wrap composer-actions">
           <button className="ghost small-btn" disabled={busy || photos.length >= (video ? MAX_PHOTOS_WITH_VIDEO : MAX_PHOTOS)} onClick={() => file.current?.click()}><Icon name="photo" size={18} /> Add photos</button>
           <button className="ghost small-btn" disabled={busy || checking || !!video} onClick={() => videoFile.current?.click()}><Icon name="video" size={18} />{checking ? 'Checking…' : 'Add video'}</button>
-          {todaysLog && <button className="ghost small-btn" onClick={() => setAskShare(true)} disabled={busy}><Icon name={shared ? 'check' : 'weight'} size={18} />Share workout</button>}
+          {logs.length > 0 && <button className="ghost small-btn" onClick={() => logs.length === 1 ? setSharing(logs[0]) : setPicking(true)} disabled={busy}><Icon name="weight" size={18} />Share workout</button>}
           <span style={{ flex: 1 }} />
           <button className="primary small-btn" onClick={() => void submit()} disabled={busy || checking || (!text.trim() && !photos.length && !video)}>{busy ? progress : 'Post'}</button>
         </div>
         {busy && <p className="small mute" role="status">{progress}</p>}
         {err && <p role="alert" className="err small">{err}</p>}
-        {sharedNote && <p className="small ok-text" role="status">Shared. Your crew can see your workout now.</p>}
+        {note && <p className="small ok-text" role="status">{note}</p>}
       </section>
-      {shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setAskShare(false)} crewPost={{ onPost: shareWorkout, alreadyPosted: shared }} />}
+      {picking && <WorkoutPicker onClose={() => setPicking(false)} onPick={(l) => { setPicking(false); setSharing(l) }} />}
+      {sharing && <ShareWorkoutSheet log={sharing} viewing={crewId} onClose={() => setSharing(null)} />}
     </>
   )
 }
@@ -224,9 +295,9 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
         const when = new Date(p.ts), day = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`
         update((d) => ({ ...d, qotd: Object.fromEntries(Object.entries(d.qotd).filter(([k]) => k !== day && !k.endsWith(`|${day}`))) }))
       }
-      if (p.kind === 'workout' && p.mine) { // deleting it lets you share today's workout again
-        const when = new Date(p.ts), day = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`
-        const key = p.crewId === data.primary ? day : `${day}|${p.crewId}`
+      if (p.kind === 'workout' && p.mine) { // deleting it lets you share that workout with this crew again
+        const day = readWorkoutPost(p).date ?? iso(new Date(p.ts))
+        const key = postedKey(day, p.crewId, data.primary)
         update((d) => ({ ...d, workoutPosted: Object.fromEntries(Object.entries(d.workoutPosted ?? {}).filter(([k]) => k !== key)) }))
       }
       feed?.refresh(); setDel(null)
@@ -246,6 +317,8 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
         const images = all.slice(hasCover ? 1 : 0).map((photo) => urls[photo.id]).filter(Boolean)
         const meta = p.meta as { q?: string } | undefined
         const wk = p.kind === 'workout' ? readWorkoutPost(p) : null
+        // a workout shared on a later day says which day it was
+        const from = wk?.date && wk.date !== iso(new Date(p.ts)) ? fromISO(wk.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : undefined
         // the crew's count for today sits on the newest workout posted today, not on every one
         const first = posts.find((x) => x.kind === 'workout' && new Date(x.ts).toDateString() === new Date().toDateString())
         return (
@@ -256,7 +329,7 @@ export default function Feed({ crewId, crewDone }: { crewId: string; crewDone?: 
               {wk && <span className="wk-chip">{wk.chip}</span>}
             </div>
             {p.kind === 'qotd' && meta?.q && <div className="small mute">“{meta.q}”</div>}
-            {wk ? <WorkoutCard w={wk} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
+            {wk ? <WorkoutCard w={wk} from={from} crewDone={first?.id === p.id ? crewDone : undefined} /> : p.text && <p style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
             {clip
               ? (images.length === 0
                 ? <PostVideo video={clip} cover={cover} ts={p.ts} />

@@ -8,9 +8,9 @@ import { Avatar, ConfirmSheet, Sheet, fmtClock } from '../components'
 import { useCrew } from './Crew'
 import { useLiveCrew } from '../cloud'
 import { Icon } from '../icons'
-import type { DayType } from '../types'
+import type { DayType, WorkoutLog } from '../types'
 import { summaryFromLog } from '../shareCard'
-import { DoneSheet } from '../WorkoutShare'
+import { ShareWorkoutSheet } from './Feed'
 
 const sessionDescription: Record<DayType, string> = {
   Push: 'Chest, shoulders & triceps',
@@ -48,7 +48,7 @@ export default function Dashboard() {
   const todaysLog = data.logs.find((l) => l.date === today && !l.baseline && !l.skipped)
   // the time you actually finished, not the time you planned to train
   const shareSummary = todaysLog ? summaryFromLog(data, todaysLog) : null
-  const [sharing, setSharing] = useState(false)
+  const [sharing, setSharing] = useState<WorkoutLog | null>(null)
   const [askUndo, setAskUndo] = useState(false)
   const finishedLabel = todaysLog?.finishedAt ? new Date(todaysLog.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const rest = day === 'Rest/Cardio'
@@ -118,7 +118,7 @@ export default function Dashboard() {
             ? <Link to="/workout" className="btn primary session-primary">See recovery plan<Icon name="arrow" /></Link>
             : <button className="primary session-primary" onClick={start}>{ci.started ? 'Resume workout' : 'Start workout'}<Icon name="arrow" /></button>}
 
-        {ci.done && shareSummary && <button className="ghost" onClick={() => setSharing(true)}>Share this workout</button>}
+        {ci.done && shareSummary && todaysLog && <button className="ghost" onClick={() => setSharing(todaysLog)}>Share this workout</button>}
 
         <div className="session-secondary">
           {!ci.done && <Link to="/workout?change=1" className="quiet-action">Change workout</Link>}
@@ -165,7 +165,7 @@ export default function Dashboard() {
         <Link to="/nutrition" className="quiet-action"><Icon name="plus" />Log a meal</Link>
       </section>
       {askUndo && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAskUndo(false); ci.undo() }} onCancel={() => setAskUndo(false)} />}
-      {sharing && shareSummary && <DoneSheet summary={shareSummary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setSharing(false)} />}
+      {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}
       {peek && (() => {
         const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
         const rest = peek.planned === 'Rest/Cardio'
@@ -179,6 +179,7 @@ export default function Dashboard() {
             ) : (
               <div className="people">{preview.map((it) => <div className="person" key={it.ex.id}><span className="grow"><b>{it.ex.name}</b><br /><span className="small mute">{it.ex.muscle}</span></span><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></div>)}</div>
             )}
+            {logged && logged.entries.some((e) => e.sets.length) && !logged.imported && <button className="ghost week-sheet-share" onClick={() => { setPeek(null); setSharing(logged) }}>Share this workout</button>}
             {peek.date === today && !rest && peek.status !== 'done' && <button className="primary" onClick={() => { setPeek(null); nav('/workout') }}>Go to today’s workout</button>}
           </Sheet>
         )

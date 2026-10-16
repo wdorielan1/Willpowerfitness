@@ -8,6 +8,8 @@ import ProfileSettings from '../ProfileSettings'
 import { FocusPicker, SexPicker } from '../ProfilePickers'
 import { EquipmentPicker } from '../EquipmentPicker'
 import { DeleteAccountSheet } from '../DeleteAccount'
+import { PostTo, useMyCrews } from '../CrewPicker'
+import { autoShareCrews } from '../workoutPost'
 import type { Gear, Goal, Level, Profile, Settings as S } from '../types'
 
 const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
@@ -26,6 +28,7 @@ export default function Settings() {
   const p = data.profile!
   const s = data.settings
   const setP = <K extends keyof Profile>(k: K, v: Profile[K]) => update((d) => ({ ...d, profile: { ...d.profile!, [k]: v } }))
+  const myCrews = useMyCrews()
   const setS = (patch: Partial<S>) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
   const setRest = (k: keyof S['rest'], v: number) => setS({ rest: { ...s.rest, [k]: v } })
   const [deleting, setDeleting] = useState(false)
@@ -72,7 +75,8 @@ export default function Settings() {
 
       <section className="card">
         <h2>Workout</h2>
-        <Toggle label="Share finished workouts to my crew" hint="Posts a quick summary to your crew’s feed when you finish." on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
+        <Toggle label="Share finished workouts to my crew" hint={myCrews.length > 1 ? "Posts a workout card to the crews you pick below when you finish. You can also share any workout later, with a photo, to the crews you choose." : "Posts a workout card to your crew’s feed when you finish."} on={s.autoShare} onClick={() => setS({ autoShare: !s.autoShare })} />
+        {s.autoShare && myCrews.length > 1 && <PostTo crews={myCrews} value={autoShareCrews(data)} onChange={(ids) => setS({ shareCrews: ids })} label="Share to" />}
         <Toggle label="Offer to save my workout when I finish" hint="Save it as your Leg Day or Push Day, and we offer it first next time you train that day." on={s.askSave !== false} onClick={() => setS({ askSave: s.askSave === false })} />
         <Toggle label="Show my weights in crew posts" hint="Your shared workout shows your top lifts, the total weight and the weight of a PR. Off: your crew only sees the session, time, sets and streak." on={s.shareLifts !== false} onClick={() => setS({ shareLifts: s.shareLifts === false })} />
         <Toggle label="Check in when I skip lifts or workouts" hint="After a couple of skipped lifts, or two missed workouts, we ask what’s in the way and offer a fix. We never change anything until you tap." on={s.askSkips !== false} onClick={() => setS({ askSkips: s.askSkips === false })} />

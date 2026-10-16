@@ -7,6 +7,9 @@ import { Icon } from '../icons'
 import { WeightChart } from '../WeightChart'
 import { StickerShareSheet } from '../StickerShare'
 import { buildGraphSticker, type GraphStickerData } from '../graphSticker'
+import { ShareWorkoutSheet } from './Feed'
+import { shareableLogs } from '../workoutPost'
+import type { WorkoutLog } from '../types'
 
 const RANGES = [
   { id: '7d', label: '7D', days: 7, name: 'Last 7 days' },
@@ -45,6 +48,7 @@ export default function Progress() {
   const { data, update } = useApp()
   const today = todayISO()
   const [del, setDel] = useState<string | null>(null)
+  const [shareLog, setShareLog] = useState<WorkoutLog | null>(null)
   const [rangeId, setRangeId] = useState<RangeId>(() => {
     try { const v = localStorage.getItem(RANGE_KEY); return (RANGES.find((r) => r.id === v)?.id ?? '7d') as RangeId } catch { return '7d' }
   })
@@ -60,6 +64,7 @@ export default function Progress() {
   const rangeStart = range.days ? addDays(today, -(range.days - 1)) : firstDate
   const rangeDays = range.days ?? Math.max(1, Math.round((fromISO(today).getTime() - fromISO(firstDate).getTime()) / 86400000) + 1)
   const history = [...data.logs].filter((l) => l.date >= rangeStart).sort((a, b) => b.date.localeCompare(a.date))
+  const shareable = shareableLogs(data.logs)
   const removeLog = (date: string, baseline?: boolean) => update((d) => ({
     ...d,
     logs: d.logs.filter((l) => !(l.date === date && !!l.baseline === !!baseline)),
@@ -169,7 +174,10 @@ export default function Progress() {
           {history.slice(0, shown).map((l) => (
             <div className="progress-history-row" key={l.date + (l.baseline ? 'b' : '')}>
               <div className="progress-history-entry"><div className="progress-history-title"><b>{l.baseline ? 'Starting weights' : l.dayType}</b><time dateTime={l.date}>{dateLabel(l.date)}</time></div><p>{l.skipped ? 'Marked as skipped' : `${l.entries.length} exercises · ${l.entries.reduce((a, e) => a + e.sets.length, 0)} sets${l.minutes ? ` · ${l.minutes} min` : ''}`}</p>{l.imported && <span className="progress-history-tag">Imported</span>}</div>
-              <button className="progress-delete" aria-label={`Delete ${l.baseline ? 'starting weights' : `${l.dayType} workout`} from ${l.date}`} title="Delete workout" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}><Icon name="trash" size={18} /></button>
+              <div className="progress-history-actions">
+                {shareable.includes(l) && <button className="progress-share" aria-label={`Share ${l.dayType} workout from ${l.date}`} title="Share workout" onClick={() => setShareLog(l)}><Icon name="upload" size={18} /></button>}
+                <button className="progress-delete" aria-label={`Delete ${l.baseline ? 'starting weights' : `${l.dayType} workout`} from ${l.date}`} title="Delete workout" onClick={() => setDel(l.date + (l.baseline ? '|b' : ''))}><Icon name="trash" size={18} /></button>
+              </div>
             </div>
           ))}
         </div>
@@ -182,6 +190,7 @@ export default function Progress() {
         {wkCardio.length > cardioShown && <button type="button" className="progress-more" onClick={() => setCardioShown(cardioShown + 10)}>Show {Math.min(10, wkCardio.length - cardioShown)} more</button>}
       </section>
       {sharing && <StickerShareSheet title="Share your progress" intro={`${sharing.title} \u00b7 ${sharing.note}`} stickerKey={JSON.stringify(sharing)} buildSticker={(c) => buildGraphSticker(sharing, c)} shareText={`My ${sharing.title.toLowerCase()} progress on Will Power`} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setShareKind(null)} toggle={shareKind === 'weight' ? { label: 'Hide my weight', on: hideWeight, onChange: (on) => update((d) => ({ ...d, settings: { ...d.settings, shareHideWeight: on } })), hint: hideWeight ? 'Shows the line and how much you changed, but not what you weigh.' : 'Shows your starting and current weight on the graph.' } : undefined} />}
+      {shareLog && <ShareWorkoutSheet log={shareLog} onClose={() => setShareLog(null)} />}
       {del && <ConfirmSheet title="Delete this workout?" message="Are you sure you want to delete this workout? It will be removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => { const [dt, b] = del.split('|'); removeLog(dt, !!b); setDel(null) }} onCancel={() => setDel(null)} />}
     </div>
   )

@@ -103,6 +103,7 @@ export interface Settings {
   equipAsked?: number // when we first asked what equipment they use (so it only pops up once)
   askSave?: boolean // offer to save a finished workout as "your Leg Day" (on unless they said don't ask again)
   askSkips?: boolean // check in after skipped lifts or missed workouts (on unless they said don't ask again)
+  shareCrews?: string[] // which crews a finished workout is posted to automatically (unset: just my main crew)
   shareLifts?: boolean // show weights in crew posts: the top lifts, total weight and the PR's weight (on unless they turned it off)
   gymName?: string // optional place shown on share pictures (never live location)
   shareFormat?: 'story' | 'post' // last share picture size
@@ -154,7 +155,7 @@ export interface AppData {
   atHome?: Record<string, boolean> // days they said they were at home: Swap and Add use dumbbell and bodyweight lifts that day, and swaps made because of it are not counted as lifts they turned away
   started: Record<string, number> // date -> start timestamp
   photos: Photo[]
-  qotd: Record<string, { answer?: string; skipped?: boolean }> // `${crew}|${date}`
+  qotd: Record<string, { answer?: string; skipped?: boolean; crews?: string[] }> // by date; older entries were `${crew}|${date}`. `crews` is where the answer went
   posts: CrewPost[] // used when running without the cloud backend
   steps: StepLog[]
   challengesJoined: string[] // challenge cohort ids

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { summarize, summaryFromLog, type WorkoutSummary } from '../shareCard'
-import { workoutPost } from '../workoutPost'
+import { autoShareCrews, postedKey, workoutPost } from '../workoutPost'
+import { useMyCrews } from '../CrewPicker'
 import { DoneSheet } from '../WorkoutShare'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store'
@@ -13,12 +14,12 @@ import { EQUIP_KINDS, equipKind, equipUse, kindUse } from '../equipment'
 import { EquipmentSheet } from '../EquipmentPicker'
 import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
-import { usePostActions } from './Feed'
+import { ShareWorkoutSheet, usePostActions } from './Feed'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
 import { SwipeDemo } from '../SwipeDemo'
-import type { AppData, DayType, Draft, EquipKind, LogEntry, Profile, SetEntry, WorkoutFocus } from '../types'
+import type { AppData, DayType, Draft, EquipKind, LogEntry, Profile, SetEntry, WorkoutFocus, WorkoutLog } from '../types'
 
 const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
 
@@ -38,6 +39,7 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
   const today = todayISO()
   const week = weekSchedule(data, today)
   const [open, setOpen] = useState<WeekDay | null>(null)
+  const [shareLog, setShareLog] = useState<WorkoutLog | null>(null)
   const planned = week.filter((w) => w.status !== 'rest').length
   const done = week.filter((w) => w.status === 'done').length
   const missed = week.filter((w) => w.status === 'missed')
@@ -62,9 +64,10 @@ function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
           <div className="small">Nothing is lost. Your plan keeps it next in line{next ? `, so ${next.status === 'today' ? 'today' : next.label} is ${ABBR[next.planned]}` : ''}. Or tap the day to make it up now or skip it.</div>
         </div>
       )}
+      {shareLog && <ShareWorkoutSheet log={shareLog} onClose={() => setShareLog(null)} />}
       {open && (
         <Sheet title={`${fromISO(open.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`} onClose={() => setOpen(null)}>
-          {open.status === 'done' && <><p><b>{open.planned}</b> done ✓</p><p className="small mute">{sum(open)}</p></>}
+          {open.status === 'done' && <><p><b>{open.planned}</b> done ✓</p><p className="small mute">{sum(open)}</p>{open.logged && !open.logged.imported && open.logged.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => { const l = open.logged!; setOpen(null); setShareLog(l) }}>Share this workout</button>}</>}
           {open.status === 'skipped' && <p>You skipped <b>{open.planned}</b> on this day.</p>}
           {open.status === 'rest' && <p>Rest / cardio day. Recovery is part of the plan.</p>}
           {(open.status === 'today' || open.status === 'upcoming') && <><p>Planned: <b>{open.planned}</b></p><p className="small mute">{open.status === 'today' ? 'That is today.' : 'This assumes you finish the workouts before it.'}</p></>}
@@ -339,7 +342,8 @@ export default function Workout() {
   const { data, update } = useApp()
   const ci = useCheckin()
   const timer = useRestTimer()
-  const { post: postToCrew } = usePostActions(data.primary ?? '')
+  const { postTo } = usePostActions('')
+  const myCrews = useMyCrews()
   const nav = useNavigate()
   const p = data.profile!
   const today = todayISO()
@@ -364,6 +368,7 @@ export default function Workout() {
   const touch = useRef<{ x: number; y: number } | null>(null)
   const [saved, setSaved] = useState(false)
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
+  const [sharedTo, setSharedTo] = useState<string[]>([]) // the crews the workout just went to by itself
   const [resharing, setResharing] = useState(false)
   const [saveOffer, setSaveOffer] = useState<SaveOffer | null>(null)
   const [validation, setValidation] = useState('')
@@ -606,7 +611,8 @@ export default function Workout() {
       return { exId: ex.id, name: ex.name, sets, note: draft.notes[ex.id] ?? logged?.note ?? '' }
     }).filter((x) => x.sets.length)
     // share the finished workout to the crew once per day; later "Save changes" taps just update the log
-    const willPost = !!(data.settings.autoShare && data.primary && entries.length && !data.workoutPosted?.[today])
+    const autoCrews = data.settings.autoShare && entries.length ? autoShareCrews(data).filter((id) => !data.workoutPosted?.[postedKey(today, id, data.primary)]) : []
+    const willPost = autoCrews.length > 0
     const finishedAt = todaysLog?.finishedAt ?? Date.now()
     const minutes = todaysLog?.minutes ?? (started ? Math.max(1, Math.round(Math.min(Date.now() - started, data.settings.maxWorkoutHours * 3600000) / 60000)) : undefined)
     const rotationDay = todaysLog?.rotationDay ?? dayTypeFor(today, data.profile!, data.logs)
@@ -618,14 +624,18 @@ export default function Workout() {
       const { [today]: _gone, ...drafts } = d.drafts
       void _gone
       return {
-        ...d, drafts, workoutPosted: willPost ? { ...d.workoutPosted, [today]: true } : d.workoutPosted,
+        ...d, drafts, workoutPosted: willPost ? { ...d.workoutPosted, ...Object.fromEntries(autoCrews.map((id) => [postedKey(today, id, d.primary), true])) } : d.workoutPosted,
         logs: [...d.logs.filter((l) => !(l.date === today && !l.baseline)), { date: today, dayType: plan.day, rotationDay, short, entries, finishedAt, minutes }],
         checkins: { ...d.checkins, [today]: { going: true, done: true } },
       }
     })
     if (willPost) {
       const shared = workoutPost(sum, entries, plan.day, data.settings.shareLifts !== false)
-      void postToCrew({ kind: 'workout', text: shared.text, meta: shared.meta })
+      setSharedTo(autoCrews)
+      void postTo(autoCrews, { kind: 'workout', text: shared.text, meta: shared.meta }).then(({ errors }) => {
+        // a crew that did not get it can be tried again from Share this workout
+        if (errors.length) update((d) => ({ ...d, workoutPosted: Object.fromEntries(Object.entries(d.workoutPosted ?? {}).filter(([k]) => !errors.some((e) => k === postedKey(today, e.id, d.primary)))) }))
+      })
     }
     timer.stop()
     setSaved(true)
@@ -687,13 +697,16 @@ export default function Workout() {
 
   return (
     <div className="workout-session">
-      {resharing && todaysLog && (() => { const s = summaryFromLog(data, todaysLog); return s ? <DoneSheet summary={s} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setResharing(false)} /> : null })()}
+      {resharing && todaysLog && <ShareWorkoutSheet log={todaysLog} onClose={() => setResharing(false)} />}
       {summary && <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => nav('/')}
-        extra={saveOffer && <SaveOfferCard offer={saveOffer}
+        extra={<>
+          {sharedTo.length > 0 && <p className="small ok-text" role="status">Shared to {sharedTo.map((id) => myCrews.find((c) => c.id === id)?.name ?? 'your crew').join(' and ')}.</p>}
+          {saveOffer && <SaveOfferCard offer={saveOffer}
           onSave={() => update((d) => ({ ...d, myWorkouts: saveOffer.existing
             ? (d.myWorkouts ?? []).map((w) => (w.id === saveOffer.existing ? { ...w, ids: saveOffer.ids } : w))
             : [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name: saveOffer.name, ids: saveOffer.ids, day: saveOffer.day, focus: saveOffer.focus }] }))}
-          onNever={() => update((d) => ({ ...d, settings: { ...d.settings, askSave: false } }))} />} />}
+          onNever={() => update((d) => ({ ...d, settings: { ...d.settings, askSave: false } }))} />}
+        </>} />}
       <header className="workout-header">
         <button className="icon-button" aria-label="Back to Today" onClick={() => nav('/')}><Icon name="back" /></button>
         <div className="workout-header-title"><b>{sessionName} session</b><span>{short ? 'Short session' : todaysLog ? 'Edit workout' : 'Training'}</span></div>

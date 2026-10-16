@@ -3,6 +3,8 @@ import { Sheet } from './components'
 import { buildShareCard, fmtDuration, type CardFormat, type WorkoutSummary } from './shareCard'
 import { buildWorkoutSticker } from './shareSticker'
 import { clampPlacement, composeSharePhoto, copyWorkoutSticker, drawPhotoComposition, getFrameSize, loadSharePhoto, photoBrightness, shareWorkoutImage, stickerRect } from './sharePhoto'
+import { PostTo, type MyCrew } from './CrewPicker'
+import { fromISO, todayISO } from './engine'
 import type { Settings, StickerPlacement, StickerStyle, StickerTextColor } from './types'
 
 type ImageAsset = { key: string; blob: Blob; url: string; image: HTMLImageElement }
@@ -40,7 +42,8 @@ export function useImageAsset(key: string, build: () => Promise<Blob>) {
  */
 export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra }: {
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; onClose: () => void
-  crewPost?: { onPost: (blob: Blob) => Promise<string | null>; alreadyPosted?: boolean }
+  /** `crews` are the crews you are in; `done` already have this workout; `defaultTo` is picked to start with. */
+  crewPost?: { crews: MyCrew[]; done: string[]; defaultTo?: string; onPost: (blob: Blob, crewIds: string[]) => Promise<string | null> }
   /** Something to show right under the recap, such as the offer to save this workout. */
   extra?: ReactNode
 }) {
@@ -54,6 +57,11 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   const [showPlace, setShowPlace] = useState(!!summary.place)
   const [place, setPlace] = useState(summary.place ?? '')
   const [busy, setBusy] = useState(false)
+  // the crews it goes to: the one you opened this from, unless you pick others (never one that already has it)
+  const [to, setTo] = useState<string[]>(() => {
+    const free = (crewPost?.crews ?? []).map((c) => c.id).filter((id) => !crewPost?.done.includes(id))
+    return crewPost?.defaultTo && free.includes(crewPost.defaultTo) ? [crewPost.defaultTo] : free.slice(0, 1)
+  })
   const [message, setMessage] = useState('')
   const [imageError, setImageError] = useState('')
   const [composed, setComposed] = useState<{ key: string; blob: Blob } | null>(null)
@@ -173,11 +181,16 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   // what the crew feed gets: a card or a photo, never a bare transparent sticker
   const crewOutput = mode === 'sticker' && !photo ? undefined : output
   const shareText = `Finished ${summary.title}${summary.minutes ? ` in ${summary.minutes} min` : ''} on Will Power`
+  const open = crewPost ? crewPost.crews.filter((c) => !crewPost.done.includes(c.id)) : []
+  const going = to.filter((id) => open.some((c) => c.id === id))
+  const allPosted = !!crewPost && open.length === 0
+  const several = (crewPost?.crews.length ?? 0) > 1
+  const postLabel = busy ? 'Posting…' : allPosted ? (several ? '✓ Posted to all your crews' : '✓ Posted to your crew') : several ? (going.length === 1 ? `Post to ${open.find((c) => c.id === going[0])?.name ?? 'crew'}` : `Post to ${going.length} crews`) : 'Post to crew'
   const postToCrew = async () => {
-    if (!crewPost || crewPost.alreadyPosted || !crewOutput || busy) return
+    if (!crewPost || allPosted || !crewOutput || busy || !going.length) return
     setBusy(true); setMessage('')
     if (showPlace) onPrefs({ gymName: place.trim() })
-    const failed = await crewPost.onPost(crewOutput).catch(() => 'Could not post. Please try again.')
+    const failed = await crewPost.onPost(crewOutput, going).catch(() => 'Could not post. Please try again.')
     setBusy(false)
     if (failed) setMessage(failed); else onClose()
   }
@@ -201,7 +214,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
 
   return <Sheet title={crewPost ? 'Share to your crew' : 'Workout complete'} onClose={onClose}>
     <div className="workout-share">
-      <p className="share-intro"><b>{summary.title}</b> finished at {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture to your crew, or share it to Instagram.' : 'Your work. Your photo. Your people.'}</span></p>
+      <p className="share-intro"><b>{summary.title}</b> {summary.date === todayISO() ? 'finished at' : `from ${fromISO(summary.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, finished at`} {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture to your crew, or share it to Instagram.' : 'Your work. Your photo. Your people.'}</span></p>
       <div className="share-recap">
         <div className="share-recap-stats">
           <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>
@@ -217,6 +230,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
           : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
       </div>
       {extra}
+      {crewPost && <PostTo crews={crewPost.crews} value={going} onChange={setTo} done={crewPost.done} disabled={busy} />}
       {crewPost && <div className="share-segments" role="group" aria-label="Picture type">
         <button type="button" className={mode === 'card' ? 'on' : ''} aria-pressed={mode === 'card'} onClick={() => { setMode('card'); setMessage('') }}>Card</button>
         <button type="button" className={mode === 'sticker' ? 'on' : ''} aria-pressed={mode === 'sticker'} onClick={() => { setMode('sticker'); setMessage('') }}>My photo + sticker</button>
@@ -247,7 +261,7 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
         <div className="share-photo-actions"><button type="button" className="ghost" disabled={photoLoading || busy} onClick={() => input.current?.click()}>{photoLoading ? 'Opening photo…' : photo ? 'Change photo' : 'Add your photo'}</button>{photo && <button type="button" className="quiet-button" onClick={() => { photoVersion.current++; setPhoto(null); setComposed(null); setImageError(''); setColorNote('') }}>Remove photo</button>}</div>
         <p className="share-hint">{photo ? (crewPost ? 'Your photo stays on this device unless you post it to your crew.' : 'Your photo stays on this device.') : crewPost ? 'Add your photo, then post it to your crew or Instagram.' : 'Transparent PNG. Add a photo, or take it to Instagram.'}</p>
       </>}
-      {crewPost && <button type="button" className={`primary crew-post-button ${crewPost.alreadyPosted ? 'is-posted' : ''}`} disabled={busy || photoLoading || !crewOutput || !!crewPost.alreadyPosted} onClick={() => void postToCrew()}>{crewPost.alreadyPosted ? '✓ Posted to your crew today' : busy ? 'Posting…' : 'Post to crew'}</button>}
+      {crewPost && <button type="button" className={`primary crew-post-button ${allPosted ? 'is-posted' : ''}`} disabled={busy || photoLoading || !crewOutput || allPosted || !going.length} onClick={() => void postToCrew()}>{postLabel}</button>}
       <div className={`share-actions ${mode === 'card' ? 'card-mode' : ''}`}>
         {mode === 'sticker' && <button type="button" className="ghost" disabled={busy || !sticker} onClick={() => void act(true)}>Copy sticker</button>}
         <button type="button" className={crewPost ? 'ghost' : 'primary'} disabled={busy || photoLoading || !output} onClick={() => void act(false)}>{busy && !crewPost ? 'Sharing…' : crewPost ? 'Share to Instagram' : 'Share'}</button>

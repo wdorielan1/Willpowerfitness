@@ -1,6 +1,18 @@
 import { e1rm } from './engine'
 import { prLine, type WorkoutSummary } from './shareCard'
-import type { CrewPost, DayType, LogEntry } from './types'
+import type { AppData, CrewPost, DayType, LogEntry, WorkoutLog } from './types'
+
+/** Whether a workout of that day has gone to that crew. Your main crew uses the bare date (as it always has), the others `date|crew`. */
+export const postedKey = (date: string, crewId: string, primary: string | null) => (crewId === primary ? date : `${date}|${crewId}`)
+
+/** The crews a finished workout is posted to by itself: the ones chosen in Settings that you are still in, else your main crew. */
+export function autoShareCrews(d: Pick<AppData, 'joined' | 'primary' | 'settings'>): string[] {
+  const picked = (d.settings.shareCrews ?? []).filter((id) => d.joined.includes(id))
+  return picked.length ? picked : d.primary ? [d.primary] : []
+}
+
+/** Workouts you can share: real sessions with sets, newest first. */
+export const shareableLogs = (logs: WorkoutLog[]) => logs.filter((l) => !l.baseline && !l.skipped && !l.imported && l.entries.some((e) => e.sets.length)).sort((a, b) => b.date.localeCompare(a.date))
 
 /** One lift on a shared workout: its name and the best set (weight and reps). */
 export interface PostLift { n: string; w: number; r: number }
@@ -39,6 +51,8 @@ export interface WorkoutView {
   title: string; chip: string; minutes?: number; exercises: number; sets: number; volume?: number
   prs: { name: string; weight?: number; reps?: number }[]
   lifts: PostLift[]; more: number; streak?: number
+  /** The day it was done, when it was shared later than that. */
+  date?: string
 }
 
 /** Reads any shared workout, new or old, into what the card shows. Older posts only carry a sentence and three numbers. */
@@ -53,5 +67,6 @@ export function readWorkoutPost(p: Pick<CrewPost, 'text' | 'meta'>): WorkoutView
   const lifts = Array.isArray(m.lifts) ? (m.lifts as Record<string, unknown>[]).filter((x) => typeof x?.n === 'string').slice(0, 3).map((x) => ({ n: x.n as string, w: num(x.w) ?? 0, r: num(x.r) ?? 0 })) : []
   const exercises = num(m.exercises) ?? 0
   const streak = num(m.streak)
-  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined }
+  const date = typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.date) ? m.date : undefined
+  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined, date }
 }
