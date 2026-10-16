@@ -418,6 +418,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Tapping Next with nothing pasted skips the step without any error
 - [ ] Same one-tap button in Settings > Import history (Lifts, Body weight) and Nutrition > My foods > Import
 
+## Crew posts: when it was done, where, and the body-part icon
+- [ ] Every post in a crew feed has a line under the name that says when: a workout says "Finished today at 7:30 AM" (the time it was FINISHED, not when it was posted), other posts say "Today at 8:14 AM", "Yesterday at 6:02 PM", or a full date with the year ("Mon, Oct 12, 2026 at 8:00 AM"). No more "1h"
+- [ ] Share an older workout to the crew: the post says "Finished Mon, Oct 12, 2026 at 8:00 AM" (the day it was done) even though you posted it today
+- [ ] Settings > Workout > "Where I train (optional)": type a gym or town. Finish a workout with auto-share on: your post's line ends with "· your gym". Clear the box: no place
+- [ ] Share a workout with the picture sheet: Place (optional) on, with a name: that post shows the name. Place off: no name. A gym you typed in a share sheet earlier is NOT put on the automatic posts
+- [ ] The date, time and place are NOT drawn on the shared picture or card; they only sit above the post. Plain posts (text, photo, question of the day) show the time only, no place
+- [ ] Posts from before this change still show a time (when they were posted)
+- [ ] Workout cards have a small icon beside the title: chest and shoulders for Push, back for Pull, legs for Leg Day, shoulders and abs, a lightly filled body for Full Body, chest and arms for Chest + Triceps, back and arms for Back + Biceps. One orange tone on a plain outline, no colour emoji. Looks right at 360 and 390 px wide
+- [ ] The Share a workout list shows the same small icons, and its dates say the year
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
