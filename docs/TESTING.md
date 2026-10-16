@@ -408,6 +408,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Tap a day: its sheet opens. Edit days: pick days (or a date range) in the week list and Apply works; a day you set yourself shows the ring marker
 - [ ] Month: the old grid is back. Reload: it remembers the last choice. Switching back to Week lands on this week
 
+## Sign-up: bring your history from ChatGPT or Claude (also Settings > Import history, Body weight, My foods)
+- [ ] Sign-up step "Bring your lifting history": a short intro that ends "No AI? Just tap Next.", one card "Do you track your workouts with AI?" with two buttons, Copy and open ChatGPT and Copy and open Claude, and one empty box "Paste the answer here". No wall of prompt text
+- [ ] Tap Copy and open ChatGPT: ChatGPT opens in a new tab (try on an iPhone, in Safari and in the installed app) and the card says "Copied. Paste it into the chat..." Paste into the chat: the instructions are there
+- [ ] Same with Claude
+- [ ] "Show the prompt" reveals the full prompt; "Hide the prompt" hides it; "Copy only (for another AI)" copies it without opening anything
+- [ ] If copying is blocked by the browser: the card says it couldn't copy and the prompt is shown to copy by hand
+- [ ] Paste a CSV from ChatGPT or Claude into the box: a preview appears (sets, workout days, matched exercises) and the button imports it. Lines with kg: More options > Weights in kg
+- [ ] Tapping Next with nothing pasted skips the step without any error
+- [ ] Same one-tap button in Settings > Import history (Lifts, Body weight) and Nutrition > My foods > Import
+
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
 - [ ] Works offline for already-loaded screens without crashing
