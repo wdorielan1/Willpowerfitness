@@ -355,7 +355,7 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 - [ ] On a Shoulders + Abs day with Legs as a focus area (so a leg lift is in the plan): swipe right on the leg lift. You get a shoulders or abs lift, not more leg work. Swipe right on a shoulders lift: you still get another shoulders lift
 
 ## Crew shared workout card
-- [ ] Finish a workout with "Share finished workouts to my crew" on (Settings > Workout). Open the Crew page: your post is a card with a thin orange edge, a chip like PUSH or LEGS, the session as the headline ("Push Day") with the time beside it, three numbers in one strip, and your top three lifts with the weight and reps
+- [ ] Finish a workout with "Share finished workouts to my crew" on (Settings > Workout). Open Home and scroll to the feed: your post is a card with a thin orange edge, a chip like PUSH or LEGS, the session as the headline ("Push Day") with the time beside it, three numbers in one strip, and your top three lifts with the weight and reps
 - [ ] Set a personal record: the card has an orange NEW PR bar with the lift and weight. With two or more PRs it says "+1 more"
 - [ ] A streak of 2 or more days shows a streak pill. On the newest workout posted today, an online crew also shows "3 of 5 crew done today"
 - [ ] Older workout posts (from before this change) show the same card without the lift list
@@ -378,15 +378,15 @@ Build: ________  Date: ________  Device: ________  Tester: ________
 
 ## Posting to the crew you choose (question of the day, posts, workouts)
 Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no chooser anywhere.
-- [ ] Join a second, then a third crew. The Crew page shows ONE "Question of the day" card whichever crew chip you tap, not one per crew
+- [ ] Join a second, then a third crew. The Crew page (and nowhere else) shows ONE "Question of the day" card whichever crew chip you tap, not one per crew
 - [ ] The question card has "Post to" chips with the crew you are looking at ticked. You can tick more than one, but you cannot untick the last one. Answer it: the answer shows in the crews you ticked and not in the others, and the card goes away
-- [ ] The post box at the top has the same "Post to" chips (starts on the crew you are looking at). Post a text, or a photo, to two crews: it appears in both feeds, and a line says "Posted to ..."
+- [ ] The share box on Home has the same "Post to" chips (starts on your main crew). Post a text, or a photo, to two crews: it appears in both feeds, and a line says "Posted to ..."
 - [ ] If one crew refuses (for example you were removed), your text stays in the box, the message names the crew that missed out, and the chips are set to just that crew. Post again: it only goes there
-- [ ] Share workout (post box): pick any finished workout from the list, today's or an earlier one. In the share sheet, "Post to" chips sit right under the numbers; choose crews, optionally add your photo, tap Post to {crew} / Post to 2 crews
+- [ ] Share workout (share box on Home): pick any finished workout from the list, today's or an earlier one. In the share sheet, "Post to" chips sit right under the numbers; choose crews, optionally add your photo, tap Post to {crew} / Post to 2 crews
 - [ ] The shared card shows "From Mon, Oct 12" when you shared an earlier day. Open Share workout again: that workout says "2 of 3" and the crews that have it are ticked and locked, the others are free
 - [ ] Delete one of those posts: that crew can be picked again for that workout
 - [ ] Progress > Workout history: each finished workout has a share button next to the bin. Tap it: the same share sheet for that day
-- [ ] Home or Train, tap a finished day on the week: "Share this workout" opens the same sheet. Home "Share this workout" (today) has the crew chooser and still has Share to Instagram
+- [ ] Home or Train, tap a finished day on the week: "Share this workout" opens the same sheet, with the crew chooser and Share to Instagram
 - [ ] Settings > Workout > Share finished workouts to my crew: with 2+ crews a "Share to" chooser appears (your main crew picked by default). Pick two, finish a workout: it posts to both, and the finish screen says "Shared to A and B"
 - [ ] Leave one of the chosen crews: finishing a workout still goes to the others (or your main crew if none are left)
 
@@ -419,7 +419,7 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Same one-tap button in Settings > Import history (Lifts, Body weight) and Nutrition > My foods > Import
 
 ## Crew posts: when it was done, where, and the body-part emoji
-- [ ] Every post in a crew feed has a line under the name that says when: a workout says "Finished today at 7:30 AM" (the time it was FINISHED, not when it was posted), other posts say "Today at 8:14 AM", "Yesterday at 6:02 PM", or a full date with the year ("Mon, Oct 12, 2026 at 8:00 AM"). No more "1h"
+- [ ] Every post in the Home feed has a line under the name that says when: a workout says "Finished today at 7:30 AM" (the time it was FINISHED, not when it was posted), other posts say "Today at 8:14 AM", "Yesterday at 6:02 PM", or a full date with the year ("Mon, Oct 12, 2026 at 8:00 AM"). No more "1h"
 - [ ] Share an older workout to the crew: the post says "Finished Mon, Oct 12, 2026 at 8:00 AM" (the day it was done) even though you posted it today
 - [ ] Settings > Workout > "Where I train (optional)": type a gym or town. Finish a workout with auto-share on: your post's line ends with "· your gym". Clear the box: no place
 - [ ] Share a workout with the picture sheet: Place (optional) on, with a name: that post shows the name. Place off: no name. A gym you typed in a share sheet earlier is NOT put on the automatic posts
@@ -427,6 +427,19 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Posts from before this change still show a time (when they were posted)
 - [ ] Workout cards have a small emoji beside the title: 💪 for Push and Chest + Triceps, 🧗 for Pull and Back + Biceps, 🦵 for Leg Day, 🔥 for Shoulders + Abs, 🏋️ for Full Body and custom workouts. Nothing shows for a session name the app does not know. Looks right at 360 and 390 px wide (placeholders; Codex may change them)
 - [ ] The Share a workout list shows the same emoji, and its dates say the year
+
+## Home, Train and Crew after the restructure
+- [ ] Home, top to bottom: greeting, This week strip (hold and drag still works), the Nutrition widget, the share box (three crew chips, Add photos, Add video, Share workout), then the feed. No "Your next workout" card and no crew card on Home
+- [ ] The Nutrition widget has a small x. Tap it: it goes, with "Nutrition is hidden from Home" and Undo. It stays hidden after a reload; Settings > Home > "Show nutrition on Home" brings it back
+- [ ] The feed shows posts from all your crews (with the crew's name under the poster when you are in 2 or more) and the public posts of people you follow ("Following"). A person's posts only reach followers if their profile is public
+- [ ] Post one workout or question to two crews: the feed shows ONE card marked with both crews, not two
+- [ ] With no crew yet: no share box; the feed says "Your feed starts with a crew" with a Find a crew button
+- [ ] A post from someone you follow (not in your crews) shows comments but no heart (likes are crew-only for now)
+- [ ] Train: the big "Your next workout" and the session card are at the top, then This week, then the list of workouts. Start workout, Resume, Change workout (scrolls to the list), Share this workout and Undo completion all work from there. On a finished workout, "Undo completion" is under the warm-up/the last page
+- [ ] Train, saved workouts: with none saved there is no extra line or heading. With some saved there is a line and "Your saved workouts" under the usual workouts and Build your own, with the saved ones in it. The same in "Change today's workout"
+- [ ] Crew page: no share box and no feed. Question of the day, leaderboard, goals and "Training today" (check-in per crew) are still there. Switching crews changes the check-in
+- [ ] Crew page tabs: only "Free Challenges" and "Will Power Fantasy Fitness" (green). Tap the green one: a popup "Welcome to Will Power Fantasy Fitness" with "Think fantasy football meets fitness.", the points/join/create/public/solo/crew lines and "Test your Will Power. Earn some points for being fit." Its button opens the free challenges. Nothing in it costs or pays money
+- [ ] Friends: the account bubble (top right) has Friends; it opens the Friends page with a Profile link back. The Profile page has a Friends card (followers and following). The bottom Crew tab is NOT lit on the Friends page
 
 ## 10. General
 - [ ] Installs as a home-screen app (PWA) and opens full screen
