@@ -103,12 +103,11 @@ export async function buildWorkoutSticker(
 
   const stats = () => {
     y += 14
-    const cells = [
-      { value: number(summary.volume), label: 'LB MOVED' },
-      { value: number(summary.sets), label: 'SETS' },
-      ...(summary.minutes !== undefined && Number.isFinite(summary.minutes)
-        ? [{ value: duration(summary.minutes), label: 'TIME' }] : []),
-    ]
+    const timed = summary.minutes !== undefined && Number.isFinite(summary.minutes) ? [{ value: duration(summary.minutes!), label: 'TIME' }] : []
+    // a cardio session shows time and miles; a lift shows weight moved, sets and time
+    const cells = summary.activity
+      ? [...timed, ...(summary.activity.miles ? [{ value: number(summary.activity.miles), label: 'MILES' }] : [])]
+      : [{ value: number(summary.volume), label: 'LB MOVED' }, { value: number(summary.sets), label: 'SETS' }, ...timed]
     const top = y
     const cellWidth = CONTENT_WIDTH / cells.length
     draws.push((g) => cells.forEach((cell, i) => {
@@ -137,7 +136,7 @@ export async function buildWorkoutSticker(
 
   const hero = summary.prs[0]
   if (style === 'full') {
-    header('WORKOUT COMPLETE')
+    header(summary.activity ? 'SESSION COMPLETE' : 'WORKOUT COMPLETE')
     text(summary.title.toUpperCase(), 44, 800, ink, 18)
     if (summary.prs.length) {
       text(`${summary.prs.length} NEW ${summary.prs.length === 1 ? 'PR' : 'PRS'}`, 28, 800, green, 18)
@@ -149,7 +148,7 @@ export async function buildWorkoutSticker(
     stats()
     achievements()
   } else {
-    header(hero ? 'NEW PR' : 'WORKOUT COMPLETE', hero ? green : ink)
+    header(hero ? 'NEW PR' : summary.activity ? 'SESSION COMPLETE' : 'WORKOUT COMPLETE', hero ? green : ink)
     if (hero) {
       text(hero.name, style === 'minimal' ? 46 : 43, 800, ink, 9)
       lift(hero.weight, hero.reps, style === 'minimal' ? 148 : 126)

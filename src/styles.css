@@ -1719,3 +1719,11 @@ p.focus-note { margin: -4px 0 0; }
 .pv-activity[style] { background: hsl(var(--bh) 42% 16%); border-color: hsl(var(--bh) 48% 30%); color: hsl(var(--bh) 85% 80%); }
 .pv-badge.is-earned[style] { border-color: hsl(var(--bh) 45% 28%); background: linear-gradient(135deg, hsl(var(--bh) 40% 15%), #171819); }
 .pv-badge.is-earned[style] svg, .pv-badge.is-earned[style] small { color: hsl(var(--bh) 85% 70%); }
+
+/* Cardio: the Share button beside each past session, and next to the "Saved" message */
+.cardio-saved { gap: 12px; }
+.cardio-saved .ok-text { margin: 0; }
+.cardio-row-wrap { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+.cardio-row-wrap .cardio-row { flex: 1; min-width: 0; border-bottom: 0; }
+.cardio-share { flex: none; display: grid; place-items: center; width: 40px; min-height: 40px; padding: 0; border-radius: 10px; background: transparent; color: var(--mute); }
+.cardio-share:hover { color: var(--text); }

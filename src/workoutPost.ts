@@ -57,8 +57,25 @@ export function workoutPost(sum: WorkoutSummary, entries: LogEntry[], day: DayTy
   return { text, meta }
 }
 
+/** The post for a shared cardio session (tennis, yoga, a treadmill run): the same kind of post as a workout, marked as an activity. */
+export function activityPost(sum: WorkoutSummary, opts: { at?: number; place?: string; caption?: string } = {}): { text: string; meta: Record<string, unknown> } {
+  const text = `Finished ${sum.title}${sum.minutes ? ` in ${sum.minutes} min` : ''}`
+  const meta: Record<string, unknown> = {
+    v: 2, title: sum.title, activity: true, sets: 0, exercises: 0, streak: sum.streak,
+    date: sum.date,
+    ...(opts.at ? { at: opts.at } : {}),
+    ...(opts.place?.trim() ? { place: cleanPlace(opts.place) } : {}), // typed by the person, never a live location
+    ...(opts.caption?.trim() ? { caption: cleanCaption(opts.caption) } : {}),
+    ...(sum.minutes ? { minutes: sum.minutes } : {}),
+    ...(sum.activity?.miles ? { miles: sum.activity.miles } : {}),
+  }
+  return { text, meta }
+}
+
 export interface WorkoutView {
   title: string; chip: string; minutes?: number; exercises: number; sets: number; volume?: number
+  /** A cardio session (tennis, yoga, a treadmill run) rather than a lift: the card shows time and miles. */
+  activity?: boolean; miles?: number
   prs: { name: string; weight?: number; reps?: number }[]
   lifts: PostLift[]; more: number; streak?: number
   /** The day it was done, and when (milliseconds) it was finished, where the post says so. */
@@ -86,5 +103,6 @@ export function readWorkoutPost(p: Pick<CrewPost, 'text' | 'meta'>): WorkoutView
   const at = num(m.at)
   const place = typeof m.place === 'string' && m.place.trim() ? cleanPlace(m.place) : undefined
   const caption = typeof m.caption === 'string' && m.caption.trim() ? cleanCaption(m.caption) : undefined
-  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined, date, at, place, caption }
+  const activity = m.activity === true
+  return { title: cardTitle(name), chip: cardChip(name), minutes, exercises, sets: num(m.sets) ?? 0, volume: num(m.volume), prs, lifts, more: Math.max(0, exercises - lifts.length), streak: streak && streak >= 2 ? streak : undefined, date, at, place, caption, ...(activity ? { activity, miles: num(m.miles) } : {}) }
 }

@@ -78,6 +78,8 @@ export interface CardioLog {
   speed?: number; incline?: number; level?: number
   /** Where it came from. Typed in or timed in the app for now; a watch or tracker can fill this in later. */
   source?: 'manual' | 'timer'
+  /** When it was saved, for a session from today (shown on the share picture as when it finished). */
+  finishedAt?: number
 }
 /** A weekly cardio goal the person chose: some days of at least so many minutes, or a number of miles. */
 export type CardioGoal = { kind: 'days'; days: number; minutes: number } | { kind: 'miles'; miles: number }

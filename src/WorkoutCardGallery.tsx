@@ -26,9 +26,11 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
   summary: WorkoutSummary; settings: Partial<Settings>; onPrefs: (patch: Partial<Settings>) => void; busy: boolean
   crewPost?: { onPost: (blob: Blob) => Promise<string | null>; label: string; disabled: boolean }
 }) {
+  // a cardio session has no lifts to list and no PR, so only the scorecard and the photo card fit it
+  const styles = summary.activity ? WORKOUT_CARD_STYLES.filter((s) => s.id === 'scorecard' || s.id === 'photo') : WORKOUT_CARD_STYLES
   const [style, setStyle] = useState<WorkoutCardStyle>(() => {
     const saved = settings.shareCardStyle
-    return saved && WORKOUT_CARD_STYLES.some((s) => s.id === saved) && (saved !== 'pr' || summary.prs.length) ? saved : 'scorecard'
+    return saved && styles.some((s) => s.id === saved) && (saved !== 'pr' || summary.prs.length) ? saved : 'scorecard'
   })
   const [format, setFormat] = useState<CardFormat>(settings.shareFormat ?? (crewPost ? 'post' : 'story'))
   const [photo, setPhoto] = useState<HTMLCanvasElement | null>(null)
@@ -47,7 +49,7 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
   const { asset, error } = useImageAsset(key, () => buildShareCard(summary, format, { style, photo }))
   const ready = !!asset && !unavailable && (style !== 'photo' || !!photo) && !loading
   const disabled = busy || externalBusy || !ready
-  const picked = WORKOUT_CARD_STYLES.find((s) => s.id === style)!
+  const picked = styles.find((s) => s.id === style)!
   const select = (next: WorkoutCardStyle) => { setStyle(next); onPrefs({ shareCardStyle: next }); setMessage('') }
   const addPhoto = async (file?: File) => {
     if (!file) return
@@ -88,10 +90,10 @@ export function WorkoutCardGallery({ summary, settings, onPrefs, busy: externalB
     finally { setBusy(false) }
   }
   return <section className="workout-card-gallery" aria-label="Shareable workout cards">
-    <div className="share-section-heading"><div><span className="share-eyebrow">MADE TO SHARE</span><h3>Workout cards</h3></div><span className="workout-card-count">4 styles</span></div>
+    <div className="share-section-heading"><div><span className="share-eyebrow">MADE TO SHARE</span><h3>Workout cards</h3></div><span className="workout-card-count">{styles.length} styles</span></div>
     <p className="share-hint">Your session, your style. Share a card to Instagram or save it for later.</p>
     <div className="workout-card-options" role="group" aria-label="Workout card style">
-      {WORKOUT_CARD_STYLES.map(({ id, name }) => <CardOption key={id} id={id} name={name} summary={summary} selected={id === style} photo={photo} photoVersion={photoVersion} onSelect={() => select(id)} />)}
+      {styles.map(({ id, name }) => <CardOption key={id} id={id} name={name} summary={summary} selected={id === style} photo={photo} photoVersion={photoVersion} onSelect={() => select(id)} />)}
     </div>
     <div className="share-toolbar"><div className="share-segments share-format" role="group" aria-label="Card size">{(['story', 'post'] as const).map((value) => <button type="button" key={value} aria-pressed={format === value} className={format === value ? 'on' : ''} onClick={() => { setFormat(value); onPrefs({ shareFormat: value }); setMessage('') }}>{value === 'story' ? 'Story' : 'Post'}</button>)}</div><span className="small mute">{format === 'story' ? '9:16' : '4:5'} · 1080 px</span></div>
     {style === 'photo' && <>

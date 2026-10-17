@@ -85,20 +85,27 @@ export async function renderWorkoutCard(s: WorkoutSummary, format: CardFormat, o
   }
   const statIcon = (i: number, x: number, y: number) => {
     g.save(); g.translate(x, y); g.strokeStyle = C.text; g.lineWidth = 2.5; g.lineCap = 'round'; g.lineJoin = 'round'
-    const paths = ['M20 2H36M28 2V9M45 10L49 14M28 18V32', 'M3 15V37M10 7V45M46 7V45M53 15V37M10 26H46', 'M7 18V43C7 53 49 53 49 43V18M7 30C7 40 49 40 49 30']
+    // 0 clock, 1 dumbbell, 2 drum (lifts); 3 pin and 4 flame (cardio: distance and streak)
+    const paths = ['M20 2H36M28 2V9M45 10L49 14M28 18V32', 'M3 15V37M10 7V45M46 7V45M53 15V37M10 26H46', 'M7 18V43C7 53 49 53 49 43V18M7 30C7 40 49 40 49 30',
+      'M28 52C28 52 9 33 9 22A19 19 0 0 1 47 22C47 33 28 52 28 52ZM28 29A7 7 0 1 1 28 15A7 7 0 0 1 28 29Z', 'M28 4C32 16 44 20 44 34A16 16 0 0 1 12 34C12 26 18 22 20 14C24 18 24 22 24 24C28 20 30 12 28 4Z']
     g.stroke(new Path2D(paths[i])); g.beginPath()
     if (i === 0) g.arc(28, 32, 22, 0, Math.PI * 2)
     if (i === 2) g.ellipse(28, 18, 21, 7, 0, 0, Math.PI * 2)
     g.stroke(); g.restore()
   }
   const stats = (y: number, large = true) => {
-    const data = [[s.minutes ? number(s.minutes) : '—', 'MIN', 'TOTAL TIME'], [number(s.sets), 'SETS', 'TOTAL SETS'], [number(s.volume), 'LB', 'TOTAL VOLUME']]
-    const col = span / 3
-    data.forEach(([value, unit, name], i) => {
+    // a lift shows time, sets and weight; a cardio session shows time, then miles and the streak when there are some
+    const data: [string, string, string, number][] = s.activity
+      ? [[s.minutes ? number(s.minutes) : '—', 'MIN', 'TOTAL TIME', 0],
+        ...(s.activity.miles ? [[number(s.activity.miles), 'MI', 'DISTANCE', 3] as [string, string, string, number]] : []),
+        ...(s.streak > 1 ? [[number(s.streak), 'DAYS', 'DAY STREAK', 4] as [string, string, string, number]] : [])]
+      : [[s.minutes ? number(s.minutes) : '—', 'MIN', 'TOTAL TIME', 0], [number(s.sets), 'SETS', 'TOTAL SETS', 1], [number(s.volume), 'LB', 'TOTAL VOLUME', 2]]
+    const col = span / data.length
+    data.forEach(([value, unit, name, icon], i) => {
       const x = M + i * col
       if (i) line(x, y, 2, C.orange, large ? 230 : 92)
       g.textAlign = 'center'
-      if (large) statIcon(i, x + col / 2 - 28, y + 4)
+      if (large) statIcon(icon, x + col / 2 - 28, y + 4)
       text(value, x + col / 2, y + (large ? 148 : 48), large ? 118 : 64, C.orange, 900, col - 30)
       text(unit, x + col / 2, y + (large ? 190 : 82), large ? 29 : 22, C.text, 800, col - 30)
       if (large) label(name, x + col / 2, y + 230, C.mute, col - 30)
@@ -210,7 +217,7 @@ export async function renderWorkoutCard(s: WorkoutSummary, format: CardFormat, o
     g.font = `900 230px ${DISPLAY}`
     const titleSize = g.measureText(title(s.title)).width <= span ? 230 : Math.min(180, area * .13)
     wrap(title(s.title), M - 6, top + area * .29, titleSize, span, C.text, 2)
-    label('STRENGTH   /   CONSISTENCY   /   PROGRESS', M, top + area * .44)
+    label(s.activity ? 'MOVEMENT   /   CONSISTENCY   /   PROGRESS' : 'STRENGTH   /   CONSISTENCY   /   PROGRESS', M, top + area * .44)
     line(M, top + area * .48, span)
     stats(top + area * .52)
     progress(top + area * .79)

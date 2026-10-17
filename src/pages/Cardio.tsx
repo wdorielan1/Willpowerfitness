@@ -9,6 +9,7 @@ import {
 } from '../cardio'
 import { POPULAR_SPORTS, SPORTS, SPORT_CATEGORIES, findSports, sportOf } from '../sports'
 import { TimerConflict } from '../TimerConflict'
+import { ShareActivitySheet } from './Feed'
 import { CardioPicture } from '../CardioPicture'
 import { CATEGORY_ICON } from '../cardioMedia'
 import { Icon } from '../icons'
@@ -79,6 +80,9 @@ function toLog(d: Draft, today: string, base: Partial<CardioLog>, source: 'manua
   const machine = machineOf(d.kind)
   const out: CardioLog = { ...base, date: d.date, kind: d.kind, minutes, note: d.note.trim(), source: base.source ?? source, id: base.id ?? newCardioId() }
   out.mode = machine.modes ? d.mode || undefined : undefined
+  // when a session from today was saved, for "finished at" on the share picture
+  const finished = base.finishedAt ?? (d.date === today ? Date.now() : undefined)
+  if (finished) out.finishedAt = finished; else delete out.finishedAt
   for (const f of ['speed', 'incline', 'level', 'miles'] as const) {
     const raw = d[f].trim().replace(/,/g, '')
     if (!machine.fields.includes(f) || raw === '') { delete out[f]; continue }
@@ -175,6 +179,8 @@ export default function Cardio() {
   const [msg, setMsg] = useState('')
   const [more, setMore] = useState<null | { current: string; apply: (name: string) => void }>(null)
   const [conflict, setConflict] = useState(false) // a workout is running, so a cardio timer can't start
+  const [justSaved, setJustSaved] = useState<CardioLog | null>(null) // the session just saved, so the message can offer Share
+  const [share, setShare] = useState<CardioLog | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const active = data.cardioActive
   const running = !!active && !active.pausedAt
@@ -210,16 +216,16 @@ export default function Cardio() {
   }
   const saved = (log: CardioLog, timer = false) => {
     update((d) => withActivityNotice({ ...d, cardio: [...d.cardio, log], ...(timer ? { cardioActive: undefined } : {}) }, log.kind))
-    setSheet(null)
+    setSheet(null); setJustSaved(log)
     setMsg(log.minutes >= CARDIO_SESSION_MIN ? `Saved. ${log.date === today ? 'Today counts' : 'That day counts'} as a workout day.` : 'Saved.')
   }
   const edited = (old: CardioLog, next: CardioLog) => {
     update((d) => { const i = d.cardio.findIndex((c) => sameLog(c, old)); return i < 0 ? d : withActivityNotice({ ...d, cardio: d.cardio.map((c, j) => (j === i ? next : c)) }, next.kind) })
-    setSheet(null); setMsg('Saved.')
+    setSheet(null); setJustSaved(null); setMsg('Saved.')
   }
   const remove = (old: CardioLog) => {
     update((d) => { const i = d.cardio.findIndex((c) => sameLog(c, old)); return i < 0 ? d : { ...d, cardio: d.cardio.filter((_, j) => j !== i) } })
-    setAskDelete(null); setSheet(null); setMsg('Deleted.')
+    setAskDelete(null); setSheet(null); setJustSaved(null); setMsg('Deleted.')
   }
 
   const history = data.cardio.map((c, i) => ({ c, i })).sort((a, b) => b.c.date.localeCompare(a.c.date) || b.i - a.i).map((x) => x.c)
@@ -252,7 +258,7 @@ export default function Cardio() {
           <p className="small mute">{SESSION_NOTE(CARDIO_SESSION_MIN)}</p>
         </section>
       )}
-      {msg && <p className="ok-text" role="status">✓ {msg}</p>}
+      {msg && <div className="row wrap cardio-saved"><p className="ok-text" role="status">✓ {msg}</p>{justSaved && <button type="button" className="ghost small-btn" onClick={() => setShare(justSaved)}><Icon name="upload" size={16} /> Share</button>}</div>}
 
       {shouldOfferGoal(data) && (
         <section className="rec start" role="group" aria-label="Weekly cardio goal">
@@ -282,10 +288,13 @@ export default function Cardio() {
         <h3 id="cardio-history-title">Your cardio</h3>
         {history.length ? <div className="cardio-history">
           {history.slice(0, shown).map((c, i) => (
-            <button type="button" key={c.id ?? `${c.date}-${i}`} className="cardio-row" onClick={() => setSheet({ kind: 'edit', log: c })} aria-label={`Edit ${cardioName(c)}, ${dayLabel(c.date)}, ${c.minutes} minutes`}>
-              <span><b>{cardioName(c)}</b><time dateTime={c.date}>{dayLabel(c.date)}</time></span>
-              <span>{c.minutes} min{miles(c.miles)}</span>
-            </button>
+            <div key={c.id ?? `${c.date}-${i}`} className="cardio-row-wrap">
+              <button type="button" className="cardio-row" onClick={() => setSheet({ kind: 'edit', log: c })} aria-label={`Edit ${cardioName(c)}, ${dayLabel(c.date)}, ${c.minutes} minutes`}>
+                <span><b>{cardioName(c)}</b><time dateTime={c.date}>{dayLabel(c.date)}</time></span>
+                <span>{c.minutes} min{miles(c.miles)}</span>
+              </button>
+              <button type="button" className="cardio-share" aria-label={`Share ${cardioName(c)}, ${dayLabel(c.date)}`} onClick={() => setShare(c)}><Icon name="upload" size={18} /></button>
+            </div>
           ))}
         </div> : <p className="small mute">Nothing yet. Start a timer, or log one you already did.</p>}
         {history.length > shown && <button type="button" className="progress-more" onClick={() => setShown(shown + 10)}>Show {Math.min(10, history.length - shown)} more</button>}
@@ -304,6 +313,7 @@ export default function Cardio() {
       {sheet?.kind === 'goal' && <GoalSheet goal={data.cardioGoal} onClose={() => setSheet(null)}
         onSave={(g) => { update((d) => ({ ...d, cardioGoal: g, cardioGoalAsked: today })); setSheet(null); setMsg('Goal saved.') }}
         onRemove={() => { update((d) => ({ ...d, cardioGoal: undefined, cardioGoalAsked: today })); setSheet(null) }} />}
+      {share && <ShareActivitySheet log={share} onClose={() => setShare(null)} />}
       {more && <ActivitySheet current={more.current} onPick={(name) => { more.apply(name); setMore(null) }} onClose={() => setMore(null)} />}
       {conflict && <TimerConflict running="workout" onClose={() => setConflict(false)} />}
       {askDiscard && <ConfirmSheet title="Discard this session?" message="The time so far will not be saved." confirmLabel="Discard" onConfirm={() => { update((d) => ({ ...d, cardioActive: undefined })); setAskDiscard(false) }} onCancel={() => setAskDiscard(false)} />}

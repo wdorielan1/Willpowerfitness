@@ -196,14 +196,21 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
   if (summary.volumeChangePct !== null && summary.volumeChangePct !== 0) momentum.push([`${summary.volumeChangePct > 0 ? '▲' : '▼'} ${Math.abs(summary.volumeChangePct)}% volume vs your last ${summary.title.toLowerCase()}`, summary.volumeChangePct > 0 ? 'up' : ''])
   if (summary.streak > 1) momentum.push([`${summary.streak}-day streak`, 'streak'])
 
-  return <Sheet title={crewPost ? 'Share to your crew' : 'Workout complete'} onClose={onClose}>
+  return <Sheet title={crewPost ? 'Share to your crew' : summary.activity ? 'Session complete' : 'Workout complete'} onClose={onClose}>
     <div className="workout-share">
       <p className="share-intro"><b>{summary.title}</b> {summary.date === todayISO() ? 'finished at' : `from ${fromISO(summary.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}, finished at`} {new Date(summary.finishedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}<span>{crewPost ? 'Post a picture to your crew, or share it to Instagram.' : 'Your work. Your photo. Your people.'}</span></p>
       <div className="share-recap">
         <div className="share-recap-stats">
           <div className="stat"><b>{fmtDuration(summary.minutes)}</b><span>time</span></div>
-          <div className="stat"><b>{summary.volume.toLocaleString()}</b><span>lb moved</span></div>
-          <div className="stat"><b>{summary.sets}</b><span>sets</span></div>
+          {summary.activity
+            ? <>
+                {summary.activity.miles ? <div className="stat"><b>{summary.activity.miles}</b><span>miles</span></div> : null}
+                <div className="stat"><b>{summary.streak}</b><span>day streak</span></div>
+              </>
+            : <>
+                <div className="stat"><b>{summary.volume.toLocaleString()}</b><span>lb moved</span></div>
+                <div className="stat"><b>{summary.sets}</b><span>sets</span></div>
+              </>}
         </div>
         {momentum.length > 0 && <p className="share-recap-line">{momentum.map(([text, cls]) => <span key={text} className={cls}>{text}</span>)}</p>}
         {summary.prs.length > 0
@@ -211,11 +218,11 @@ export function DoneSheet({ summary, settings, onPrefs, onClose, crewPost, extra
               {summary.prs.slice(0, 3).map((pr) => <div key={pr.name} className="done-pr"><span><b>{pr.name}</b><span className="small mute">New PR · {pr.weight} lb × {pr.reps}</span></span><span className="done-pct">+{pr.pct}%</span></div>)}
               {summary.prs.length > 3 && <p className="small mute" style={{ margin: 0 }}>+{summary.prs.length - 3} more PR{summary.prs.length - 3 === 1 ? '' : 's'}. Pick Full recap to share them all.</p>}
             </div>
-          : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
+          : summary.activity ? null : <p className="small mute" style={{ margin: 0 }}>No new records today. Showing up is what builds them.</p>}
       </div>
       {extra}
       {crewPost && <PostTo crews={crewPost.crews} value={going} onChange={setTo} done={crewPost.done} disabled={busy} />}
-      {crewPost && <label className="share-caption"><span className="small mute">Caption (optional)</span><textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} placeholder="Say something about this workout…" disabled={busy} aria-label="Caption" /></label>}
+      {crewPost && <label className="share-caption"><span className="small mute">Caption (optional)</span><textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} placeholder={summary.activity ? 'Say something about this session…' : 'Say something about this workout…'} disabled={busy} aria-label="Caption" /></label>}
       {crewPost && <ExtraMedia photos={morePhotos} onPhotos={setMorePhotos} video={moreVideo} onVideo={setMoreVideo} disabled={busy || allPosted} locked={cardLocked} onLocked={setCardLocked} cardAt={cardAt} onCardAt={setCardAt} />}
       <div className="share-section-heading"><div><span className="share-eyebrow">MAKE IT YOURS</span><h3>Workout stickers</h3></div><span className="small mute">Transparent PNG</span></div>
       <div className="share-segments" role="group" aria-label="Sticker style">{STYLES.map(([value, label]) => <button type="button" key={value} className={style === value ? 'on' : ''} aria-pressed={style === value} onClick={() => { setStyle(value); onPrefs({ shareStickerStyle: value }); setMessage('') }}>{label}</button>)}</div>

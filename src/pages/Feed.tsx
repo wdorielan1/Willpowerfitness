@@ -7,16 +7,17 @@ import { BodyIcon } from '../BodyIcon'
 import { CommentsPanel } from '../Comments'
 import { LikersList, type LikerRow } from '../Likers'
 import { DoneSheet } from '../WorkoutShare'
-import { summaryFromLog } from '../shareCard'
+import { summaryFromCardio, summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
-import { postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
+import { activityPost, postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
+import { cardioKey } from '../cardio'
 import { postWhen } from '../postWhen'
 import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, reportPostCloud, toggleLikeCloud, useCrewFeed, useFeedAvatars, useHomeFeed, type FeedTab } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
 import { fromISO, iso, todayISO, workoutName } from '../engine'
-import type { CrewPost, PostKind, VideoMeta, WorkoutLog } from '../types'
+import type { CardioLog, CrewPost, PostKind, VideoMeta, WorkoutLog } from '../types'
 
 /** Create posts in a crew's feed (cloud when connected, on-device otherwise). */
 export function usePostActions(crewId: string) {
@@ -101,8 +102,19 @@ export function useWorkoutSharing() {
   const { postTo } = usePostActions('')
   /** The crews that already have the workout from this day. */
   const posted = (date: string) => crews.filter((c) => data.workoutPosted?.[postedKey(date, c.id, data.primary)]).map((c) => c.id)
+  type More = { photos?: Blob[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }
+  /** Sends a workout or activity post to the crews: the picture goes first (locked to the front unless they slid it back), with the video, then their photos, around it. */
+  const send = (todo: string[], wp: { text: string; meta: Record<string, unknown> }, blob?: Blob, more?: More) => {
+    const extras: ('video' | Blob)[] = [...(more?.video ? ['video' as const] : []), ...(more?.photos ?? [])]
+    const order: ('video' | 'card' | Blob)[] = [...extras]
+    order.splice(Math.min(Math.max(0, more?.cardAt ?? 0), extras.length), 0, 'card')
+    const photos = order.flatMap((x) => (x === 'video' ? [] : x === 'card' ? (blob ? [blob] : []) : [x]))
+    const videoAt = order.indexOf('video') // where the clip sits among the pictures; older posts have none and lead with it
+    const meta = videoAt > 0 ? { ...wp.meta, videoAt } : wp.meta
+    return postTo(todo, { kind: 'workout', text: wp.text, meta, photos: photos.length ? photos : undefined, video: more?.video, progress: more?.progress })
+  }
   /** Posts a workout (from today or any earlier day) to the chosen crews, with a picture if there is one. Returns an error message, or null. */
-  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: { photos?: Blob[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }): Promise<string | null> => {
+  const share = async (log: WorkoutLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: More): Promise<string | null> => {
     const done = posted(log.date)
     const todo = ids.filter((id) => !done.includes(id))
     if (!todo.length) return 'That workout is already shared with this crew.'
@@ -110,21 +122,38 @@ export function useWorkoutSharing() {
     const wp = sum
       ? workoutPost(sum, log.entries, log.dayType, data.settings.shareLifts !== false, { at: log.finishedAt, place, caption })
       : { text: `Finished ${log.dayType}${log.minutes ? ` in ${log.minutes} min` : ''}`, meta: { sets: log.entries.reduce((a, e) => a + e.sets.length, 0), exercises: log.entries.length } as Record<string, unknown> }
-    // the workout picture goes first (it is locked to the front unless they slid it back), with the video, then their photos, around it
-    const extras: ('video' | Blob)[] = [...(more?.video ? ['video' as const] : []), ...(more?.photos ?? [])]
-    const order: ('video' | 'card' | Blob)[] = [...extras]
-    order.splice(Math.min(Math.max(0, more?.cardAt ?? 0), extras.length), 0, 'card')
-    const photos = order.flatMap((x) => (x === 'video' ? [] : x === 'card' ? (blob ? [blob] : []) : [x]))
-    const videoAt = order.indexOf('video') // where the clip sits among the pictures; older posts have none and lead with it
-    const meta = videoAt > 0 ? { ...wp.meta, videoAt } : wp.meta
-    const { ok, errors } = await postTo(todo, { kind: 'workout', text: wp.text, meta, photos: photos.length ? photos : undefined, video: more?.video, progress: more?.progress })
+    const { ok, errors } = await send(todo, wp, blob, more)
     if (ok.length) {
       update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [postedKey(log.date, id, d.primary), true])) } }))
       announceFeedChanged()
     }
     return sendReport(crews, ok, errors)
   }
-  return { crews, posted, share }
+  /** Which crews already have this cardio session (tennis, yoga, a run). Remembered under its own key, so a workout on the same day doesn't count. */
+  const activityKey = (c: CardioLog, crewId: string) => `a:${cardioKey(c)}|${crewId}`
+  const postedActivity = (c: CardioLog) => crews.filter((cr) => data.workoutPosted?.[activityKey(c, cr.id)]).map((cr) => cr.id)
+  /** Posts a cardio session to the chosen crews like a workout, with the activity card if there is one. Returns an error message, or null. */
+  const shareActivity = async (c: CardioLog, ids: string[], blob?: Blob, place?: string, caption?: string, more?: More): Promise<string | null> => {
+    const done = postedActivity(c)
+    const todo = ids.filter((id) => !done.includes(id))
+    if (!todo.length) return 'That session is already shared with this crew.'
+    const { ok, errors } = await send(todo, activityPost(summaryFromCardio(data, c), { at: c.finishedAt, place, caption }), blob, more)
+    if (ok.length) {
+      update((d) => ({ ...d, workoutPosted: { ...d.workoutPosted, ...Object.fromEntries(ok.map((id) => [activityKey(c, id), true])) } }))
+      announceFeedChanged()
+    }
+    return sendReport(crews, ok, errors)
+  }
+  return { crews, posted, share, postedActivity, shareActivity }
+}
+
+/** The share screen for one cardio session (tennis, yoga, a run): the same sheet as a workout, with an activity card. Post it to your crews, or send it to Instagram. */
+export function ShareActivitySheet({ log, viewing, onClose }: { log: CardioLog; viewing?: string; onClose: () => void }) {
+  const { data, update } = useApp()
+  const { crews, postedActivity, shareActivity } = useWorkoutSharing()
+  const summary = summaryFromCardio(data, log)
+  const crewPost = crews.length ? { crews, done: postedActivity(log), defaultTo: viewing ?? data.primary ?? crews[0].id, onPost: (blob: Blob, ids: string[], opts?: { place?: string; caption?: string; photos?: File[]; video?: PreparedVideo; cardAt?: number; progress?: (text: string) => void }) => shareActivity(log, ids, blob, opts?.place, opts?.caption, opts) } : undefined
+  return <DoneSheet summary={summary} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={onClose} crewPost={crewPost} />
 }
 
 /** The share screen for one finished workout, today's or an earlier one: pick the crews, add a picture, post. Or send it to Instagram. */

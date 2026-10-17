@@ -1,6 +1,7 @@
-import type { AppData, LogEntry, WorkoutLog } from './types'
+import type { AppData, CardioLog, LogEntry, WorkoutLog } from './types'
 import { renderWorkoutCard, type WorkoutCardOptions } from './workoutCardDesign'
 import { e1rm, fromISO, streak, workoutName } from './engine'
+import { shareTitle } from './cardio'
 
 export interface PR { name: string; weight: number; reps: number; pct: number; e1: number; previousE1?: number }
 export interface WorkoutExerciseSummary { name: string; sets: number; weight: number; volume: number }
@@ -17,6 +18,8 @@ export interface WorkoutSummary {
   prs: PR[]
   streak: number
   place?: string
+  /** Set for a cardio session (tennis, yoga, a treadmill run) instead of a lift: the cards show time, miles and streak, not sets and weight. */
+  activity?: { miles?: number }
 }
 
 const best = (e: LogEntry) => e.sets.reduce((b, s) => (e1rm(s.weight, s.reps) > e1rm(b.weight, b.reps) ? s : b))
@@ -79,6 +82,21 @@ export function summaryFromLog(d: AppData, log: WorkoutLog): WorkoutSummary | nu
     streak: streak(d, log.date),
     place: d.settings.gymName,
   })
+}
+
+/**
+ * The summary for a cardio session (tennis, yoga, a run on the treadmill) so it shares like a workout: the same sheet and cards,
+ * with time, miles and streak where a lift has sets and weight. `activity` is what tells the cards to draw it that way.
+ */
+export function summaryFromCardio(d: AppData, c: CardioLog): WorkoutSummary {
+  const noon = fromISO(c.date); noon.setHours(12, 0, 0, 0)
+  return {
+    title: shareTitle(c), date: c.date, finishedAt: c.finishedAt ?? noon.getTime(), minutes: c.minutes,
+    sets: 0, volume: 0, exercises: 0, volumeChangePct: null, prs: [],
+    streak: streak(d, c.date),
+    place: d.settings.gymName?.trim() || undefined,
+    activity: { ...(c.miles ? { miles: c.miles } : {}) },
+  }
 }
 
 export const prLine = (pr: PR) => `${pr.name} ${pr.weight} lb × ${pr.reps} (+${pr.pct}%)`

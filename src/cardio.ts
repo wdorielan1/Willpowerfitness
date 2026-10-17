@@ -110,6 +110,11 @@ export const newCardioId = () => `c${Date.now().toString(36)}${Math.random().toS
 export const sameLog = (a: CardioLog, b: CardioLog) =>
   a.id || b.id ? a.id === b.id : a.date === b.date && a.kind === b.kind && a.minutes === b.minutes && a.note === b.note && (a.mode ?? '') === (b.mode ?? '')
 
+/** What a shared session is called: "Tennis", or "Treadmill run" for a machine with a mode. */
+export const shareTitle = (c: Pick<CardioLog, 'kind' | 'mode'>) => (c.mode ? `${c.kind} ${c.mode.toLowerCase()}` : c.kind)
+/** A key for a session, to remember which crews it was shared with (older sessions have no id). */
+export const cardioKey = (c: CardioLog) => c.id ?? `${c.date}|${c.kind}|${c.minutes}|${c.note}`
+
 export const UNIT_LABEL: Record<CardioField, string> = { speed: 'Speed (mph)', incline: 'Incline (%)', level: 'Level', miles: 'Miles' }
 
 /** A cardio timer that has run this many hours asks "Still doing cardio?" (longer than the workout one: a round of golf takes hours). */
