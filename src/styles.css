@@ -1545,3 +1545,6 @@ p.focus-note { margin: -4px 0 0; }
 /* the one-time notice that an account was switched to public */
 .public-notice { display: grid; gap: 8px; }
 .public-notice p { margin: 0; }
+
+/* the profile photo step of setup */
+.onboard-photo { display: grid; gap: 10px; justify-items: center; padding: 6px 0; }

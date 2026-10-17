@@ -2,8 +2,9 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Logo } from '../App'
 import { useApp } from '../store'
+import { Avatar } from '../components'
 import { todayISO } from '../engine'
-import { withTimeout } from '../photos'
+import { avatarFromFile, withTimeout } from '../photos'
 import { acceptInvite, ensureProfileCard, followCloud, handleToUser, joinCrewCloud } from '../cloud'
 import { allCommunities } from './Crew'
 import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
@@ -21,7 +22,7 @@ const empty: Profile = {
 }
 
 export default function Onboarding() {
-  const { data, saveAccount, update, userId, email } = useApp()
+  const { data, saveAccount, update, userId, email, avatarUrl, googlePhoto, setAvatar } = useApp()
   const nav = useNavigate()
   const [p, setP] = useState<Profile>(empty)
   const [step, setStep] = useState(0)
@@ -31,6 +32,12 @@ export default function Onboarding() {
   const [error, setError] = useState('')
   const [imported, setImported] = useState<{ logs: WorkoutLog[]; sets: number } | null>(null)
   const pending = useRef(false)
+  const photoInput = useRef<HTMLInputElement>(null)
+  const [photoMsg, setPhotoMsg] = useState('')
+  const choosePhoto = async (f?: File) => {
+    if (!f) return
+    try { setAvatar(await avatarFromFile(f)); setPhotoMsg('') } catch (e) { setPhotoMsg(e instanceof Error ? e.message : 'Could not use that photo. Try another one.') }
+  }
   // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
   const [wText, setWText] = useState(String(empty.weight))
   const [tText, setTText] = useState(String(empty.target))
@@ -110,6 +117,19 @@ export default function Onboarding() {
       <Toggle label="Join a workout community" on={p.wantsCommunity} onClick={() => set('wantsCommunity', !p.wantsCommunity)} />
     </>,
     <>
+      <h2>Add a profile photo</h2>
+      <p className="mute small">We recommend it. Friends find and follow you faster, and your posts show your face in your crew and in Explore. It stays small and square, and you can change or remove it anytime in your profile.</p>
+      <div className="onboard-photo">
+        <Avatar name={data.name} url={avatarUrl} size={112} />
+        <input ref={photoInput} type="file" accept="image/*" hidden aria-label="Choose a profile photo" onChange={(e) => { void choosePhoto(e.target.files?.[0]); e.target.value = '' }} />
+        <button type="button" className={avatarUrl ? 'ghost' : 'primary'} onClick={() => photoInput.current?.click()}>{avatarUrl ? 'Change photo' : 'Choose a photo'}</button>
+        {data.avatar && <button type="button" className="quiet-button" onClick={() => { setAvatar(null); setPhotoMsg('') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
+      </div>
+      {googlePhoto && !data.avatar && <p className="small ok-text">We are using your Google photo. Choose another if you like.</p>}
+      {photoMsg && <p className="err small" role="alert">{photoMsg}</p>}
+      <p className="small mute">{avatarUrl ? 'Looking good.' : 'Optional. Tap Skip for now to add one later.'}</p>
+    </>,
+    <>
       <h2>Bring your lifting history</h2>
       <p className="mute small">Optional. If you track your lifts with ChatGPT or Claude, bring them so you don’t start from scratch. No AI? Just tap Next. You can also do this later in Settings.</p>
       {imported
@@ -138,7 +158,7 @@ export default function Onboarding() {
       <button className={`chip ${pick === 'solo' ? 'on' : ''}`} style={{ justifySelf: 'start' }} onClick={() => setPick('solo')}>Skip, I’ll train solo for now</button>
     </>,
   ]
-  const total = p.wantsCommunity ? 6 : 4
+  const total = p.wantsCommunity ? 7 : 5
   const last = step === total - 1
 
   return (
@@ -148,7 +168,7 @@ export default function Onboarding() {
       {error && <p className="err" role="alert">{error}</p>}
       <div className="row">
         {step > 0 ? <button className="ghost" disabled={saving} onClick={() => setStep(step - 1)}>Back</button> : <span />}
-        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" disabled={step === 2 && !p.sex} onClick={() => setStep(step + 1)}>Next</button>}
+        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" disabled={step === 2 && !p.sex} onClick={() => setStep(step + 1)}>{step === 3 && !avatarUrl ? 'Skip for now' : 'Next'}</button>}
       </div>
     </div>
   )
