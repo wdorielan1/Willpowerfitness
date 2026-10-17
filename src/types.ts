@@ -67,7 +67,22 @@ export interface Exercise {
 export interface SetEntry { weight: string; reps: string; rpe: string }
 export interface LogEntry { exId: string; name: string; sets: { weight: number; reps: number; rpe?: number }[]; note: string }
 export interface WorkoutLog { date: string; dayType: DayType; short: boolean; entries: LogEntry[]; imported?: boolean; baseline?: boolean; skipped?: boolean; minutes?: number; finishedAt?: number; rotationDay?: DayType }
-export interface CardioLog { date: string; kind: string; minutes: number; note: string }
+export interface CardioLog {
+  date: string; kind: string; minutes: number; note: string
+  /** Newer sessions have an id so they can be edited or deleted. Older ones are found by what they hold. */
+  id?: string
+  /** Treadmill only: Walk, Incline, Run or Sprints. */
+  mode?: string
+  miles?: number
+  /** Treadmill speed (mph) and incline (percent); level is StairMaster, Elliptical or Bike level. All optional. */
+  speed?: number; incline?: number; level?: number
+  /** Where it came from. Typed in or timed in the app for now; a watch or tracker can fill this in later. */
+  source?: 'manual' | 'timer'
+}
+/** A weekly cardio goal the person chose: some days of at least so many minutes, or a number of miles. */
+export type CardioGoal = { kind: 'days'; days: number; minutes: number } | { kind: 'miles'; miles: number }
+/** A cardio timer that is running, kept here so it survives closing the app or locking the phone. */
+export interface CardioActive { kind: string; mode?: string; startedAt: number; pausedAt?: number; pausedMs: number }
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]>; touched?: Record<string, boolean[]> /* sets whose reps the user typed */ }
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }
@@ -150,6 +165,11 @@ export interface AppData {
   customSession?: Record<string, string[]> // date -> exercise ids picked in Build your own
   myWorkouts?: { id: string; name: string; ids: string[]; day?: DayType; focus?: WorkoutFocus }[] // saved workouts: Build your own, or "your Leg Day" saved after a finish (those carry the day they belong to)
   workoutFocus?: Record<string, WorkoutFocus> // date -> focused alternative for this session
+  /** Weekly cardio goal. Not asked at sign-up: offered after a couple of cardio sessions. */
+  cardioGoal?: CardioGoal
+  /** The day the weekly cardio goal was offered, so "Not now" is not asked again. */
+  cardioGoalAsked?: string
+  cardioActive?: CardioActive
   extras: Record<string, string[]> // date -> exercise ids added
   removed: Record<string, string[]> // date -> exercise ids removed
   skipAsked?: string // the day we last asked about skipped lifts mid-workout (at most once a day)

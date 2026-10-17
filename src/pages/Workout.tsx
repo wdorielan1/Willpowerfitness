@@ -17,6 +17,7 @@ import { useRestTimer } from '../RestTimer'
 import { ShareWorkoutSheet, usePostActions } from './Feed'
 import { TodaySession } from '../TodaySession'
 import { WeekPlanner } from '../WeekPlanner'
+import { CardioCard } from '../CardioCard'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
@@ -337,7 +338,12 @@ export default function Workout() {
   const [equipNote, setEquipNote] = useState(false)
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string } | { kind: 'dislike'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
-  useEffect(() => { if (sp.get('change')) { if (active) setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp, active])
+  useEffect(() => {
+    if (!sp.get('change')) return
+    if (active) setSheet({ kind: 'day' })
+    else setTimeout(() => document.getElementById('train-chooser')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60) // from the Cardio page: "Add a workout"
+    setSp({}, { replace: true })
+  }, [sp, setSp, active])
 
   const pageCount = items.length + 2 // warm-up, exercises, finish
   const page = Math.min(idx, pageCount - 1)
@@ -436,13 +442,13 @@ export default function Workout() {
   })
   const beginWith = (day: DayType, focus?: WorkoutFocus, ids?: string[], tweaks?: { removed: string[]; extras: string[]; order?: string[] }) => {
     timer.stop(); update((d) => selectSession(d, day, focus, ids, tweaks)); setIdx(0)
-    if (day === 'Rest/Cardio') { nav('/log?t=cardio'); return }
+    if (day === 'Rest/Cardio') { nav('/cardio'); return }
     ci.start()
   }
   const chooseDay = (day: DayType, focus?: WorkoutFocus, ids?: string[]) => {
     if (hasEntered && !confirm(`Switch to ${workoutName(day, focus)}? The sets you entered for today will be cleared.`)) return
     timer.stop(); update((d) => selectSession(d, day, focus, ids)); setSheet(null); setIdx(0)
-    if (day === 'Rest/Cardio') nav('/log?t=cardio')
+    if (day === 'Rest/Cardio') nav('/cardio')
   }
   const swapTo = (orig: string, cur: string, next: string) => {
     const isExtra = (data.extras[today] ?? []).includes(cur)
@@ -634,6 +640,7 @@ export default function Workout() {
           onClose={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null) }}
           onSkip={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); askEquip(); setAskEquip(null) }}
           onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
+        <CardioCard />
         <div id="train-chooser" />
         <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
           onPick={chooseDay} onStart={beginWith}
@@ -821,7 +828,7 @@ export default function Workout() {
               {UndoNote}
               <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
             </section>
-            {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><Link className="btn ghost" to="/log">Log cardio</Link></section>}
+            {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><div className="row wrap"><Link className="btn primary" to="/cardio">Start cardio</Link><Link className="btn ghost" to="/cardio?log=1">Log cardio</Link></div></section>}
             {todaysLog && todaysLog.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => setResharing(true)}>Share this workout</button>}
             {todaysLog && ci.done && <button className="quiet-action" onClick={() => setAsk('undo')}>Undo completion</button>}
             <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? 'Delete this workout' : 'Discard this workout'}</button>

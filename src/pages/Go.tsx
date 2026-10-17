@@ -15,7 +15,7 @@ export default function Go() {
     switch (action) {
       case 'going': ci.imGoing(); nav('/', { replace: true }); break
       case 'complete': ci.complete(); nav('/', { replace: true }); break
-      case 'cardio': nav('/log?t=cardio', { replace: true }); break
+      case 'cardio': nav('/cardio?log=1', { replace: true }); break
       case 'weight': nav('/log?t=weight', { replace: true }); break
       case 'workout': nav('/workout', { replace: true }); break
       case 'start': ci.start(); nav('/workout', { replace: true }); break

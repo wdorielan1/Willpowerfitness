@@ -12,6 +12,7 @@ import Communities from './pages/Communities'
 import Workout from './pages/Workout'
 import Progress from './pages/Progress'
 import QuickLog from './pages/QuickLog'
+import Cardio from './pages/Cardio'
 import Nutrition from './pages/Nutrition'
 import Shortcuts from './pages/Shortcuts'
 import Profile from './pages/Profile'
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="/friend/:id" element={<FriendProfile />} />
           <Route path="/export" element={<Export />} />
           <Route path="/log" element={<QuickLog />} />
+          <Route path="/cardio" element={<Cardio />} />
           <Route path="/photos" element={<Photos />} />
           <Route path="/import" element={<ImportHistory />} />
           <Route path="/nutrition" element={<Nutrition />} />

@@ -86,7 +86,7 @@ export function buildSummary(d: AppData, o: ExportOpts, today = todayISO()): str
   if (o.cardio) {
     const c = d.cardio.filter((x) => x.date >= from)
     const st = d.steps.filter((x) => x.date >= from)
-    out.push('\n## Cardio and activity', `- Cardio sessions: ${c.length} · total ${c.reduce((a, x) => a + x.minutes, 0)} min · types: ${[...new Set(c.map((x) => x.kind))].join(', ') || 'none'}`)
+    out.push('\n## Cardio and activity', `- Cardio sessions: ${c.length} · total ${c.reduce((a, x) => a + x.minutes, 0)} min · types: ${[...new Set(c.map((x) => (x.mode ? `${x.kind} ${x.mode.toLowerCase()}` : x.kind)))].join(', ') || 'none'}${c.some((x) => x.miles) ? ` · ${Math.round(c.reduce((a, x) => a + (x.miles ?? 0), 0) * 10) / 10} miles logged` : ''}`)
     if (st.length) out.push(`- Steps logged on ${st.length} days · average ${Math.round(avg(st.map((x) => x.steps))).toLocaleString()}/day`)
   }
 

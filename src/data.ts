@@ -13,7 +13,6 @@ export const GOALS: Record<Goal, string> = {
 export const LEVELS: Record<Level, string> = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' }
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const SPLIT: DayType[] = ['Push', 'Pull', 'Legs', 'Shoulders/Abs', 'Full Body']
-export const CARDIO_KINDS = ['Treadmill', 'StairMaster', 'Incline walk', 'Outdoor walk', 'Bike', 'Other']
 
 const e = (
   id: string, name: string, day: DayType, muscle: string, gear: Exercise['gear'],

@@ -1,4 +1,4 @@
-import { addDays, streak, todayISO } from './engine'
+import { addDays, sessionDays, streak, todayISO } from './engine'
 import type { AppData } from './types'
 
 export interface ProfileStats {
@@ -29,7 +29,7 @@ export const BADGES: { id: string; label: string; emoji: string; hint: string }[
 export function computeStats(d: AppData, today = todayISO(), options: { includePrivate?: boolean } = {}): ProfileStats {
   const done = new Set<string>()
   const logs = d.logs.filter((l) => !l.baseline && !l.imported && !l.skipped && l.date <= today)
-  for (const [date, c] of Object.entries(d.checkins)) if (c.done && date <= today) done.add(date)
+  for (const date of sessionDays(d)) if (date <= today) done.add(date)
   for (const l of logs) done.add(l.date)
   const timed = logs.filter((l) => l.minutes != null && Number.isFinite(l.minutes) && l.minutes! >= 0)
   const volume = logs.reduce((total, l) => total + l.entries.reduce((sum, e) => sum + e.sets.reduce((n, s) => n + (Number.isFinite(s.weight * s.reps) ? Math.max(0, s.weight) * Math.max(0, s.reps) : 0), 0), 0), 0)

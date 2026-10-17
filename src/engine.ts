@@ -448,7 +448,7 @@ export function cardioFinisher(p: Profile, day: DayType) {
   if (!p.cardio) return null
   if (day === 'Rest/Cardio') return p.goal === 'fat_loss' ? '30–40 min incline walk (3.0 mph, 10–12%) or bike' : '20–30 min easy cardio — walk, bike, or StairMaster'
   const mins = p.goal === 'fat_loss' ? '15–20' : p.goal === 'conditioning' ? '12–15' : '8–12'
-  return `${mins} min incline walk or StairMaster at a steady, conversational pace`
+  return `${mins} min incline walk, StairMaster or elliptical at a steady, conversational pace`
 }
 
 // ---------- progressive overload ----------
@@ -492,13 +492,25 @@ export const emptySets = (n: number, weight: number | null, reps = ''): SetEntry
 export const e1rm = (w: number, r: number) => Math.round(w * (1 + r / 30))
 
 // ---------- streaks / completion ----------
+/** One cardio session this long (in minutes) counts as a session for the day: the streak, the weekly count and the challenges. */
+export const CARDIO_SESSION_MIN = 30
+
+/** Days that count as a session: a finished workout, or a cardio session of 30 minutes or more. */
+export function sessionDays(d: AppData): Set<string> {
+  const out = new Set<string>()
+  for (const [date, c] of Object.entries(d.checkins)) if (c.done) out.add(date)
+  for (const c of d.cardio) if (c.minutes >= CARDIO_SESSION_MIN) out.add(c.date)
+  return out
+}
+
 export function streak(d: AppData, today = todayISO()) {
   const p = d.profile
   if (!p) return 0
+  const days = sessionDays(d)
   let n = 0
   let cur = today
   for (let i = 0; i < 400; i++) {
-    const done = !!d.checkins[cur]?.done
+    const done = days.has(cur)
     if (done) n++
     else if (cur !== today && isTrainingDay(cur, p)) break
     cur = addDays(cur, -1)
@@ -510,10 +522,11 @@ export function weekCounts(d: AppData, weeks = 8, today = todayISO()) {
   const out: { label: string; count: number }[] = []
   const t = fromISO(today)
   const startOfWeek = addDays(today, -t.getDay())
+  const days = sessionDays(d)
   for (let w = weeks - 1; w >= 0; w--) {
     const start = addDays(startOfWeek, -7 * w)
     let count = 0
-    for (let i = 0; i < 7; i++) if (d.checkins[addDays(start, i)]?.done) count++
+    for (let i = 0; i < 7; i++) if (days.has(addDays(start, i))) count++
     out.push({ label: start.slice(5), count })
   }
   return out

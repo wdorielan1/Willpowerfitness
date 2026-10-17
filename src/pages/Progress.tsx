@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { ConfirmSheet } from '../components'
 import { Link } from 'react-router-dom'
 import { useApp } from '../store'
-import { addDays, e1rm, fromISO, streak, todayISO, weekCounts } from '../engine'
+import { addDays, e1rm, fromISO, sessionDays, streak, todayISO, weekCounts } from '../engine'
+import { cardioName } from '../cardio'
 import { Icon } from '../icons'
 import { WeightChart } from '../WeightChart'
 import { StickerShareSheet } from '../StickerShare'
@@ -89,14 +90,14 @@ export default function Progress() {
   const weekSpan = Math.min(104, Math.max(8, Math.ceil(rangeDays / 7) + (range.days ? 0 : 1)))
   const weeks = weekCounts(data, weekSpan)
   const maxW = Math.max(1, ...weeks.map((w) => w.count))
-  const wkWorkouts = Object.entries(data.checkins).filter(([d, c]) => d >= rangeStart && c.done).length
+  const wkWorkouts = [...sessionDays(data)].filter((d) => d >= rangeStart).length // a cardio session of 30 minutes or more counts too
   const wkCardio = data.cardio.filter((c) => c.date >= rangeStart).sort((a, b) => b.date.localeCompare(a.date))
   const wkMin = wkCardio.reduce((a, c) => a + c.minutes, 0)
   // with lots of daily weigh-ins, compare the first and last week's averages instead of two single mornings
   const smoothDelta = wPts.length >= 14
   const avgOf = (a: { y: number }[]) => a.reduce((t, p) => t + p.y, 0) / a.length
   const wDelta = wPts.length > 1 ? Math.round(((smoothDelta ? avgOf(wPts.slice(-7)) - avgOf(wPts.slice(0, 7)) : wPts[wPts.length - 1].y - wPts[0].y)) * 10) / 10 : 0
-  const best = Math.max(0, ...Object.keys(data.checkins).sort().reduce<number[]>((acc, d) => { acc.push(data.checkins[d].done ? (acc.at(-1) ?? 0) + 1 : 0); return acc }, []))
+  const best = Math.max(0, streak(data), ...Object.keys(data.checkins).sort().reduce<number[]>((acc, d) => { acc.push(data.checkins[d].done ? (acc.at(-1) ?? 0) + 1 : 0); return acc }, []))
 
   const weeklyTarget = data.profile?.days.length ?? 3
   // the graphs people can turn into a transparent sticker to share
@@ -185,8 +186,8 @@ export default function Progress() {
       </section>
 
       <section className="progress-section" aria-labelledby="progress-cardio-title">
-        <div className="progress-section-head"><h2 id="progress-cardio-title">Cardio</h2><Link to="/log?t=cardio" className="progress-log" aria-label="Log cardio"><Icon name="plus" size={16} />Log</Link></div>
-        {wkCardio.length ? <div className="progress-cardio-list">{wkCardio.slice(0, cardioShown).map((c, i) => <div key={i} className="progress-cardio-row"><div><b>{c.kind}</b><time dateTime={c.date}>{dateLabel(c.date)}</time></div><span>{c.minutes} min</span></div>)}</div> : <p className="progress-empty">No cardio logged in {range.name.toLowerCase()}.</p>}
+        <div className="progress-section-head"><h2 id="progress-cardio-title">Cardio</h2><Link to="/cardio" className="progress-log" aria-label="Log cardio"><Icon name="plus" size={16} />Log</Link></div>
+        {wkCardio.length ? <div className="progress-cardio-list">{wkCardio.slice(0, cardioShown).map((c, i) => <div key={i} className="progress-cardio-row"><div><b>{cardioName(c)}</b><time dateTime={c.date}>{dateLabel(c.date)}</time></div><span>{c.minutes} min{c.miles ? ` · ${Math.round(c.miles * 10) / 10} mi` : ''}</span></div>)}</div> : <p className="progress-empty">No cardio logged in {range.name.toLowerCase()}.</p>}
         {wkCardio.length > cardioShown && <button type="button" className="progress-more" onClick={() => setCardioShown(cardioShown + 10)}>Show {Math.min(10, wkCardio.length - cardioShown)} more</button>}
       </section>
       {sharing && <StickerShareSheet title="Share your progress" intro={`${sharing.title} \u00b7 ${sharing.note}`} stickerKey={JSON.stringify(sharing)} buildSticker={(c) => buildGraphSticker(sharing, c)} shareText={`My ${sharing.title.toLowerCase()} progress on Will Power`} settings={data.settings} onPrefs={(patch) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }))} onClose={() => setShareKind(null)} toggle={shareKind === 'weight' ? { label: 'Hide my weight', on: hideWeight, onChange: (on) => update((d) => ({ ...d, settings: { ...d.settings, shareHideWeight: on } })), hint: hideWeight ? 'Shows the line and how much you changed, but not what you weigh.' : 'Shows your starting and current weight on the graph.' } : undefined} />}

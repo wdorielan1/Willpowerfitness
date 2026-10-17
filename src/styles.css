@@ -1667,3 +1667,18 @@ p.focus-note { margin: -4px 0 0; }
 .waiver { display: flex; gap: 12px; align-items: flex-start; text-align: left; line-height: 1.45; }
 .waiver input { flex: 0 0 auto; width: 24px; height: 24px; min-height: 0; margin-top: 2px; accent-color: var(--accent); }
 .adult-ask { display: grid; gap: 8px; }
+
+/* Cardio page: timer, weekly goal bar, history rows */
+.cardio-active { text-align: center; }
+.cardio-active .row { justify-content: center; }
+.cardio-clock { font-size: 56px; font-weight: 700; letter-spacing: -1px; font-variant-numeric: tabular-nums; padding: 6px 0; }
+.cardio-goal-bar { height: 8px; border-radius: 999px; background: var(--card2); overflow: hidden; }
+.cardio-goal-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.cardio-details summary { cursor: pointer; font-size: 13px; color: var(--mute); font-weight: 600; padding: 6px 0; }
+.cardio-details .grid2 { margin-top: 10px; }
+.cardio-history { display: grid; }
+.cardio-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 0; padding: 13px 0; border-radius: 0; border-bottom: 1px solid var(--line); background: transparent; font-weight: 500; font-size: 14px; text-align: left; }
+.cardio-row > span:first-child { display: grid; gap: 4px; min-width: 0; }
+.cardio-row b { font-weight: 600; overflow-wrap: anywhere; }
+.cardio-row time { color: var(--mute); font-size: 11px; }
+.cardio-row > span:last-child { color: var(--mute); white-space: nowrap; font-size: 13px; }

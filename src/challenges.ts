@@ -1,4 +1,4 @@
-import { addDays, fromISO } from './engine'
+import { addDays, fromISO, sessionDays } from './engine'
 import type { AppData, CustomChallenge, Metric } from './types'
 export type { Metric }
 export interface ChallengeDef {
@@ -53,7 +53,7 @@ export function scoreFor(inst: Instance, d: AppData, today: string): number {
   const last = inst.end < today ? inst.end : today
   const inWin = (date: string) => date >= inst.start && date <= last
   switch (inst.def.metric) {
-    case 'workouts': return Object.entries(d.checkins).filter(([k, v]) => inWin(k) && v.done).length
+    case 'workouts': return [...sessionDays(d)].filter(inWin).length
     case 'earlyWorkouts': return Object.entries(d.checkins).filter(([k, v]) => inWin(k) && v.done && d.started[k] && new Date(d.started[k]).getHours() < 6).length
     case 'steps': return d.steps.filter((s) => inWin(s.date)).reduce((a, s) => a + s.steps, 0)
     case 'cardioMin': return d.cardio.filter((c) => inWin(c.date)).reduce((a, c) => a + c.minutes, 0)
