@@ -562,6 +562,23 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Post something on your own account and open your Profile: the ring is there. Check again the next day (after 24 hours) and it is gone
 - [ ] Hovering or long-pressing the ringed photo shows "New post"
 
+## Cardio page
+- [ ] Train page: a Cardio card sits under "Your next workout" and above "Not feeling it?" with Start cardio and Log one
+- [ ] The Cardio page lists the machines: Treadmill, StairMaster, Elliptical, Outdoor walk, Bike, Other. Only Treadmill asks for a mode (Walk, Incline, Run, Sprints), and Incline is picked to start
+- [ ] "Suggested today" shows a line for today (a short finisher on a lifting day, a longer session on a rest day) when Include cardio is on
+- [ ] Start timer: the clock counts up. Pause and Resume work. Closing the app or locking the phone and coming back shows the right time (it uses the start time)
+- [ ] Finish opens "Finish session" with the minutes filled in. Change the minutes and Save: the session appears in "Your cardio" and the timer is gone. Closing the sheet instead leaves the timer paused with Resume
+- [ ] Discard this session asks first and saves nothing
+- [ ] Log one I already did: minutes are required, a future day is refused, and the day can be set to an earlier day. "More details" shows speed, incline and miles for the treadmill, level for StairMaster, level and miles for Elliptical and Bike, miles for Outdoor walk. A wrong number (like 99% incline) is refused with a message
+- [ ] Tap a session in the list to edit it (it saves in place, no copy). Delete this session asks first. Sessions logged before this update still show, edit and delete
+- [ ] Add a workout (on the Cardio page) goes to Train and scrolls to the workout picker. Picking "Cardio / recovery" in "Not feeling it?" opens the Cardio page
+- [ ] At the end of a lifting workout the cardio finisher has Start cardio and Log cardio, and both open the Cardio page
+- [ ] The old Quick log Cardio tab and the Siri Shortcut "cardio" open the Cardio page with the log sheet open. Quick log still has Body weight and Steps
+- [ ] 29 minutes of cardio does not count as a workout day. 30 minutes does: the day streak and "workouts" on Progress go up by one, and the "Most workouts" challenge counts it. The day's planned lifts are not marked done
+- [ ] Weekly goal is not mentioned at sign-up. It is not offered after one session. After the second session "Want a weekly cardio goal?" appears; Not now hides it for good (it is still under This week > Set a goal)
+- [ ] The goal sheet offers Days a week (1 to 7, with 20, 30, 45 or 60 minutes each) or Miles a week, never total minutes. This week shows a progress bar and the line, for example "1 of 4 days this week · 30+ min each" or "0 of 12 miles this week". Only sessions where miles were logged count toward miles. Change goal and Remove my goal work
+- [ ] Progress > Cardio lists each session with its mode and miles, and its Log button opens the Cardio page
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
