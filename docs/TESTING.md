@@ -569,6 +569,7 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Log a session of an activity (like Tennis, Yoga or StairMaster): the Activities card appears at the top of Achievements with a small oval for it. Log it again and there is still one oval. Log another activity and it adds a second oval
 - [ ] The ones you do most come first. 12 ovals show, then "+N more", which shows the rest when tapped
 - [ ] A friend's profile and a public profile (the /u/ link) show the same ovals once the person's profile has updated (it can take a moment after they log). Check the privacy page lists "the cardio activities you have logged"
+- [ ] Badge colours: each activity oval has its own colour (Tennis, Yoga, Golf and the rest differ, though two can match). The same badge is the same colour every time you look and on someone else's phone. Earned achievement tiles (First workout, 10 workouts, 7-day streak and so on) have their own colours too, and locked tiles stay grey
 
 ## Cardio page
 - [ ] Train page: a Cardio card sits under "Your next workout" and above "Not feeling it?" with Start cardio and Log one
