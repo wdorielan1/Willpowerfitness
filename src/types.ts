@@ -164,8 +164,12 @@ export interface AppData {
   steps: StepLog[]
   challengesJoined: string[] // challenge cohort ids
   handle?: string
-  /** Public profile page (anyone with the link). Off for existing members until they choose. */
+  /** Public profile page (anyone with the link), and their posts show in Explore. On for new accounts; they can switch it off. */
   profilePublic?: boolean
+  /** Set once the public default has been applied to this account. After that, whatever they choose in Settings sticks. */
+  publicDefault?: boolean
+  /** Show the one-time notice that this account was switched to public when Explore launched. */
+  publicNotice?: boolean
   bio?: string
   /** Profile photo they uploaded (small square JPEG as a data URL). Wins over the Google photo. */
   avatar?: string

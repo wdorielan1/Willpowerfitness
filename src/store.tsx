@@ -200,8 +200,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const mineUrl = base.avatar || (/^https:\/\//.test(photo) ? photo : null)
         setMyAvatar(u.id, mineUrl)
         void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null).then((r) => {
-          if (r && (dataRef.current.handle === undefined || dataRef.current.profilePublic === undefined)) {
-            update((d) => ({ ...d, handle: d.handle ?? r.handle, findByHandle: d.findByHandle ?? r.discoverable, profilePublic: d.profilePublic ?? r.isPublic }))
+          const cur = dataRef.current
+          if (r && (cur.handle === undefined || cur.profilePublic === undefined || !cur.publicDefault)) {
+            update((d) => {
+              const next = { ...d, handle: d.handle ?? r.handle, findByHandle: d.findByHandle ?? r.discoverable, profilePublic: d.profilePublic ?? r.isPublic }
+              if (next.publicDefault) return next
+              // Explore launched with everyone public: each account is switched to public once, with a notice, and after that their own choice sticks.
+              // A card that was only just made is already public, so there is nothing to tell them.
+              return { ...next, publicDefault: true, ...(next.profilePublic || r.created ? { profilePublic: true } : { profilePublic: true, publicNotice: true }) }
+            })
           }
           return mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined
         }).catch(() => {})

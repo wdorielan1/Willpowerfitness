@@ -14,8 +14,8 @@ export default function ProfileSettings() {
   return (
     <section className="card">
       <h3>Public profile</h3>
-      <p className="small mute">{on ? 'Anyone with your link can see your name, photo, bio, streak, calendar, badges, crews, and the posts you make while this is on. Those posts, with their photos and videos, also show in Explore for everyone on Will Power. Your weight and your full workout logs stay private.' : 'Your profile is private. Only people you’re connected with can open it.'}</p>
-      <button className="row full" style={{ background: 'var(--card2)', textAlign: 'left' }} role="switch" aria-checked={on} onClick={() => update((d) => ({ ...d, profilePublic: !on }))}>
+      <p className="small mute">{on ? 'Anyone with your link can see your name, photo, bio, streak, calendar, badges, crews, and the posts you make while this is on. Those posts, with their photos and videos, also show in Explore for everyone on Will Power. Your weight and your full workout logs stay private.' : 'Your profile is private. Only people you’re connected with can open it, and your posts stay with your crews.'}</p>
+      <button className="row full" style={{ background: 'var(--card2)', textAlign: 'left' }} role="switch" aria-checked={on} onClick={() => update((d) => ({ ...d, profilePublic: !on, publicDefault: true, publicNotice: false }))}>
         <span>Make my profile public<br /><span className="small mute">Posts you make while this is on show on your profile and in Explore. Older posts stay crew-only.</span></span>
         <span className={`tag ${on ? 'ok' : ''}`}>{on ? 'On' : 'Off'}</span>
       </button>

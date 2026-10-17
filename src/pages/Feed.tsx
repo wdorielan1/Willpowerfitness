@@ -286,7 +286,7 @@ export function groupPosts(posts: CrewPost[]): FeedPost[] {
  * Following is the public posts of people you follow. Needs no crew to read; with none it says how to get started.
  */
 export function HomeFeed() {
-  const { data, userId } = useApp()
+  const { data, userId, update } = useApp()
   const crews = useMyCrews()
   const crewIds = crews.map((c) => c.id)
   const [tab, setTabState] = useState<FeedTab>(() => { try { const v = localStorage.getItem('wpf.feedTab'); return v === 'crews' || v === 'following' ? v : 'explore' } catch { return 'explore' } })
@@ -304,6 +304,11 @@ export function HomeFeed() {
   const avatars = useFeedAvatars(posts.map((p) => p.userId ?? ''), crewIds)
   const tabs: [FeedTab, string][] = [['explore', 'Explore'], ['crews', 'My crews'], ['following', 'Following']]
   return <>
+    {data.publicNotice && <section className="card public-notice" role="status">
+      <b>Your profile is now public</b>
+      <p className="small mute">Your new posts show in Explore for everyone on Will Power. Older posts stay with your crews. You can switch this off anytime in Settings.</p>
+      <div className="row wrap"><Link to="/settings" className="btn ghost small-btn">Settings</Link><span style={{ flex: 1 }} /><button type="button" className="primary small-btn" onClick={() => update((d) => ({ ...d, publicNotice: false }))}>OK</button></div>
+    </section>}
     {feed && <div className="feed-tabs" role="group" aria-label="Which feed">{tabs.map(([id, label]) => <button key={id} type="button" className={tab === id ? 'on' : ''} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}</div>}
     <PostList posts={posts} refresh={feed?.refresh} avatars={avatars} crews={crews} tab={tab} />
   </>
