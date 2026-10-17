@@ -1180,7 +1180,7 @@ button.progress-log { background: transparent; color: var(--text); cursor: point
 /* with more than one picture the first is nearly full width and the next peeks in: one panel to roll through, no full swipe needed */
 .post-strip:not([data-count="1"]) { --w: 86%; scroll-snap-type: x proximity; }
 .post-strip:not([data-count="1"]) .post-strip-item { aspect-ratio: 4 / 5; scroll-snap-align: start; }
-.post-strip:not([data-count="1"]) .post-strip-item img { object-fit: contain; }
+.post-strip:not([data-count="1"]) .post-strip-item img { object-fit: cover; } /* each one fills its panel, edge to edge, no bars (tap a photo to see all of it) */
 .post-carousel { position: relative; display: grid; gap: 8px; min-width: 0; }
 .post-dots { display: flex; justify-content: center; gap: 6px; }
 .post-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
