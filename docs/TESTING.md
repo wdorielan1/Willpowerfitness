@@ -565,11 +565,14 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] With no post in the last day the photo has no ring and tapping it does nothing. On your own profile the edit-photo button still works either way
 
 ## Activity badges on profiles
-- [ ] With no cardio logged, Profile > Achievements has no Activities card at all (nothing hidden-but-visible, no empty box). Logging only "Other" adds nothing
-- [ ] Log a session of an activity (like Tennis, Yoga or StairMaster): the Activities card appears at the top of Achievements with a small oval for it. Log it again and there is still one oval. Log another activity and it adds a second oval
-- [ ] The ones you do most come first. 12 ovals show, then "+N more", which shows the rest when tapped
-- [ ] A friend's profile and a public profile (the /u/ link) show the same ovals once the person's profile has updated (it can take a moment after they log). Check the privacy page lists "the cardio activities you have logged"
+- [ ] The badge is earned after 5 sessions of an activity. With 4 Tennis sessions Profile > Achievements has no Activities card at all (no empty box). With 5 it shows a small "Tennis" oval at the top. Logging only "Other" adds nothing
+- [ ] The ones you do most come first. 12 ovals show, then "+N more", which shows the rest when tapped. A machine counts too (StairMaster, Treadmill, Elliptical, Bike, Outdoor walk)
+- [ ] A friend's profile and a public profile (the /u/ link) show the same ovals once the person's profile has updated (it can take a moment after they log). The privacy page lists "the cardio activities you have logged"
 - [ ] Badge colours: each activity oval has its own colour (Tennis, Yoga, Golf and the rest differ, though two can match). The same badge is the same colour every time you look and on someone else's phone. Earned achievement tiles (First workout, 10 workouts, 7-day streak and so on) have their own colours too, and locked tiles stay grey
+- [ ] Notifications: your first session of an activity adds a note at the top of Notifications ("You logged your first Tennis. Do it 4 more times and its badge goes on your profile"). The 5th adds "You earned the Tennis badge. It's on your profile now." Sessions 2, 3, 4 and 6 add nothing. The activity name is a coloured oval in the note
+- [ ] The bell counts these notes with your likes, comments and follows (signed in only). Opening Notifications marks them read after a moment and the count clears. Tapping the badge note opens your profile; the first-session note opens the Cardio page
+- [ ] Crew suggestion (your own Crew page only): after 5 sessions of a sport, a card says "You've done Tennis 5 times" with Start "Tennis crew". Tapping Start fills in the Start a new crew form (an Interests crew) and brings it into view. Nothing is created until you pick a time and place and press Create crew. Afterwards the card is gone
+- [ ] Not now hides the card for good. No card for a machine (Treadmill and so on), for the Other group (Yard work, Bowling, Playing with kids...), for fewer than 5 sessions, or when a crew with the sport in its name already exists. Running (outdoors) suggests "Running crew"
 
 ## Cardio page
 - [ ] Train page: a Cardio card sits under "Your next workout" and above "Not feeling it?" with Start cardio and Log one
