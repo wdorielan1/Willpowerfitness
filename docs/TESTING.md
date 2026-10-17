@@ -533,6 +533,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] The box still works from there: type and Post, Add photos, Add video, Share workout, and the crew chips when you are in more than one crew
 - [ ] With no crew yet, the box does not show and the week sits right under the greeting
 
+## Edit my week
+- [ ] On Home, the This week card has an "Edit week" button next to the sessions line. Tap it: "Edit this week" lists Monday to Sunday
+- [ ] Days already done or missed show Done or Missed and have no choices. Today and the days after each show Push, Pull, Legs, Shoulders + Abs, Full Body and Rest, with the current one lit
+- [ ] Tap Rest on a day: the week bar on Home shows Rest for it. Tap Legs on a rest day (like Sunday): it becomes Legs
+- [ ] Tap a day's usual workout again: nothing is left behind (the day behaves as normal)
+- [ ] Change today: the Train page starts that workout. Start a workout, then open Edit week: today cannot be changed any more, the days after can
+- [ ] "Put the week back to the plan" is greyed out until you change something, and then puts every changeable day back
+- [ ] Change a day and then finish the workout on it: the rotation carries on from where it was (the next day is not thrown off)
+- [ ] The press-and-hold drag and "Move this workout" on a day still work
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
