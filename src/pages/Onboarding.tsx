@@ -1,0 +1,179 @@
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Logo } from '../App'
+import { useApp } from '../store'
+import { Avatar } from '../components'
+import { todayISO } from '../engine'
+import { avatarFromFile, withTimeout } from '../photos'
+import { acceptInvite, ensureProfileCard, followCloud, handleToUser, joinCrewCloud } from '../cloud'
+import { allCommunities } from './Crew'
+import { DAY_NAMES, GOALS, LEVELS, COMMUNITIES, type CommunityDef } from '../data'
+import { suggestCrews } from '../matching'
+import MatchQuestions from '../MatchQuestions'
+import HistoryImporter from '../HistoryImporter'
+import { FocusPicker, SexPicker } from '../ProfilePickers'
+import { mergeLogs } from '../importer'
+import { fmtTime } from '../engine'
+import type { Gear, Goal, Level, Profile, WorkoutLog } from '../types'
+
+const empty: Profile = {
+  goal: 'muscle_gain', level: 'intermediate', days: [1, 2, 4, 5, 6], style: 'hypertrophy', gear: 'gym',
+  weight: 180, target: 175, time: '06:00', cardio: true, avoid: '', reminders: true, wantsCommunity: true,
+}
+
+export default function Onboarding() {
+  const { data, saveAccount, update, userId, email, avatarUrl, googlePhoto, setAvatar } = useApp()
+  const nav = useNavigate()
+  const [p, setP] = useState<Profile>(empty)
+  const [step, setStep] = useState(0)
+  const [pick, setPick] = useState<string | undefined>(undefined) // undefined = top match, 'solo' = no crew
+  const [more, setMore] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [imported, setImported] = useState<{ logs: WorkoutLog[]; sets: number } | null>(null)
+  const pending = useRef(false)
+  const photoInput = useRef<HTMLInputElement>(null)
+  const [photoMsg, setPhotoMsg] = useState('')
+  const choosePhoto = async (f?: File) => {
+    if (!f) return
+    try { setAvatar(await avatarFromFile(f)); setPhotoMsg('') } catch (e) { setPhotoMsg(e instanceof Error ? e.message : 'Could not use that photo. Try another one.') }
+  }
+  // keep what's typed as text so the box can be emptied and retyped (a number state turns '' into 0)
+  const [wText, setWText] = useState(String(empty.weight))
+  const [tText, setTText] = useState(String(empty.target))
+  const num = (t: string, fallback: number) => { const n = parseFloat(t); return n > 0 ? n : fallback }
+  const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }))
+  const toggleDay = (i: number) => set('days', p.days.includes(i) ? p.days.filter((d) => d !== i) : [...p.days, i].sort())
+
+  const invite = (() => { try { return JSON.parse(localStorage.getItem('wpf.invite') ?? 'null') as { ref?: string | null; crew?: string | null; u?: string | null; inv?: string | null } | null } catch { return null } })()
+  const invitedCrew = invite?.crew ? allCommunities(data.custom).find((c) => c.id === invite.crew) : undefined
+  const base = suggestCrews(p, COMMUNITIES as CommunityDef[])
+  const sugg = invitedCrew ? [{ crew: invitedCrew, score: 99, reasons: ['A friend invited you'] }, ...base.filter((s) => s.crew.id !== invitedCrew.id)] : base
+  const finish = async () => {
+    if (pending.current) return
+    pending.current = true; setSaving(true); setError('')
+    const chosen = p.wantsCommunity && pick !== 'solo' ? pick ?? sugg[0]?.crew.id ?? null : null
+    try {
+      if (userId && chosen) {
+        const membershipError = await withTimeout(joinCrewCloud(chosen, userId, data.name || 'Member', 0), 15000, 'Joining your crew')
+        if (membershipError) throw new Error(membershipError)
+      }
+      const saveError = await saveAccount((d) => ({
+        ...d, logs: imported ? mergeLogs(d.logs, imported.logs) : d.logs, profile: p, joined: chosen ? [...new Set([...d.joined, chosen])] : d.joined, primary: chosen,
+        weights: [...d.weights.filter((entry) => entry.date !== todayISO()), { date: todayISO(), lbs: p.weight }],
+      }))
+      if (saveError) throw new Error(saveError)
+      if (userId) void ensureProfileCard(userId, data.name || 'Member', null, email, data.adult).then((r) => { if (r) update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic, ...(r.created ? { publicDefault: true } : {}) })) }).catch(() => {})
+      if (userId && invite?.inv) void acceptInvite(invite.inv).catch(() => {}) // they and whoever invited them follow each other
+      if (userId && invite?.u && invite.u !== userId) void followCloud(userId, invite.u).catch(() => {})
+      else if (userId && invite?.ref) void handleToUser(invite.ref).then((id) => { if (id && id !== userId) void followCloud(userId, id) }).catch(() => {})
+      try { localStorage.removeItem('wpf.invite') } catch { /* ignore */ }
+      nav('/')
+    } catch (caught) {
+      setError(`Could not finish setup: ${caught instanceof Error ? caught.message : String(caught)}. Your answers are still here; try again.`)
+    } finally { pending.current = false; setSaving(false) }
+  }
+
+  const steps = [
+    <>
+      <h2>What are you training for?</h2>
+      <div className="chips">
+        {(Object.keys(GOALS) as Goal[]).map((g) => <button key={g} className={`chip ${p.goal === g ? 'on' : ''}`} onClick={() => set('goal', g)}>{GOALS[g]}</button>)}
+      </div>
+      <h3>Experience</h3>
+      <div className="chips">
+        {(Object.keys(LEVELS) as Level[]).map((l) => <button key={l} className={`chip ${p.level === l ? 'on' : ''}`} onClick={() => set('level', l)}>{LEVELS[l]}</button>)}
+      </div>
+      <h3>Training style</h3>
+      <div className="chips">
+        {([['hypertrophy', 'Bodybuilding'], ['strength', 'Strength'], ['mixed', 'Mixed']] as const).map(([k, l]) => <button key={k} className={`chip ${p.style === k ? 'on' : ''}`} onClick={() => set('style', k)}>{l}</button>)}
+      </div>
+      <h3>Body parts to focus on</h3>
+      <FocusPicker value={p.focus ?? []} onChange={(v) => set('focus', v)} />
+    </>,
+    <>
+      <h2>Your schedule</h2>
+      <h3>Training days</h3>
+      <div className="chips">
+        {DAY_NAMES.map((n, i) => <button key={n} className={`chip ${p.days.includes(i) ? 'on' : ''}`} onClick={() => toggleDay(i)}>{n}</button>)}
+      </div>
+      <label>Preferred workout time<input type="time" value={p.time} onChange={(e) => set('time', e.target.value)} /></label>
+      <h3>Equipment</h3>
+      <div className="chips">
+        {([['gym', 'Full gym'], ['db', 'Dumbbells only'], ['bw', 'Bodyweight']] as [Gear, string][]).map(([k, l]) => <button key={k} className={`chip ${p.gear === k ? 'on' : ''}`} onClick={() => set('gear', k)}>{l}</button>)}
+      </div>
+      <label>Injuries or exercises to avoid (comma separated)<input value={p.avoid} onChange={(e) => set('avoid', e.target.value)} placeholder="e.g. shoulder, lunge" /></label>
+    </>,
+    <>
+      <h2>Your numbers</h2>
+      <h3>Sex</h3>
+      <SexPicker value={p.sex} onChange={(v) => set('sex', v)} />
+      <div className="grid2">
+        <label>Current weight (lb)<input inputMode="decimal" value={wText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setWText(v); set('weight', num(v, p.weight)) }} /></label>
+        <label>Target weight (lb)<input inputMode="decimal" value={tText} onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setTText(v); set('target', num(v, p.target)) }} /></label>
+      </div>
+      <Toggle label="Include cardio" on={p.cardio} onClick={() => set('cardio', !p.cardio)} />
+      <Toggle label="Send me accountability reminders" on={p.reminders} onClick={() => set('reminders', !p.reminders)} />
+      <Toggle label="Join a workout community" on={p.wantsCommunity} onClick={() => set('wantsCommunity', !p.wantsCommunity)} />
+    </>,
+    <>
+      <h2>Add a profile photo</h2>
+      <p className="mute small">We recommend it. Friends find and follow you faster, and your posts show your face in your crew and in Explore. It stays small and square, and you can change or remove it anytime in your profile.</p>
+      <div className="onboard-photo">
+        <Avatar name={data.name} url={avatarUrl} size={112} />
+        <input ref={photoInput} type="file" accept="image/*" hidden aria-label="Choose a profile photo" onChange={(e) => { void choosePhoto(e.target.files?.[0]); e.target.value = '' }} />
+        <button type="button" className={avatarUrl ? 'ghost' : 'primary'} onClick={() => photoInput.current?.click()}>{avatarUrl ? 'Change photo' : 'Choose a photo'}</button>
+        {data.avatar && <button type="button" className="quiet-button" onClick={() => { setAvatar(null); setPhotoMsg('') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
+      </div>
+      {googlePhoto && !data.avatar && <p className="small ok-text">We are using your Google photo. Choose another if you like.</p>}
+      {photoMsg && <p className="err small" role="alert">{photoMsg}</p>}
+      <p className="small mute">{avatarUrl ? 'Looking good.' : 'Optional. Tap Skip for now to add one later.'}</p>
+    </>,
+    <>
+      <h2>Bring your lifting history</h2>
+      <p className="mute small">Optional. If you track your lifts with ChatGPT or Claude, bring them so you don’t start from scratch. No AI? Just tap Next. You can also do this later in Settings.</p>
+      {imported
+        ? <p className="ok-text">✓ {imported.sets} sets across {imported.logs.length} workout{imported.logs.length === 1 ? '' : 's'} ready. They’ll be added when you finish setup. <button className="ghost small-btn" onClick={() => setImported(null)}>Remove</button></p>
+        : <HistoryImporter importLabel={(n) => `Use these ${n} sets`} onImport={(r) => setImported({ logs: r.logs, sets: r.setCount })} />}
+    </>,
+    <>
+      <h2>Help us find your crew</h2>
+      <p className="mute small">Three quick, optional questions. We use them to suggest people like you. Skip anything you want.</p>
+      <MatchQuestions p={p} onChange={(patch) => setP((x) => ({ ...x, ...patch }))} />
+    </>,
+    <>
+      <h2>Your best matches</h2>
+      <p className="mute small">Based on your answers. Pick one to start, or go solo. You can change this anytime.</p>
+      {sugg.slice(0, more ? 8 : 3).map((s, i) => {
+        const on = (pick ?? sugg[0]?.crew.id) === s.crew.id
+        return (
+          <button key={s.crew.id} className={`card full ${on ? 'hero' : ''}`} style={{ textAlign: 'left', justifyContent: 'flex-start', display: 'grid' }} onClick={() => setPick(s.crew.id)}>
+            <div className="row"><b>{s.crew.name}</b>{i === 0 && <span className="tag ok">Best match</span>}</div>
+            <span className="small mute">{s.crew.vibe} · {fmtTime(s.crew.time)} · {s.crew.members} members</span>
+            <span className="chips">{s.reasons.map((r) => <span key={r} className="tag">{r}</span>)}</span>
+          </button>
+        )
+      })}
+      {sugg.length > 3 && !more && <button className="ghost" onClick={() => setMore(true)}>Show a few more</button>}
+      <button className={`chip ${pick === 'solo' ? 'on' : ''}`} style={{ justifySelf: 'start' }} onClick={() => setPick('solo')}>Skip, I’ll train solo for now</button>
+    </>,
+  ]
+  const total = p.wantsCommunity ? 7 : 5
+  const last = step === total - 1
+
+  return (
+    <div className="auth" style={{ alignContent: 'start' }}>
+      <div className="row"><div className="brand" style={{ display: 'flex', gap: 10, alignItems: 'center' }}><Logo size={34} /><b>Hey {data.name || 'there'}</b></div><span className="tag">{step + 1} / {total}</span></div>
+      <div className="card">{steps[step]}</div>
+      {error && <p className="err" role="alert">{error}</p>}
+      <div className="row">
+        {step > 0 ? <button className="ghost" disabled={saving} onClick={() => setStep(step - 1)}>Back</button> : <span />}
+        {last ? <button className="primary" disabled={saving} onClick={() => void finish()}>{saving ? 'Saving setup…' : 'Start showing up'}</button> : <button className="primary" disabled={step === 2 && !p.sex} onClick={() => setStep(step + 1)}>{step === 3 && !avatarUrl ? 'Skip for now' : 'Next'}</button>}
+      </div>
+    </div>
+  )
+}
+
+function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return <button className="row full" style={{ background: 'var(--card2)' }} onClick={onClick}><span>{label}</span><span className={`tag ${on ? 'ok' : ''}`}>{on ? 'Yes' : 'No'}</span></button>
+}
