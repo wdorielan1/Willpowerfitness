@@ -9,6 +9,7 @@ import { Icon } from '../icons'
 import type { WorkoutLog } from '../types'
 import { FeedComposer, HomeFeed, ShareWorkoutSheet } from './Feed'
 import { WeekStrip, useWeekMove } from '../WeekStrip'
+import { EditWeek } from '../EditWeek'
 import { useMyCrews } from '../CrewPicker'
 import { HomePeople } from '../HomePeople'
 
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [peek, setPeek] = useState<WeekDay | null>(null)
   const [sharing, setSharing] = useState<WorkoutLog | null>(null)
   const [justHid, setJustHid] = useState(false)
+  const [editing, setEditing] = useState(false)
   const mover = useWeekMove(week, today)
   const setHidden = (hideNutrition: boolean) => update((d) => ({ ...d, settings: { ...d.settings, hideNutrition } }))
 
@@ -43,7 +45,7 @@ export default function Dashboard() {
       <Greeting name={data.name} done={ci.done} rest={rest} />
       {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
       <section className="week-summary" aria-label="This week’s training">
-        <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
+        <div className="section-head"><h2>This week</h2><span className="week-head-actions"><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span><button type="button" className="quiet-action" onClick={() => setEditing(true)}>Edit week</button></span></div>
         <WeekStrip week={week} today={today} mover={mover} onOpen={setPeek} />
       </section>
 
@@ -72,6 +74,7 @@ export default function Dashboard() {
       <HomeFeed />
 
       {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}
+      {editing && <EditWeek week={week} today={today} onClose={() => setEditing(false)} />}
       {peek && (() => {
         const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
         const rest = peek.planned === 'Rest/Cardio'

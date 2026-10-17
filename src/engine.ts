@@ -656,6 +656,36 @@ export function moveWorkout(d: AppData, from: string, to: string, today = todayI
   return out
 }
 
+/** Days of this week that can be set to something else: today (unless it is already underway) and the days after it that have not been done. */
+export function editableDays(d: AppData, today = todayISO(), week: WeekDay[] = weekSchedule(d, today)): Set<string> {
+  const underway = !!d.started?.[today] || Object.keys(d.drafts?.[today]?.sets ?? {}).length > 0
+  return new Set(week.filter((w) => w.date >= today && !(w.date === today && underway) && (w.status === 'today' || w.status === 'upcoming' || w.status === 'rest')).map((w) => w.date))
+}
+
+/**
+ * Set one day of this week to a workout (or to rest), whatever the rotation says. Other days stay as they are and the rotation
+ * carries on from where it was, like moving a workout does. Does nothing for a day that cannot be changed (see editableDays).
+ */
+export function setDayType(d: AppData, date: string, type: DayType, today = todayISO()): AppData {
+  const week = weekSchedule(d, today)
+  const w = week.find((x) => x.date === date)
+  if (!w || w.planned === type || !editableDays(d, today, week).has(date)) return d
+  // what the rotation alone gives this day, so choosing it again leaves no override behind
+  const natural = weekSchedule({ ...d, dayOverride: {} }, today).find((x) => x.date === date)?.planned
+  const dayOverride: Record<string, DayType> = { ...d.dayOverride, [date]: type }
+  if (dayOverride[date] === natural) delete dayOverride[date]
+  return clearDayChoices({ ...d, dayOverride }, date) // a different workout starts clean
+}
+
+/** Put every day of this week that can still change back to what the rotation gives. */
+export function resetWeek(d: AppData, today = todayISO()): AppData {
+  const week = weekSchedule(d, today)
+  const open = editableDays(d, today, week)
+  let out: AppData = { ...d, dayOverride: Object.fromEntries(Object.entries(d.dayOverride).filter(([date]) => !open.has(date))) }
+  for (const date of open) out = clearDayChoices(out, date)
+  return out
+}
+
 /**
  * Whole workouts that did not happen, for the "what's in the way?" check-in: their most recent scheduled session was missed (or
  * skipped on purpose) and so was the one before it, or one more of the same kind (say Legs twice) in the last four weeks. Read from

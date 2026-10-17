@@ -1548,3 +1548,11 @@ p.focus-note { margin: -4px 0 0; }
 
 /* the profile photo step of setup */
 .onboard-photo { display: grid; gap: 10px; justify-items: center; padding: 6px 0; }
+
+/* Edit this week: every day on one screen */
+.week-head-actions { display: inline-flex; align-items: center; gap: 12px; }
+.edit-week { display: grid; gap: 10px; }
+.edit-week-day { display: grid; gap: 8px; padding: 10px 12px; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; }
+.edit-week-day.is-today { border-color: var(--accent); }
+.edit-week-day.locked { opacity: .7; }
+.edit-week-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
