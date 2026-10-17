@@ -218,7 +218,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onPick, onSh
     setSelected(id)
     if (id === 'build' || already) return
     onPick(item.day, item.focus, item.ids)
-    if (item.day !== 'Rest/Cardio') setTimeout(() => document.getElementById('train-next')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
+    if (item.day !== 'Rest/Cardio') setTimeout(() => document.getElementById('train-next')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60) // the card is above the picker
   }
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
   const isBuild = choice.id === 'build'
@@ -625,12 +625,7 @@ export default function Workout() {
     return (
       <div className="workout-chooser">
         <WeekPlanner onMakeUp={chooseDay} />
-        <div id="train-chooser" />
-        <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
-          onPick={chooseDay} onStart={beginWith}
-          onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
-          onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} />
-        {/* the workout you are about to start, last: pick above, then start here */}
+        {/* the workout you are about to start sits right under the week; the switch picker is below it */}
         <div id="train-next">
           <TodaySession onChange={() => document.getElementById('train-chooser')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} beforeStart={(go) => { if (data.settings.equipAsked) go(); else setAskEquip(() => go) }} />
         </div>
@@ -639,6 +634,11 @@ export default function Workout() {
           onClose={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null) }}
           onSkip={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); askEquip(); setAskEquip(null) }}
           onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
+        <div id="train-chooser" />
+        <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
+          onPick={chooseDay} onStart={beginWith}
+          onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
+          onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} />
       </div>
     )
   }
