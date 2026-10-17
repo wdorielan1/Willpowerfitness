@@ -50,6 +50,11 @@ export const sameLog = (a: CardioLog, b: CardioLog) =>
 
 export const UNIT_LABEL: Record<CardioField, string> = { speed: 'Speed (mph)', incline: 'Incline (%)', level: 'Level', miles: 'Miles' }
 
+/** A cardio timer that has run this many hours asks "Still doing cardio?" (longer than the workout one: a round of golf takes hours). */
+export const CARDIO_ASK_HOURS = 4
+/** If nobody answers within this many minutes, the timer is paused where the question came up, not discarded. */
+export const CARDIO_GRACE_MIN = 30
+
 /** How long a running timer has gone, not counting time it was paused. */
 export const elapsedMs = (a: CardioActive, now = Date.now()) => Math.max(0, (a.pausedAt ?? now) - a.startedAt - a.pausedMs)
 

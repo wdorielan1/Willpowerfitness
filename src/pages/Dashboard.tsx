@@ -12,6 +12,7 @@ import { WeekPlanner } from '../WeekPlanner'
 import { useMyCrews } from '../CrewPicker'
 import { HomePeople } from '../HomePeople'
 import { AdultCheck } from '../AdultCheck'
+import { CardioBar } from '../CardioBar'
 
 /** "Good evening, Will" at the top of the page. It re-reads the clock every minute so it changes on its own at 5, 12, 17 and 22 o'clock. */
 function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boolean }) {
@@ -37,6 +38,7 @@ export default function Dashboard() {
   return (
     <>
       <Greeting name={data.name} done={ci.done} rest={rest} />
+      <CardioBar />
       {userId && data.ageConfirmed && data.adult === undefined && <AdultCheck />}
       {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
       <WeekPlanner />

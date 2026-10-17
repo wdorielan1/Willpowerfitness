@@ -1690,3 +1690,12 @@ p.focus-note { margin: -4px 0 0; }
 .activity-cat summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; font-weight: 600; font-size: 14px; list-style: none; }
 .activity-cat summary > span { color: var(--mute); font-size: 12px; font-weight: 500; }
 .activity-cat[open] .chips { padding: 4px 0 12px; }
+
+/* A running cardio timer, on Home: a quiet row, not a banner */
+.cardio-bar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.cardio-bar-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.cardio-bar.paused .cardio-bar-dot { background: var(--mute); }
+.cardio-bar-text { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: 13px; }
+.cardio-bar-text b { font-weight: 600; }
+.cardio-bar-text span { color: var(--mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardio-bar time { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; }

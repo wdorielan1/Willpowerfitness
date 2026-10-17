@@ -4,7 +4,7 @@ import { ConfirmSheet, Sheet } from '../components'
 import { useApp } from '../store'
 import { CARDIO_SESSION_MIN, cardioFinisher, dayFor, fromISO, todayISO } from '../engine'
 import {
-  DEFAULT_MACHINE, DEFAULT_MODE, GOAL_DAY_MINUTES, GOAL_MILES, MACHINES, SESSION_NOTE, UNIT_LABEL,
+  CARDIO_ASK_HOURS, DEFAULT_MACHINE, DEFAULT_MODE, GOAL_DAY_MINUTES, GOAL_MILES, MACHINES, SESSION_NOTE, UNIT_LABEL,
   cardioName, clockText, elapsedMs, goalProgress, goalText, machineOf, newCardioId, recentSports, sameLog, shouldOfferGoal, weekCardio, workoutRunning,
 } from '../cardio'
 import { POPULAR_SPORTS, SPORTS, SPORT_CATEGORIES, findSports, sportOf } from '../sports'
@@ -177,6 +177,7 @@ export default function Cardio() {
   const running = !!active && !active.pausedAt
 
   useEffect(() => { if (sp.get('log')) { setSheet({ kind: 'log' }); setSp({}, { replace: true }) } }, [sp, setSp])
+  useEffect(() => { if (sp.get('finish') && active) { finish(); setSp({}, { replace: true }) } }, [sp, setSp, active]) // eslint-disable-line react-hooks/exhaustive-deps -- from "Still doing cardio?"
   useEffect(() => {
     if (!running) return
     setNow(Date.now())
@@ -196,12 +197,13 @@ export default function Cardio() {
     update((d) => ({ ...d, cardioActive: { kind, mode: kind === 'Treadmill' ? mode : undefined, startedAt: Date.now(), pausedMs: 0 } }))
   }
   const pause = () => update((d) => (d.cardioActive && !d.cardioActive.pausedAt ? { ...d, cardioActive: { ...d.cardioActive, pausedAt: Date.now() } } : d))
-  const resume = () => update((d) => (d.cardioActive?.pausedAt ? { ...d, cardioActive: { ...d.cardioActive, pausedMs: d.cardioActive.pausedMs + (Date.now() - d.cardioActive.pausedAt), pausedAt: undefined } } : d))
+  // resuming after the app paused it (nobody answered "Still doing cardio?") gives another hour before it asks again
+  const resume = () => update((d) => (d.cardioActive?.pausedAt ? { ...d, cardioActive: { ...d.cardioActive, pausedMs: d.cardioActive.pausedMs + (Date.now() - d.cardioActive.pausedAt), pausedAt: undefined, autoPaused: undefined, ...(d.cardioActive.autoPaused ? { extendHours: (d.cardioActive.extendHours ?? 0) + 1 } : {}) } } : d))
   const finish = () => {
     if (!active) return
     const ms = elapsedMs({ ...active, pausedAt: active.pausedAt ?? Date.now() })
     pause() // the clock stops while they fill it in; closing the sheet leaves it paused with Resume
-    setSheet({ kind: 'finish', minutes: Math.min(180, Math.max(1, Math.round(ms / 60000))), long: ms > 3 * 3600_000 })
+    setSheet({ kind: 'finish', minutes: Math.min(600, Math.max(1, Math.round(ms / 60000))), long: ms > 3 * 3600_000 })
   }
   const saved = (log: CardioLog, timer = false) => {
     update((d) => ({ ...d, cardio: [...d.cardio, log], ...(timer ? { cardioActive: undefined } : {}) }))
@@ -228,6 +230,7 @@ export default function Cardio() {
           <p className="overline">{active.pausedAt ? 'Paused' : 'In progress'}</p>
           <h2>{cardioName(active)}</h2>
           <div className="cardio-clock" role="timer" aria-label="Time so far">{clockText(elapsedMs(active, now))}</div>
+          {active.autoPaused && <p className="small mute">Paused automatically after {CARDIO_ASK_HOURS + (active.extendHours ?? 0)} hours. Finish to save the time so far, or Resume.</p>}
           <div className="row wrap">
             {active.pausedAt ? <button type="button" className="ghost" onClick={resume}>Resume</button> : <button type="button" className="ghost" onClick={pause}>Pause</button>}
             <button type="button" className="primary" onClick={finish}>Finish</button>

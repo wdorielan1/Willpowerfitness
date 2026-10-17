@@ -82,7 +82,13 @@ export interface CardioLog {
 /** A weekly cardio goal the person chose: some days of at least so many minutes, or a number of miles. */
 export type CardioGoal = { kind: 'days'; days: number; minutes: number } | { kind: 'miles'; miles: number }
 /** A cardio timer that is running, kept here so it survives closing the app or locking the phone. */
-export interface CardioActive { kind: string; mode?: string; startedAt: number; pausedAt?: number; pausedMs: number }
+export interface CardioActive {
+  kind: string; mode?: string; startedAt: number; pausedAt?: number; pausedMs: number
+  /** Hours added when they answered "Still doing cardio?" with keep going. */
+  extendHours?: number
+  /** The app paused it because nobody answered "Still doing cardio?"; the time up to then is kept. */
+  autoPaused?: boolean
+}
 export interface WeightLog { date: string; lbs: number }
 export interface Draft { sets: Record<string, SetEntry[]>; notes: Record<string, string>; rpe?: Record<string, string>; completed?: Record<string, boolean[]>; touched?: Record<string, boolean[]> /* sets whose reps the user typed */ }
 export interface Message { id: string; community: string; who: string; text: string; ts: number; mine?: boolean }

@@ -25,6 +25,7 @@ import Challenges, { ChallengeSync } from './pages/Challenges'
 import Settings from './pages/Settings'
 import { RestTimerProvider } from './RestTimer'
 import { WorkoutGuard } from './components'
+import { CardioGuard } from './CardioGuard'
 import Photos from './pages/Photos'
 import ImportHistory from './pages/ImportHistory'
 import Privacy from './pages/Privacy'
@@ -97,6 +98,7 @@ export default function App() {
     <div className={`shell ${training ? 'training' : ''} ${loc.pathname === '/profile' || loc.pathname.startsWith('/friend/') ? 'profile-shell' : ''}`}>
       <ScrollTop />
       <WorkoutGuard />
+      <CardioGuard />
       <ChallengeSync />
       <header className="top">
         <Link to="/" className="brand"><Logo size={30} /><span>WILL POWER</span></Link>
