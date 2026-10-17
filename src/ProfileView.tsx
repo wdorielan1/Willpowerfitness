@@ -100,6 +100,10 @@ function PostTile({ post, url, onOpen }: { post: PublicPost; url?: string; onOpe
   </button>
 }
 
+/** The orange ring on a profile photo means a post in the last day, like a story ring. Without a recent post the photo has no ring. */
+const NEW_POST_MS = 24 * 3600 * 1000
+const hasNewPost = (posts?: PublicPost[] | null, now = Date.now()) => (posts ?? []).some((x) => now - x.ts < NEW_POST_MS)
+
 export interface ProfileViewProps {
   name: string; handle?: string | null; avatar?: string | null; bio?: string | null
   stats?: ProfileStats | null; posts?: PublicPost[] | null
@@ -121,10 +125,11 @@ export default function ProfileView(p: ProfileViewProps) {
   const crews = st.crews ?? []
   const thumbnails = (p.posts ?? []).flatMap((post) => postPhotos(post).slice(0, 1))
   const urls = usePhotoUrls(thumbnails, CREW_BUCKET)
+  const fresh = hasNewPost(p.posts)
   return <div className="pv">
     <section className="pv-head" aria-label="Profile">
       <div className="pv-identity">
-        <div className="pv-avatar"><Avatar key={p.avatar} name={p.name} url={p.avatar} />{p.onEditAvatar && <button className="pv-avatar-edit" aria-label="Change profile photo" onClick={p.onEditAvatar}><Icon name="edit" size={17} /></button>}</div>
+        <div className={`pv-avatar${fresh ? ' has-new' : ''}`} title={fresh ? 'New post' : undefined}><Avatar key={p.avatar} name={p.name} url={p.avatar} />{p.onEditAvatar && <button className="pv-avatar-edit" aria-label="Change profile photo" onClick={p.onEditAvatar}><Icon name="edit" size={17} /></button>}</div>
         <div className="pv-intro"><h1 className="pv-name">{p.name}</h1>{p.handle && <p className="pv-handle">@{p.handle}</p>}{p.bio && <p className="pv-bio">{p.bio}</p>}</div>
       </div>
       {p.actions && <div className="pv-actions">{p.actions}</div>}
