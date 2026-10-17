@@ -41,6 +41,7 @@ export default function Dashboard() {
   return (
     <>
       <Greeting name={data.name} done={ci.done} rest={rest} />
+      {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
       <section className="week-summary" aria-label="This week’s training">
         <div className="section-head"><h2>This week</h2><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span></div>
         <WeekStrip week={week} today={today} mover={mover} onOpen={setPeek} />
@@ -67,7 +68,6 @@ export default function Dashboard() {
           </section>
         : justHid && <p className="small mute today-nutrition-hidden" role="status">Nutrition is hidden from Home. Bring it back in Settings. <button type="button" className="quiet-action" onClick={() => { setHidden(false); setJustHid(false) }}>Undo</button></p>}
 
-      {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
       <HomePeople />
       <HomeFeed />
 
