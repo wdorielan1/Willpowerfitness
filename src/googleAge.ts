@@ -1,4 +1,4 @@
-import { MIN_AGE, ageFrom } from './age'
+import { ADULT_AGE, MIN_AGE, ageFrom } from './age'
 
 /**
  * Lets people who sign in with Google skip the age page: Google already holds a birthday, so we ask Google for it (with the
@@ -19,8 +19,8 @@ let pending: Promise<GoogleAge> | null = null
 /** Called with the session Google sign in hands back. The token stays in memory only and is used once. */
 export function rememberGoogleToken(t?: string | null) { if (GOOGLE_BIRTHDAY_ON && t && !pending) token = t }
 
-/** ok: 13 or older. young: under 13. unknown: no usable birthday (not shared, no year, not a Google sign in, any error), so ask on the age page. */
-export type GoogleAge = 'ok' | 'young' | 'unknown'
+/** adult: 18 or older. ok: 13 to 17. young: under 13. unknown: no usable birthday (not shared, no year, not a Google sign in, any error), so ask on the age page. */
+export type GoogleAge = 'adult' | 'ok' | 'young' | 'unknown'
 
 type Birthday = { metadata?: { source?: { type?: string } }; date?: { year?: number; month?: number; day?: number } }
 
@@ -33,7 +33,7 @@ export async function checkGoogleAge(t: string, fetcher: typeof fetch = fetch, n
     if (!pick?.date) return 'unknown' // a birthday with no year can't give an age
     const { year, month, day } = pick.date
     const age = ageFrom(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, now)
-    return age === null ? 'unknown' : age >= MIN_AGE ? 'ok' : 'young'
+    return age === null ? 'unknown' : age >= ADULT_AGE ? 'adult' : age >= MIN_AGE ? 'ok' : 'young'
   } catch { return 'unknown' }
 }
 

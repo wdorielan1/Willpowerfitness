@@ -30,7 +30,7 @@ export default function Friends() {
   // people who skipped the handle step still get a card, so friends can follow them
   useEffect(() => {
     if (!userId || !cloudEnabled || data.handle) return
-    void ensureProfileCard(userId, data.name || 'Member', null, email).then((r) => { if (r) { setHandle(r.handle); update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic, ...(r.created ? { publicDefault: true } : {}) })) } }).catch(() => {})
+    void ensureProfileCard(userId, data.name || 'Member', null, email, data.adult).then((r) => { if (r) { setHandle(r.handle); update((d) => (d.handle ? d : { ...d, handle: r.handle, findByHandle: r.discoverable, profilePublic: r.isPublic, ...(r.created ? { publicDefault: true } : {}) })) } }).catch(() => {})
   }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { link, inviteCode, copied, showLink, share, copy: copyLink } = useInvite()

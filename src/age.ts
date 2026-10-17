@@ -1,5 +1,7 @@
 /** The youngest age Will Power allows (the Terms and Privacy pages say 13). */
 export const MIN_AGE = 13
+/** At 18 and over a profile starts public (posts show in Explore); 13 to 17 starts private, with the choice to go public. */
+export const ADULT_AGE = 18
 
 const toDate = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d) }
 
@@ -15,16 +17,16 @@ export function ageFrom(dob: string, now = new Date()): number | null {
   return age
 }
 
-export type AgeCheck = { ok: true } | { ok: false; reason: 'invalid' | 'young'; message: string }
+export type AgeCheck = { ok: true; adult: boolean } | { ok: false; reason: 'invalid' | 'young'; message: string }
 export const YOUNG_MESSAGE = 'Will Power is for people 13 and older, so we can’t create an account for you.'
 export const NOT_ALLOWED_MESSAGE = 'Will Power is for people 13 and older, so we can’t let you use it.'
 
-/** Is this date of birth old enough? The date itself is never stored; only the answer is used. */
+/** Is this date of birth old enough, and is the person 18 or older? The date itself is never stored; only those answers are used. */
 export function checkAge(dob: string, now = new Date()): AgeCheck {
   const age = ageFrom(dob, now)
   if (age === null) return { ok: false, reason: 'invalid', message: dob ? 'That doesn’t look like a real date of birth.' : 'Enter your date of birth.' }
   if (age < MIN_AGE) return { ok: false, reason: 'young', message: YOUNG_MESSAGE }
-  return { ok: true }
+  return { ok: true, adult: age >= ADULT_AGE }
 }
 
 // ---- what this device remembers (browser storage; it can come back empty, so every read and write is guarded) ----

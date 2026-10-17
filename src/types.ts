@@ -126,6 +126,8 @@ export interface AppData {
   name: string
   /** The day they confirmed they are 13 or older. Their date of birth is never saved. */
   ageConfirmed?: string
+  /** From the age check, which never keeps the date of birth: true is 18 or older (profile starts public), false is 13 to 17 (starts private). Missing on accounts older than this rule; they are asked once. */
+  adult?: boolean
   profile: Profile | null
   joined: string[]
   primary: string | null

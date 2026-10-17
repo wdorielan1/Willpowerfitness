@@ -551,7 +551,7 @@ const handleBase = (email: string | null | undefined, name: string) => {
   return base
 }
 /** Everyone gets a profile card so friends can follow them and open their profile. New cards use a handle from their email and are findable by name or handle (they can switch that off on the Friends tab). */
-export async function ensureProfileCard(userId: string, name: string, avatar?: string | null, email?: string | null): Promise<CardResult | null> {
+export async function ensureProfileCard(userId: string, name: string, avatar?: string | null, email?: string | null, adult?: boolean): Promise<CardResult | null> {
   if (!supabase) return null
   const have = (await cardQuery((c) => c.eq('user_id', userId)))[0]
   if (have?.handle) {
@@ -564,10 +564,11 @@ export async function ensureProfileCard(userId: string, name: string, avatar?: s
   for (let i = 0; i < 5; i++) {
     const handle = i === 0 ? base : `${base}${Math.floor(10 + Math.random() * 9000)}`.slice(0, 20)
     const row = { user_id: userId, handle, name: name || 'Member', discoverable_handle: true, discoverable_email: false }
-    const rich = { ...row, is_public: true, ...(avatar ? { avatar_url: avatar } : {}) }
+    // 18 and over start public; 13 to 17 (and anyone whose age is not known yet) start private and choose in Settings
+    const rich = { ...row, is_public: adult === true, ...(avatar ? { avatar_url: avatar } : {}) }
     let { error } = await supabase.from('public_profiles').insert(rich as never)
     if (error && error.code !== '23505') ({ error } = await supabase.from('public_profiles').insert(row))
-    if (!error) return { handle, created: true, discoverable: true, isPublic: true }
+    if (!error) return { handle, created: true, discoverable: true, isPublic: adult === true }
     if (error.code !== '23505') return null
     const again = (await cardQuery((c) => c.eq('user_id', userId)))[0]
     if (again?.handle) return { handle: again.handle, created: false, discoverable: false, isPublic: !!again.is_public }

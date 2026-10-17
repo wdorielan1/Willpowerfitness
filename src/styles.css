@@ -1656,3 +1656,13 @@ p.focus-note { margin: -4px 0 0; }
 .edit-week-day.is-today { border-color: var(--accent); }
 .edit-week-day.locked { opacity: .7; }
 .edit-week-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+/* the one age question for older accounts */
+.age-check { display: grid; gap: 10px; }
+.age-check p { margin: 0; }
+.age-check.compact { padding: 12px; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; }
+
+/* the age page: a waiver and a yes or no */
+.waiver { display: flex; gap: 12px; align-items: flex-start; text-align: left; line-height: 1.45; }
+.waiver input { flex: 0 0 auto; width: 24px; height: 24px; min-height: 0; margin-top: 2px; accent-color: var(--accent); }
+.adult-ask { display: grid; gap: 8px; }

@@ -11,6 +11,7 @@ import { FeedComposer, HomeFeed, ShareWorkoutSheet } from './Feed'
 import { WeekPlanner } from '../WeekPlanner'
 import { useMyCrews } from '../CrewPicker'
 import { HomePeople } from '../HomePeople'
+import { AdultCheck } from '../AdultCheck'
 
 /** "Good evening, Will" at the top of the page. It re-reads the clock every minute so it changes on its own at 5, 12, 17 and 22 o'clock. */
 function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boolean }) {
@@ -20,7 +21,7 @@ function Greeting({ name, done, rest }: { name: string; done: boolean; rest: boo
 }
 
 export default function Dashboard() {
-  const { data, update } = useApp()
+  const { data, update, userId } = useApp()
   const p = data.profile!
   const ci = useCheckin()
   const crews = useMyCrews()
@@ -36,6 +37,7 @@ export default function Dashboard() {
   return (
     <>
       <Greeting name={data.name} done={ci.done} rest={rest} />
+      {userId && data.ageConfirmed && data.adult === undefined && <AdultCheck />}
       {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
       <WeekPlanner />
 

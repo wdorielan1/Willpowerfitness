@@ -199,15 +199,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // every account gets a profile card (handle + Google photo) so friends can follow and see them
         const mineUrl = base.avatar || (/^https:\/\//.test(photo) ? photo : null)
         setMyAvatar(u.id, mineUrl)
-        void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null).then((r) => {
+        void ensureProfileCard(u.id, base.name, mineUrl, u.email ?? null, base.adult).then((r) => {
           const cur = dataRef.current
-          if (r && (cur.handle === undefined || cur.profilePublic === undefined || !cur.publicDefault)) {
+          // An account whose age is not known yet (made before the age rule) is kept private until they answer the one question on Home.
+          const ageUnknown = !!cur.ageConfirmed && cur.adult === undefined
+          if (r && (cur.handle === undefined || cur.profilePublic === undefined || (ageUnknown && cur.profilePublic))) {
             update((d) => {
               const next = { ...d, handle: d.handle ?? r.handle, findByHandle: d.findByHandle ?? r.discoverable, profilePublic: d.profilePublic ?? r.isPublic }
-              if (next.publicDefault) return next
-              // Explore launched with everyone public: each account is switched to public once, with a notice, and after that their own choice sticks.
-              // A card that was only just made is already public, so there is nothing to tell them.
-              return { ...next, publicDefault: true, ...(next.profilePublic || r.created ? { profilePublic: true } : { profilePublic: true, publicNotice: true }) }
+              return next.ageConfirmed && next.adult === undefined ? { ...next, profilePublic: false } : next
             })
           }
           return mineUrl ? syncMyAvatar(u.id, mineUrl) : undefined
