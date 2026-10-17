@@ -561,6 +561,8 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Open one where the last post is older than a day, or there are no posts: no ring, and the photo does not shift or change size
 - [ ] Post something on your own account and open your Profile: the ring is there. Check again the next day (after 24 hours) and it is gone
 - [ ] Hovering or long-pressing the ringed photo shows "New post"
+- [ ] Tap the ringed photo: it opens your newest post from the last day (if you posted twice today, the newer one). Close it and the profile is as it was. The post grid still lists every post
+- [ ] With no post in the last day the photo has no ring and tapping it does nothing. On your own profile the edit-photo button still works either way
 
 ## Cardio page
 - [ ] Train page: a Cardio card sits under "Your next workout" and above "Not feeling it?" with Start cardio and Log one
