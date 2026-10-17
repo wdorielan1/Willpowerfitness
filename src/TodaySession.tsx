@@ -31,7 +31,7 @@ function SessionElapsed({ since }: { since: number }) {
  * "Your next workout": today's session as one big card, with start, resume, change, share and undo. It lives at the top of the
  * Train page. `onChange` is what "Change workout" does there (the page scrolls to its own list of workouts).
  */
-export function TodaySession({ onChange }: { onChange?: () => void }) {
+export function TodaySession({ onChange, beforeStart }: { onChange?: () => void; /** Runs first when Start is tapped, with the function that really starts (the Train page uses it for the first-time equipment question). */ beforeStart?: (go: () => void) => void }) {
   const { data, update } = useApp()
   const ci = useCheckin()
   const nav = useNavigate()
@@ -49,7 +49,8 @@ export function TodaySession({ onChange }: { onChange?: () => void }) {
   const estimatedMinutes = Math.round(plan.items.reduce((minutes, item) => minutes + item.sets * (restFor(item.ex, data.settings.rest) + 40), 0) / 60 / 5) * 5
   const focus = data.workoutFocus?.[today]
   const sessionName = workoutName(day, focus)
-  const start = () => { ci.start(); nav('/workout') }
+  const go = () => { ci.start(); nav('/workout') }
+  const start = () => { if (beforeStart) beforeStart(go); else go() }
 
   return (
     <>

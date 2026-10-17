@@ -8,8 +8,7 @@ import { Sheet } from '../components'
 import { Icon } from '../icons'
 import type { WorkoutLog } from '../types'
 import { FeedComposer, HomeFeed, ShareWorkoutSheet } from './Feed'
-import { WeekStrip, useWeekMove } from '../WeekStrip'
-import { EditWeek } from '../EditWeek'
+import { WeekPlanner } from '../WeekPlanner'
 import { useMyCrews } from '../CrewPicker'
 import { HomePeople } from '../HomePeople'
 
@@ -31,23 +30,14 @@ export default function Dashboard() {
   const nutrition = carbPlanFor(today, data)
   const targets = macroPlan(p, data.settings.nutrition)[nutrition.carb]
   const food = (data.foodLog[today] ?? []).reduce((total, entry) => ({ cal: total.cal + entry.cal, p: total.p + entry.p }), { cal: 0, p: 0 })
-  const week = weekSchedule(data, today)
-  const completedThisWeek = week.filter((d) => d.status === 'done').length
-  const [peek, setPeek] = useState<WeekDay | null>(null)
-  const [sharing, setSharing] = useState<WorkoutLog | null>(null)
   const [justHid, setJustHid] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const mover = useWeekMove(week, today)
   const setHidden = (hideNutrition: boolean) => update((d) => ({ ...d, settings: { ...d.settings, hideNutrition } }))
 
   return (
     <>
       <Greeting name={data.name} done={ci.done} rest={rest} />
       {crews.length > 0 && <FeedComposer crewId={data.primary && crews.some((c) => c.id === data.primary) ? data.primary : crews[0].id} />}
-      <section className="week-summary" aria-label="This week’s training">
-        <div className="section-head"><h2>This week</h2><span className="week-head-actions"><span>{completedThisWeek === 0 ? 'No sessions logged' : `${completedThisWeek} ${completedThisWeek === 1 ? 'session' : 'sessions'} logged`}</span><button type="button" className="quiet-action" onClick={() => setEditing(true)}>Edit week</button></span></div>
-        <WeekStrip week={week} today={today} mover={mover} onOpen={setPeek} />
-      </section>
+      <WeekPlanner />
 
       {data.profile && !data.profile.sex && (
         <section className="card">
@@ -73,31 +63,6 @@ export default function Dashboard() {
       <HomePeople />
       <HomeFeed />
 
-      {sharing && <ShareWorkoutSheet log={sharing} onClose={() => setSharing(null)} />}
-      {editing && <EditWeek week={week} today={today} onClose={() => setEditing(false)} />}
-      {peek && (() => {
-        const dayName = fromISO(peek.date).toLocaleDateString(undefined, { weekday: 'long' })
-        const rest = peek.planned === 'Rest/Cardio'
-        const preview = rest ? [] : generateWorkout(peek.date, data, false, peek.planned).items
-        const logged = peek.logged && !peek.logged.skipped && !peek.logged.baseline ? peek.logged : null
-        return (
-          <Sheet title={`${dayName} · ${rest ? 'Recovery' : workoutName(peek.planned)}`} onClose={() => setPeek(null)}>
-            <p className="small mute">{peek.status === 'done' ? 'Done. Here is what you logged.' : peek.status === 'missed' ? 'Missed. It comes back as your next workout.' : peek.date === today ? 'Today’s plan.' : 'Planned. This can change as you train.'}</p>
-            {rest ? <p>Recovery day. Easy walk or bike, stretch, and rest up.</p> : logged ? (
-              <div className="people">{logged.entries.map((e) => <div className="person" key={e.exId}><span className="grow"><b>{e.name}</b></span><span className="small mute">{e.sets.length} sets · best {Math.max(...e.sets.map((x) => x.weight))} lb</span></div>)}</div>
-            ) : (
-              <div className="people">{preview.map((it) => <div className="person" key={it.ex.id}><span className="grow"><b>{it.ex.name}</b><br /><span className="small mute">{it.ex.muscle}</span></span><span className="small mute">{it.sets} × {it.ex.reps[0]}–{it.ex.reps[1]}</span></div>)}</div>
-            )}
-            {logged && logged.entries.some((e) => e.sets.length) && !logged.imported && <button className="ghost week-sheet-share" onClick={() => { setPeek(null); setSharing(logged) }}>Share this workout</button>}
-            {mover.rules.from.has(peek.date) && <div className="week-sheet-move">
-              <h3>Move this workout</h3>
-              <p className="small mute">Swaps it with the day you pick. A rest day takes it and this day becomes a rest day.</p>
-              <div className="chips">{week.filter((w) => mover.rules.to.has(w.date) && w.date !== peek.date).map((w) => <button type="button" key={w.date} className="chip" onClick={() => { mover.move(peek.date, w.date); setPeek(null) }}>{w.label} · {w.planned === 'Rest/Cardio' ? 'Rest' : workoutName(w.planned)}</button>)}</div>
-            </div>}
-            {peek.date === today && !rest && peek.status !== 'done' && <button className="primary" onClick={() => { setPeek(null); nav('/workout') }}>Go to today’s workout</button>}
-          </Sheet>
-        )
-      })()}
     </>
   )
 }

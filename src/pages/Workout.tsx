@@ -16,13 +16,13 @@ import { imgUrl, mediaFor, useMediaVersion } from '../exerciseMedia'
 import { useRestTimer } from '../RestTimer'
 import { ShareWorkoutSheet, usePostActions } from './Feed'
 import { TodaySession } from '../TodaySession'
+import { WeekPlanner } from '../WeekPlanner'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
 import { SwipeDemo } from '../SwipeDemo'
 import type { AppData, DayType, Draft, EquipKind, LogEntry, Profile, SetEntry, WorkoutFocus, WorkoutLog } from '../types'
 
-const ABBR: Record<DayType, string> = { Push: 'Push', Pull: 'Pull', Legs: 'Legs', 'Shoulders/Abs': 'Sh/Abs', 'Full Body': 'Full', 'Rest/Cardio': 'Rest' }
 
 const validSet = (row: SetEntry) => row.weight.trim() !== '' && row.reps.trim() !== ''
   && Number.isFinite(Number(row.weight)) && Number(row.weight) >= 0
@@ -32,59 +32,6 @@ function SessionElapsed({ since }: { since: number }) {
   const [, tick] = useState(0)
   useEffect(() => { const id = window.setInterval(() => tick((n) => n + 1), 1000); return () => window.clearInterval(id) }, [])
   return <span className="workout-elapsed" aria-label="Workout elapsed time"><Icon name="clock" />{fmtClock(Date.now() - since)}</span>
-}
-
-/** This week's lifting plan: what's done, what was missed, and how to get back on track. */
-function WeekCard({ onPick }: { onPick: (d: DayType) => void }) {
-  const { data, update } = useApp()
-  const today = todayISO()
-  const week = weekSchedule(data, today)
-  const [open, setOpen] = useState<WeekDay | null>(null)
-  const [shareLog, setShareLog] = useState<WorkoutLog | null>(null)
-  const planned = week.filter((w) => w.status !== 'rest').length
-  const done = week.filter((w) => w.status === 'done').length
-  const missed = week.filter((w) => w.status === 'missed')
-  const next = week.find((w) => w.status === 'today' || w.status === 'upcoming')
-  const skip = (w: WeekDay) => { update((d) => ({ ...d, logs: [...d.logs, { date: w.date, dayType: w.planned, short: false, entries: [], skipped: true }].sort((a, b) => a.date.localeCompare(b.date)) })); setOpen(null) }
-  const icon: Record<WeekDay['status'], string> = { done: '✓', missed: '✕', skipped: '⤼', today: '●', upcoming: '○', rest: '–' }
-  const color: Record<WeekDay['status'], string> = { done: 'var(--ok)', missed: '#ff6b6b', skipped: 'var(--mute)', today: 'var(--accent)', upcoming: 'var(--mute)', rest: 'var(--mute)' }
-  const sum = (w: WeekDay) => (w.logged ? `${w.logged.entries.length} exercises · ${w.logged.entries.reduce((a, e) => a + e.sets.length, 0)} sets${w.logged.minutes ? ` · ${w.logged.minutes} min` : ''}` : '')
-  return (
-    <section className="card train-week-plan" aria-label="This week’s plan">
-      <div className="row"><h3><Icon name="calendar" /> This week</h3><span className="tag">{done} of {planned} done</span></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center' }}>
-        {week.map((w) => (
-          <button key={w.date} onClick={() => setOpen(w)} style={{ minHeight: 64, padding: '6px 0', borderRadius: 12, background: 'var(--card2)', border: w.status === 'today' ? '2px solid var(--accent)' : '1px solid var(--line)', display: 'grid', gap: 2, justifyItems: 'center', fontSize: 11, color: 'var(--text)' }}>
-            <span className="mute">{w.label}</span><b style={{ color: color[w.status], fontSize: 17 }}>{icon[w.status]}</b><span style={{ color: w.status === 'rest' ? 'var(--mute)' : undefined }}>{ABBR[w.planned]}</span>
-          </button>
-        ))}
-      </div>
-      {missed.length > 0 && (
-        <div className="rec repeat">
-          <b>You missed {missed.map((m) => `${ABBR[m.planned]} (${m.label})`).join(', ')}.</b>
-          <div className="small">Nothing is lost. Your plan keeps it next in line{next ? `, so ${next.status === 'today' ? 'today' : next.label} is ${ABBR[next.planned]}` : ''}. Or tap the day to make it up now or skip it.</div>
-        </div>
-      )}
-      {shareLog && <ShareWorkoutSheet log={shareLog} onClose={() => setShareLog(null)} />}
-      {open && (
-        <Sheet title={`${fromISO(open.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`} onClose={() => setOpen(null)}>
-          {open.status === 'done' && <><p><b>{open.planned}</b> done ✓</p><p className="small mute">{sum(open)}</p>{open.logged && !open.logged.imported && open.logged.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => { const l = open.logged!; setOpen(null); setShareLog(l) }}>Share this workout</button>}</>}
-          {open.status === 'skipped' && <p>You skipped <b>{open.planned}</b> on this day.</p>}
-          {open.status === 'rest' && <p>Rest / cardio day. Recovery is part of the plan.</p>}
-          {(open.status === 'today' || open.status === 'upcoming') && <><p>Planned: <b>{open.planned}</b></p><p className="small mute">{open.status === 'today' ? 'That is today.' : 'This assumes you finish the workouts before it.'}</p></>}
-          {open.status === 'missed' && (
-            <>
-              <p>You didn’t log <b>{open.planned}</b> on this day.</p>
-              <p className="small mute">How do you want to handle it?</p>
-              <button className="primary" onClick={() => { onPick(open.planned); setOpen(null) }}>Do {open.planned} today</button>
-              <button className="ghost" onClick={() => setOpen(null)}>Let it roll to my next workout</button>
-              <button className="ghost" onClick={() => skip(open)}>Skip it and move on</button>
-            </>
-          )}
-        </Sheet>
-      )}
-    </section>
-  )
 }
 
 const LABEL = { add_weight: 'ADD WEIGHT', add_reps: 'ADD REPS', repeat: 'REPEAT', start: 'FIND YOUR WEIGHT' } as const
@@ -243,21 +190,16 @@ function BuildOwn({ data, ids, setIds, onStart, onSave }: { data: AppData; ids: 
   </div>
 }
 
-function Chooser({ data, today, short, suggested, current, onStart, onShort, onSave, onDeleteSaved }: {
+function Chooser({ data, today, short, suggested, current, onStart, onPick, onShort, onSave, onDeleteSaved }: {
   data: AppData; today: string; short: boolean; suggested: DayType; current: DayType
+  onPick: (d: DayType, focus?: WorkoutFocus, ids?: string[]) => void
   onStart: (d: DayType, focus?: WorkoutFocus, ids?: string[], tweaks?: { removed: string[]; extras: string[]; order?: string[] }) => void; onShort: () => void
   onSave: (name: string, ids: string[]) => void; onDeleteSaved: (id: string) => void
 }) {
   const choices = sessionChoices(suggested, data.myWorkouts ?? [])
   const [selected, setSelected] = useState(data.workoutFocus?.[today] === 'custom' ? 'build' : data.workoutFocus?.[today] ?? (current === suggested ? 'usual' : current === 'Rest/Cardio' ? 'cardio' : current))
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
-  const [removedIds, setRemoved] = useState<string[]>([])
-  const [addedIds, setAdded] = useState<string[]>([])
-  const [orderIds, setOrderIds] = useState<string[]>([])
-  const [adding, setAdding] = useState(false)
   const { update } = useApp()
-  const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
-  const [equipNote, setEquipNote] = useState(false)
   const [offerGone, setOfferGone] = useState(false)
   // whole workouts that did not happen: one "what's in the way?" card, never more than once a week
   const miss = data.settings.askSkips === false || (data.missedAsked && addDays(data.missedAsked, 6) >= today) ? null : missedCheckIn(data, today)
@@ -268,12 +210,21 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const showMiss = !!miss && missOpen
   const answered = () => { update((d) => ({ ...d, missedAsked: today })); setMissOpen(false) }
   const asked = () => update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } }))
-  const pickSession = (id: string) => { setSelected(id); setRemoved([]); setAdded([]); setOrderIds([]) }
+  // choosing a workout makes it today's session, and the card at the top of the page shows it with its Start button
+  const pickSession = (id: string) => {
+    const item = choices.find((c) => c.id === id)
+    if (!item) return
+    const already = id === selected && id !== 'build'
+    setSelected(id)
+    if (id === 'build' || already) return
+    onPick(item.day, item.focus, item.ids)
+    if (item.day !== 'Rest/Cardio') setTimeout(() => document.getElementById('train-next')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
+  }
   const choice = choices.find((item) => item.id === selected) ?? choices[0]
   const isBuild = choice.id === 'build'
   const isSaved = choice.id.startsWith('my:')
-  const made = isBuild ? { day: choice.day, items: [] as { ex: Exercise; sets: number; orig: string; focus?: string }[] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets, orig: ex.id, focus: undefined as string | undefined })) } : generateWorkout(today, { ...data, removed: { ...data.removed, [today]: removedIds }, extras: { ...data.extras, [today]: addedIds } }, short, choice.day, choice.focus)
-  const preview = { day: made.day, items: applyOrder(made.items, orderIds) }
+  const made = isBuild ? { day: choice.day, items: [] as { ex: Exercise; sets: number; orig: string; focus?: string }[] } : isSaved ? { day: choice.day, items: (choice.ids ?? []).map((id) => EXERCISES.find((x) => x.id === id)).filter((x): x is Exercise => !!x).map((ex) => ({ ex, sets: ex.sets, orig: ex.id, focus: undefined as string | undefined })) } : generateWorkout(today, data, short, choice.day, choice.focus)
+  const preview = { day: made.day, items: made.items }
   const generated = !isBuild && !isSaved && choice.day !== 'Rest/Cardio'
   // one nudge at a time: first the saved workout for this session, otherwise a lift they keep turning away
   const savedMatch = generated ? (data.myWorkouts ?? []).find((w) => w.day === choice.day && w.focus === choice.focus) : undefined
@@ -285,7 +236,7 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
   const keepSuggesting = (id: string) => update((d) => ({ ...d, profile: { ...d.profile!, kept: [...(d.profile!.kept ?? []), id] } }))
   const name = isBuild ? 'Build your own' : isSaved ? choice.label : workoutName(choice.day, choice.focus)
   return <>
-    <div className="train-picker-heading"><p className="overline">Today’s session</p><h1>What are you training?</h1><p className="mute small">Choose today’s workout. Your usual weekly plan stays in place.</p></div>
+    <div className="train-picker-heading"><p className="overline">Not feeling it?</p><h1>Switch today’s workout.</h1><p className="mute small">Today’s workout is already set. Pick a different one to switch it. Your weekly plan stays in place.</p></div>
     {data.profile!.gear === 'gym' && (() => {
       const at = placeFor(data, today)
       const set = (to: 'gym' | 'home') => update((d) => withPlace(d, to, today))
@@ -316,9 +267,12 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
     </Sheet>}
     {fixing === 'equip' && <EquipmentSheet gear={data.profile!.gear} equip={data.profile!.equip} onClose={() => setFixing(null)} onSkip={() => setFixing(null)}
       onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip } })); setFixing(null); setMissNote('Your plan now follows the equipment you use.'); answered() }} />}
-    <section className="card train-session-preview"><div className="section-head"><h2>{name}</h2><Icon name={choice.day === 'Rest/Cardio' ? 'clock' : 'weight'} /></div>
-      <p className="small mute">{isBuild ? 'Choose your own exercises.' : isSaved ? 'One of your saved workouts.' : choice.focus ? 'A focused session for the selected muscle groups.' : FOCUS[choice.day]}</p>
-      {isBuild ? <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => onStart('Full Body', 'custom', buildIds)} onSave={onSave} /> : choice.day !== 'Rest/Cardio' ? <>
+    {isBuild
+      ? <section className="card train-session-preview"><div className="section-head"><h2>Build your own</h2><Icon name="weight" /></div>
+          <p className="small mute">Choose your own exercises.</p>
+          <BuildOwn data={data} ids={buildIds} setIds={setBuildIds} onStart={() => onStart('Full Body', 'custom', buildIds)} onSave={onSave} />
+        </section>
+      : <>
         {savedMatch && !offerGone && !showMiss && <div className="rec start train-offer">
           <b>Use your saved {savedMatch.name}?</b>
           <span className="small">Your {savedMatch.ids.length} lifts from last time, in the order you did them.</span>
@@ -329,24 +283,8 @@ function Chooser({ data, today, short, suggested, current, onStart, onShort, onS
           <span className="small">You've skipped it on {stop.n} different days. Nothing gets hidden unless you say so.</span>
           <div className="row"><button type="button" className="primary small-btn" onClick={() => stopSuggesting(stop.ex.id)}>Stop suggesting it</button><button type="button" className="ghost small-btn" onClick={() => keepSuggesting(stop.ex.id)}>Keep it</button></div>
         </div>}
-        <button className="train-short-toggle" aria-pressed={short} onClick={onShort}><Icon name="clock" /><span>Shorter session</span><span>{short ? 'On' : 'Off'}</span></button>
-        {preview.items.length > 1 && <p className="small mute train-reorder-hint">Press and hold a lift, then drag it up or down to change the order.</p>}
-        <ReorderList label="Exercises in this workout" items={preview.items} getKey={(x) => x.ex.id} onReorder={(next) => setOrderIds(next.map((x) => x.orig))}>{({ ex, sets, orig, focus }) => <div className={`train-preview-lift${isSaved ? '' : ' has-remove'}`}><span className="thumbs"><Thumb id={ex.id} /></span><div><b>{ex.name}</b><span>{sets} sets · {ex.reps[0]}–{ex.reps[1]} reps</span>{focus && <span className="focus-note">{focus}</span>}</div>{!isSaved && <button className="quiet-action train-remove" aria-label={`Remove ${ex.name}`} onClick={() => (addedIds.includes(ex.id) ? setAdded(addedIds.filter((x) => x !== ex.id)) : setRemoved([...removedIds, orig]))}>✕</button>}</div>}</ReorderList>
-        {!isSaved && <button className="ghost" onClick={() => setAdding(true)}><Icon name="plus" />Add an exercise</button>}
-        {adding && <Sheet title="Add an exercise" onClose={() => setAdding(false)}><ExerciseFinder best prefer={choice.day} pool={addableExercises(preview.items.map((i) => i.ex.id), profileFor(data, today), historyOf(data), choice.day)} onPick={(x) => { setAdded([...addedIds, x.id]); setRemoved(removedIds.filter((id) => id !== x.id)); setAdding(false) }} /></Sheet>}
-        {preview.items.length === 0 && <p className="small mute">No exercises match your equipment and exclusions. Choose another session, or turn more equipment on in Settings.</p>}
-        {equipNote && <p className="small ok-text" role="status">Your plan now follows the equipment you use. Tap Start lifting when you're ready.</p>}
-        <button className="primary" disabled={!preview.items.length} onClick={() => {
-          const go = () => onStart(choice.day, choice.focus, isSaved ? preview.items.map((x) => x.orig) : choice.ids, isSaved ? undefined : { removed: removedIds, extras: addedIds, order: orderIds })
-          if (!isSaved && !data.settings.equipAsked) setAskEquip(() => go); else go()
-        }}>Start lifting<Icon name="arrow" /></button>
-        {askEquip && <EquipmentSheet gear={data.profile!.gear} equip={data.profile!.equip}
-          onClose={() => { asked(); setAskEquip(null) }}
-          onSkip={() => { asked(); askEquip(); setAskEquip(null) }}
-          onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
-        {isSaved && <button className="quiet-action" onClick={() => { if (window.confirm(`Delete the saved workout "${choice.label}"?`)) { onDeleteSaved(choice.id.slice(3)); pickSession('usual') } }}>Delete this saved workout</button>}
-      </> : <><p className="small mute">Choose an easy walk, bike ride, or your own cardio session. Log the time when you finish.</p><button className="primary" onClick={() => onStart(choice.day)}>Log cardio<Icon name="arrow" /></button></>}
-    </section>
+        {isSaved && <button className="quiet-action" onClick={() => { if (window.confirm(`Delete the saved workout "${choice.label}"?`)) { onDeleteSaved(choice.id.slice(3)); pickSession('usual') } }}>Delete the saved workout “{choice.label}”</button>}
+      </>}
   </>
 }
 
@@ -395,6 +333,8 @@ export default function Workout() {
   useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 7000); return () => clearTimeout(t) }, [undo])
   const [ask, setAsk] = useState<null | 'discard' | 'delete' | 'undo'>(null)
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
+  const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
+  const [equipNote, setEquipNote] = useState(false)
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string } | { kind: 'dislike'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
   useEffect(() => { if (sp.get('change')) { if (active) setSheet({ kind: 'day' }); setSp({}, { replace: true }) } }, [sp, setSp, active])
@@ -683,10 +623,23 @@ export default function Workout() {
   // ---------- before the workout starts ----------
   if (!active) {
     return (
-      <div className="workout-chooser"><TodaySession onChange={() => document.getElementById('train-chooser')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /><WeekCard onPick={chooseDay} /><div id="train-chooser" /><Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
-        onStart={beginWith}
-        onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
-        onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} /></div>
+      <div className="workout-chooser">
+        <WeekPlanner onMakeUp={chooseDay} />
+        <div id="train-chooser" />
+        <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
+          onPick={chooseDay} onStart={beginWith}
+          onSave={(name, ids) => update((d) => ({ ...d, myWorkouts: [...(d.myWorkouts ?? []), { id: `w${Date.now()}`, name, ids }] }))}
+          onDeleteSaved={(id) => update((d) => ({ ...d, myWorkouts: (d.myWorkouts ?? []).filter((w) => w.id !== id) }))} onShort={() => update((d) => ({ ...d, short: { ...d.short, [today]: !short } }))} />
+        {/* the workout you are about to start, last: pick above, then start here */}
+        <div id="train-next">
+          <TodaySession onChange={() => document.getElementById('train-chooser')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} beforeStart={(go) => { if (data.settings.equipAsked) go(); else setAskEquip(() => go) }} />
+        </div>
+        {equipNote && <p className="small ok-text" role="status">Your plan now follows the equipment you use. Tap Start workout when you're ready.</p>}
+        {askEquip && <EquipmentSheet gear={data.profile!.gear} equip={data.profile!.equip}
+          onClose={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null) }}
+          onSkip={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); askEquip(); setAskEquip(null) }}
+          onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
+      </div>
     )
   }
 
@@ -750,7 +703,6 @@ export default function Workout() {
         {page === 0 && (
           <>
             {todaysLog && ci.done && <p className="small mute workout-logged-note">This workout is logged. <button type="button" className="quiet-action" onClick={() => setAsk('undo')}>Undo completion</button></p>}
-            <WeekCard onPick={chooseDay} />
             <section className="card workout-warmup">
               <div className="overline">BEFORE YOU LIFT</div>
               <h1>Warm up.</h1>
