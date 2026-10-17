@@ -308,6 +308,13 @@ export async function addCommentCloud(postId: string, userId: string, text: stri
   if (/too fast|very fast/i.test(error.message)) return 'You are commenting very fast. Try again in a little while.'
   return error.message
 }
+/** Report a post to us (you only file it; we read the reports in Supabase). Reporting twice is fine. */
+export async function reportPostCloud(postId: string, userId: string, reason = ''): Promise<string | null> {
+  if (!supabase) return 'Reporting needs an internet connection.'
+  const { error } = await supabase.from('post_reports').insert({ post_id: postId, user_id: userId, reason: reason.slice(0, 500) })
+  if (!error || /duplicate/i.test(error.message)) return null
+  return /post_reports|schema cache/i.test(error.message) ? 'Reporting is not switched on yet.' : error.message
+}
 export async function deleteCommentCloud(id: string): Promise<string | null> {
   const { error } = (await supabase?.from('crew_post_comments').delete().eq('id', id)) ?? {}
   return error?.message ?? null
@@ -399,8 +406,8 @@ export function useCrewFeed(crewId: string | null, userId: string | null) {
  * The Home feed: posts from every crew you are in, and the public posts of people you follow (a person's posts only reach
  * followers when their profile is public), newest first. Null when the backend is not configured.
  */
-export type FeedTab = 'all' | 'crews' | 'following'
-export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedTab = 'all') {
+export type FeedTab = 'explore' | 'crews' | 'following'
+export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedTab = 'explore') {
   const [posts, setPosts] = useState<CrewPost[]>([])
   const [tick, setTick] = useState(0)
   const refresh = useCallback(() => setTick((t) => t + 1), [])
@@ -409,14 +416,24 @@ export function useHomeFeed(crewIds: string[], userId: string | null, tab: FeedT
     if (!supabase || !userId) return
     let alive = true
     const load = async () => {
-      const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
-      const following = (f ?? []).map((r) => r.friend_id as string)
-      // what you can see is decided by the database (crew mates, and the public posts of public profiles); this only says whose
-      const parts: string[] = []
-      if (tab !== 'following' && crewIds.length) parts.push(`crew_id.in.(${crewIds.join(',')})`)
-      if (tab !== 'crews' && following.length) parts.push(`user_id.in.(${following.join(',')})`)
-      if (!parts.length) { if (alive) setPosts([]); return }
-      const { data: rows } = await supabase!.from('crew_posts').select('id,crew_id,user_id,name,kind,text,image_path,image_paths,meta,created_at').or(parts.join(',')).order('created_at', { ascending: false }).limit(60)
+      const cols = 'id,crew_id,user_id,name,kind,text,image_path,image_paths,meta,created_at'
+      type Row = { id: number; crew_id: string; user_id: string; name: string; kind: string; text: string; image_path: string | null; image_paths: string[] | null; meta: Record<string, unknown> | null; created_at: string }
+      let rows: Row[] | null
+      if (tab === 'explore') {
+        // everyone's public posts (the database only lets through posts that are public from people whose profile is public), newest first
+        const res = await supabase!.from('crew_posts').select(cols).eq('is_public', true).order('created_at', { ascending: false }).limit(150)
+        rows = res.data as Row[] | null
+      } else {
+        const { data: f } = await supabase!.from('follows').select('friend_id').eq('user_id', userId)
+        const following = (f ?? []).map((r) => r.friend_id as string)
+        // what you can see is decided by the database (crew mates, and the public posts of public profiles); this only says whose
+        const parts: string[] = []
+        if (tab !== 'following' && crewIds.length) parts.push(`crew_id.in.(${crewIds.join(',')})`)
+        if (tab !== 'crews' && following.length) parts.push(`user_id.in.(${following.join(',')})`)
+        if (!parts.length) { if (alive) setPosts([]); return }
+        const res = await supabase!.from('crew_posts').select(cols).or(parts.join(',')).order('created_at', { ascending: false }).limit(60)
+        rows = res.data as Row[] | null
+      }
       const ids = (rows ?? []).map((r) => r.id as number)
       const { data: likes } = ids.length ? await supabase!.from('crew_post_likes').select('post_id,user_id').in('post_id', ids) : { data: [] as { post_id: number; user_id: string }[] }
       const { counts, preview } = await fetchCommentSummary(ids.map(String))

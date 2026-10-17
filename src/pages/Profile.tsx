@@ -63,7 +63,7 @@ export default function Profile() {
           {msg && <span className="small mute" role="status" style={{ flexBasis: '100%' }}>{msg}</span>}
         </>}
       />
-      <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it.' : 'Your profile is private.'}</p>
+      <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it, and your posts show in Explore.' : 'Your profile is private.'}</p>
 
       <Link to="/friends" className="card profile-friends" aria-label="Open Friends">
         <span className="icon-surface"><Icon name="crew" /></span>

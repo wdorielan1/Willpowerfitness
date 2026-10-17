@@ -11,7 +11,7 @@ import { summaryFromLog } from '../shareCard'
 import { WorkoutCard } from '../WorkoutCard'
 import { postedKey, readWorkoutPost, shareableLogs, workoutPost } from '../workoutPost'
 import { postWhen } from '../postWhen'
-import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, toggleLikeCloud, useCrewFeed, useFeedAvatars, useHomeFeed, type FeedTab } from '../cloud'
+import { announceFeedChanged, createPostCloud, deletePostCloud, ensureMemberCloud, fetchPostLikers, reportPostCloud, toggleLikeCloud, useCrewFeed, useFeedAvatars, useHomeFeed, type FeedTab } from '../cloud'
 import { CREW_BUCKET, postPhotos, postVideo, compress, deletePhotoBlob, savePhotoBlob, saveVideoBlob, usePhotoUrls, videoUrl } from '../photos'
 import { KEEP_VIDEO_DAYS, MAX_PHOTOS, MAX_PHOTOS_WITH_VIDEO, clock, prepareVideo, videoDaysLeft, type PreparedVideo } from '../videos'
 import { Icon } from '../icons'
@@ -282,21 +282,27 @@ export function groupPosts(posts: CrewPost[]): FeedPost[] {
 }
 
 /**
- * The Home feed: posts from all your crews and the public posts of people you follow, newest first. Needs no crew to read;
- * with none it says how to get started.
+ * The Home feed. Explore is the public posts of everyone on Will Power (a few from each person); My crews is your crews' posts;
+ * Following is the public posts of people you follow. Needs no crew to read; with none it says how to get started.
  */
 export function HomeFeed() {
   const { data, userId } = useApp()
   const crews = useMyCrews()
   const crewIds = crews.map((c) => c.id)
-  const [tab, setTabState] = useState<FeedTab>(() => { try { const v = localStorage.getItem('wpf.feedTab'); return v === 'crews' || v === 'following' ? v : 'all' } catch { return 'all' } })
+  const [tab, setTabState] = useState<FeedTab>(() => { try { const v = localStorage.getItem('wpf.feedTab'); return v === 'crews' || v === 'following' ? v : 'explore' } catch { return 'explore' } })
   const setTab = (t: FeedTab) => { setTabState(t); try { localStorage.setItem('wpf.feedTab', t) } catch { /* private mode */ } }
   const feed = useHomeFeed(crewIds, userId, tab)
   // on this device (no account online) there is only your crews' posts
   const raw = feed ? feed.posts : tab === 'following' ? [] : data.posts.filter((p) => crewIds.includes(p.crewId))
-  const posts = useMemo(() => groupPosts(raw), [raw])
+  const posts = useMemo(() => {
+    const all = groupPosts(raw)
+    if (tab !== 'explore') return all
+    // Explore mixes in lots of people: at most two posts from each, newest first, so nobody fills the page
+    const seen = new Map<string, number>()
+    return all.filter((p) => { const k = p.userId ?? p.name, n = (seen.get(k) ?? 0) + 1; seen.set(k, n); return n <= 2 }).slice(0, 60)
+  }, [raw, tab])
   const avatars = useFeedAvatars(posts.map((p) => p.userId ?? ''), crewIds)
-  const tabs: [FeedTab, string][] = [['all', 'All'], ['crews', 'My crews'], ['following', 'Following']]
+  const tabs: [FeedTab, string][] = [['explore', 'Explore'], ['crews', 'My crews'], ['following', 'Following']]
   return <>
     {feed && <div className="feed-tabs" role="group" aria-label="Which feed">{tabs.map(([id, label]) => <button key={id} type="button" className={tab === id ? 'on' : ''} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}</div>}
     <PostList posts={posts} refresh={feed?.refresh} avatars={avatars} crews={crews} tab={tab} />
@@ -308,12 +314,15 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
   const { data, update, userId, avatarUrl } = useApp()
   const [err, setErr] = useState('')
   const [del, setDel] = useState<CrewPost | null>(null)
+  const [reporting, setReporting] = useState<CrewPost | null>(null)
+  const [note, setNote] = useState('')
   const [big, setBig] = useState<{ srcs: string[]; start: number } | null>(null)
   const [watch, setWatch] = useState<{ video: VideoMeta; cover?: string } | null>(null) // a clip open full screen
   const urls = usePhotoUrls(posts.flatMap(postPhotos), CREW_BUCKET)
   // say which crew a post is in when there is more than one place it could be from
   const crewLine = (p: FeedPost) => {
-    const names = p.crews.map((id) => crews.find((c) => c.id === id)?.name ?? 'Following')
+    // a crew you are not in is shown as "Following" in that feed, and not at all in Explore (they are just people on the app)
+    const names = p.crews.map((id) => crews.find((c) => c.id === id)?.name ?? (tab === 'explore' ? '' : 'Following')).filter(Boolean)
     return crews.length > 1 || names.includes('Following') ? [...new Set(names)].join(' · ') : ''
   }
 
@@ -346,7 +355,10 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
   return (
     <>
       {err && <p role="alert" className="err small">{err}</p>}
-      {posts.length === 0 && (tab === 'following'
+      {note && <p className="small ok-text" role="status">{note}</p>}
+      {posts.length === 0 && (tab === 'explore' && userId
+        ? <section className="feed-empty"><span className="icon-surface"><Icon name="search" /></span><h3>Nothing to explore yet.</h3><p>Public posts from everyone on Will Power<br />show up here. Be the first to post.</p></section>
+        : tab === 'following'
         ? <section className="feed-empty"><span className="icon-surface"><Icon name="person" /></span><h3>Nobody to show yet.</h3><p>Follow friends and their workouts<br />show up here.</p><Link to="/friends" className="btn primary">Find friends</Link></section>
         : crews.length === 0
         ? <section className="feed-empty"><span className="icon-surface"><Icon name="crew" /></span><h3>Your feed starts with a crew.</h3><p>Join a crew, or follow friends,<br />and their workouts show up here.</p><Link to="/crew" className="btn primary">Find a crew</Link></section>
@@ -392,7 +404,7 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
                   {(p.comments ?? 0) > 0 && <button className="post-like-count" onClick={() => setActivity({ post: p, tab: 'comments' })} aria-label={`See the ${p.comments} ${p.comments === 1 ? 'comment' : 'comments'}`}>{p.comments}</button>}
                 </div>}
               </div>
-              {p.mine && <button className="link-danger" onClick={() => setDel(p)}>Delete</button>}
+              {p.mine ? <button className="link-danger" onClick={() => setDel(p)}>Delete</button> : userId && <button type="button" className="quiet-action" onClick={() => setReporting(p)}>Report</button>}
             </div>
             {caption && <p className="post-caption"><b>{p.name.split(' ')[0]}</b> {caption}</p>}
             {userId && (p.comments ?? 0) > 0 && (
@@ -407,6 +419,7 @@ function PostList({ posts, refresh, avatars, crews, tab }: { posts: FeedPost[]; 
       {activity && userId && <PostActivity post={activity.post} tab={activity.tab} me={userId} onClose={() => { setActivity(null); refresh?.() }} />}
       {big && <Lightbox srcs={big.srcs} start={big.start} onClose={() => setBig(null)} />}
       {watch && <VideoViewer video={watch.video} cover={watch.cover} onClose={() => setWatch(null)} />}
+      {reporting && <ConfirmSheet title="Report this post?" message="Tell us if this post breaks the rules or makes you uncomfortable. We will take a look. They will not be told it was you." confirmLabel="Report it" onConfirm={() => { const p = reporting; setReporting(null); void reportPostCloud(p.id, userId ?? '').then((e) => { if (e) setErr(e); else { setErr(''); setNote('Reported. Thank you, we will take a look.'); setTimeout(() => setNote(''), 6000) } }) }} onCancel={() => setReporting(null)} />}
       {del && <ConfirmSheet title="Delete this post?" message="Are you sure you want to delete this post? It will be removed for everyone in the crew." confirmLabel="Yes, delete it" onConfirm={() => void remove(del)} onCancel={() => setDel(null)} />}
     </>
   )
