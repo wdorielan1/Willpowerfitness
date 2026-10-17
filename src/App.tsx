@@ -93,7 +93,7 @@ export default function App() {
   if (!data.profile) return <Onboarding />
   return (
     <RestTimerProvider>
-    <div className={`shell ${training ? 'training' : ''}`}>
+    <div className={`shell ${training ? 'training' : ''} ${loc.pathname === '/profile' || loc.pathname.startsWith('/friend/') ? 'profile-shell' : ''}`}>
       <ScrollTop />
       <WorkoutGuard />
       <ChallengeSync />

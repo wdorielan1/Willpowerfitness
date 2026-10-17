@@ -580,22 +580,26 @@ export async function publishProfile(userId: string, patch: { bio?: string | nul
   await Promise.resolve(supabase.from('public_profiles').update(patch as never).eq('user_id', userId)).catch(() => {})
 }
 
-export interface PublicPost { id: string; crewId: string; kind: PostKind; text: string; ts: number; hasPhoto: boolean; isPublic: boolean; comments?: number }
+export interface PublicPost { id: string; crewId: string; kind: PostKind; text: string; ts: number; hasPhoto: boolean; isPublic: boolean; imagePaths?: string[]; imageIds?: string[]; meta?: Record<string, unknown> }
 /** A person's posts: everything for you and crew-mates, public ones for everyone else. Row-level security decides what comes back. */
-export async function fetchUserPosts(userId: string, limit = 30): Promise<PublicPost[]> {
+export async function fetchUserPosts(userId: string, limit = 30, publicOnly = false): Promise<PublicPost[]> {
   if (!supabase) return []
-  for (const cols of ['id,crew_id,kind,text,image_path,image_paths,created_at,is_public', 'id,crew_id,kind,text,image_path,image_paths,created_at']) {
-    const { data, error } = await supabase.from('crew_posts').select(cols).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)
+  const base = 'id,crew_id,kind,text,image_path,image_paths,meta,created_at'
+  for (const cols of publicOnly ? [`${base},is_public`] : [`${base},is_public`, base]) {
+    let query = supabase.from('crew_posts').select(cols).eq('user_id', userId)
+    if (publicOnly) query = query.eq('is_public', true)
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(limit)
     if (!error) {
       const rows = (data ?? []) as unknown as Record<string, unknown>[]
-      const counts = await fetchCommentCounts(rows.map((r) => String(r.id)))
       return rows.map((r) => ({
         id: String(r.id), crewId: r.crew_id as string, kind: r.kind as PostKind, text: (r.text as string) ?? '', ts: Date.parse(r.created_at as string),
-        hasPhoto: !!(r.image_path || (r.image_paths as string[] | undefined)?.length), isPublic: !!r.is_public, comments: counts[String(r.id)] ?? 0,
+        hasPhoto: !!(r.image_path || (r.image_paths as string[] | undefined)?.length), isPublic: !!r.is_public,
+        imagePaths: (r.image_paths as string[] | undefined)?.length ? r.image_paths as string[] : r.image_path ? [String(r.image_path)] : [],
+        meta: r.meta as Record<string, unknown> | undefined,
       }))
     }
   }
-  return []
+  throw new Error('Could not load posts. Please try again.')
 }
 
 /** A profile by handle. Works signed out when that profile is public. */

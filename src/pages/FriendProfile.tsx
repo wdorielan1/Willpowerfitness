@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../store'
 import ProfileView from '../ProfileView'
-import { CommentThread } from '../Comments'
 import { profileLink } from '../ProfileSettings'
 import { cloudEnabled, fetchPerson, fetchUserPosts, followCloud, joinCrewCloud, unfollowCloud, type Person, type PublicPost } from '../cloud'
 import { allCommunities } from './Crew'
@@ -15,10 +14,19 @@ export default function FriendProfile() {
   const [p, setP] = useState<Person | null | undefined>(undefined)
   const [posts, setPosts] = useState<PublicPost[] | null>(null)
   const [msg, setMsg] = useState('')
+  const [postsError, setPostsError] = useState('')
+  const [retry, setRetry] = useState(0)
+  const [followingBusy, setFollowingBusy] = useState(false)
   const all = allCommunities(data.custom)
-  const load = () => { if (userId && cloudEnabled) void fetchPerson(userId, id).then(setP).catch(() => setP(null)); else setP(null) }
-  useEffect(load, [userId, id]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (cloudEnabled && id) void fetchUserPosts(id).then(setPosts) }, [id])
+  useEffect(() => {
+    let alive = true
+    setP(undefined); setPosts(null); setPostsError(''); setMsg('')
+    if (userId && cloudEnabled) {
+      void fetchPerson(userId, id).then((x) => { if (alive) setP(x) }).catch(() => { if (alive) setP(null) })
+      void fetchUserPosts(id).then((x) => { if (alive) setPosts(x) }).catch(() => { if (alive) setPostsError('Could not load posts.') })
+    } else { setP(null); setPosts([]) }
+    return () => { alive = false }
+  }, [userId, id, retry])
 
   const joinTheirCrew = (crewId: string) => {
     if (data.joined.includes(crewId)) return
@@ -27,7 +35,18 @@ export default function FriendProfile() {
     if (userId) void joinCrewCloud(crewId, userId, data.name || 'Member', streak(data))
     setMsg('Joined!')
   }
-  const toggle = async () => { if (!userId || !p) return; if (p.iFollow) await unfollowCloud(userId, p.userId); else await followCloud(userId, p.userId); load() }
+  const toggle = async () => {
+    if (!userId || !p || followingBusy) return
+    const person = p
+    setFollowingBusy(true)
+    try {
+      if (person.iFollow) await unfollowCloud(userId, person.userId)
+      else await followCloud(userId, person.userId)
+      const refreshed = await fetchPerson(userId, person.userId)
+      setP((current) => current?.userId === person.userId ? refreshed : current)
+    } catch { setMsg('Could not update following. Please try again.') }
+    finally { setFollowingBusy(false) }
+  }
   const share = async () => {
     if (!p?.handle) return
     const url = profileLink(p.handle)
@@ -43,14 +62,13 @@ export default function FriendProfile() {
       {p === null && <section className="card"><h2>Profile not found</h2><p className="small mute">This person may have left, or you’re offline.</p></section>}
       {p && (
         <>
-          <ProfileView
+          <ProfileView key={id}
             name={p.name} handle={p.handle} avatar={p.avatar} bio={p.bio} followers={p.followers} following={p.following} stats={{ ...stats, crews: p.crews.length ? p.crews : stats?.crews }} posts={posts}
             crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
             onCrew={joinTheirCrew} crewJoined={(c) => data.joined.includes(c)}
-            emptyPosts="No posts to show."
-            renderPost={(x) => userId ? <CommentThread postId={x.id} count={x.comments} me={{ id: userId }} postMine={p.userId === userId} /> : null}
+            emptyPosts="No posts to show." postsError={postsError} onRetryPosts={() => setRetry((n) => n + 1)}
             actions={p.userId === userId ? null : <>
-              <button className={p.iFollow ? 'ghost' : 'primary'} onClick={() => void toggle()}>{p.iFollow ? 'Unfollow' : p.followsMe ? 'Follow back' : 'Follow'}</button>
+              <button className={p.iFollow ? 'ghost' : 'primary'} disabled={followingBusy} onClick={() => void toggle()}>{followingBusy ? 'Updating…' : p.iFollow ? 'Unfollow' : p.followsMe ? 'Follow back' : 'Follow'}</button>
               {p.isPublic && p.handle && <button className="ghost" onClick={() => void share()}>Share profile</button>}
             </>}
           />

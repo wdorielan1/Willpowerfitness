@@ -183,8 +183,8 @@ export async function deletePhotoBlob(p: { id: string; path?: string }, bucket =
 
 /** Resolve displayable URLs for a list of photos. */
 export function usePhotoUrls(photos: { id: string; path?: string }[], bucket = BUCKET) {
-  const [urls, setUrls] = useState<Record<string, string>>({})
-  const key = photos.map((p) => p.id + (p.path ?? '')).join('|')
+  const [resolved, setResolved] = useState<{ key: string; urls: Record<string, string> }>({ key: '', urls: {} })
+  const key = JSON.stringify([bucket, photos.map((p) => [p.id, p.path])])
   useEffect(() => {
     let alive = true
     const made: string[] = []
@@ -192,19 +192,20 @@ export function usePhotoUrls(photos: { id: string; path?: string }[], bucket = B
       const out: Record<string, string> = {}
       const cloud = photos.filter((p) => p.path)
       if (cloud.length && supabase) {
-        const { data } = await supabase.storage.from(bucket).createSignedUrls(cloud.map((p) => p.path!), 3600)
+        const { data } = await supabase.storage.from(bucket).createSignedUrls(cloud.map((p) => p.path!), 3600).catch(() => ({ data: null }))
         data?.forEach((d, i) => { if (d.signedUrl) out[cloud[i].id] = d.signedUrl })
       }
       for (const p of photos.filter((x) => !x.path)) {
         try {
           const b = await idb<Blob | undefined>('readonly', (s) => s.get(p.id))
+          if (!alive) return
           if (b) { const u = URL.createObjectURL(b); made.push(u); out[p.id] = u }
         } catch { /* ignore */ }
       }
-      if (alive) setUrls(out)
+      if (alive) setResolved({ key, urls: out })
     })()
     return () => { alive = false; made.forEach(URL.revokeObjectURL) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  return urls
+  return resolved.key === key ? resolved.urls : {}
 }
