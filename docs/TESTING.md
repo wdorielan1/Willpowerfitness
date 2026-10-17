@@ -564,6 +564,12 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Tap the ringed photo: it opens your newest post from the last day (if you posted twice today, the newer one). Close it and the profile is as it was. The post grid still lists every post
 - [ ] With no post in the last day the photo has no ring and tapping it does nothing. On your own profile the edit-photo button still works either way
 
+## Activity badges on profiles
+- [ ] With no cardio logged, Profile > Achievements has no Activities card at all (nothing hidden-but-visible, no empty box). Logging only "Other" adds nothing
+- [ ] Log a session of an activity (like Tennis, Yoga or StairMaster): the Activities card appears at the top of Achievements with a small oval for it. Log it again and there is still one oval. Log another activity and it adds a second oval
+- [ ] The ones you do most come first. 12 ovals show, then "+N more", which shows the rest when tapped
+- [ ] A friend's profile and a public profile (the /u/ link) show the same ovals once the person's profile has updated (it can take a moment after they log). Check the privacy page lists "the cardio activities you have logged"
+
 ## Cardio page
 - [ ] Train page: a Cardio card sits under "Your next workout" and above "Not feeling it?" with Start cardio and Log one
 - [ ] The Cardio page lists the machines: Treadmill, StairMaster, Elliptical, Outdoor walk, Bike, Other. Only Treadmill asks for a mode (Walk, Incline, Run, Sprints), and Incline is picked to start
