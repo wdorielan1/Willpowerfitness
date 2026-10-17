@@ -81,6 +81,8 @@ export interface CardioLog {
 }
 /** A weekly cardio goal the person chose: some days of at least so many minutes, or a number of miles. */
 export type CardioGoal = { kind: 'days'; days: number; minutes: number } | { kind: 'miles'; miles: number }
+/** A message the app makes for the person itself (not from other people), like the first session of an activity or earning its badge. */
+export interface ActivityNotice { id: string; kind: 'start' | 'badge'; activity: string; ts: number; read?: boolean }
 /** A cardio timer that is running, kept here so it survives closing the app or locking the phone. */
 export interface CardioActive {
   kind: string; mode?: string; startedAt: number; pausedAt?: number; pausedMs: number
@@ -176,6 +178,10 @@ export interface AppData {
   /** The day the weekly cardio goal was offered, so "Not now" is not asked again. */
   cardioGoalAsked?: string
   cardioActive?: CardioActive
+  /** Messages for the person itself (activity badges); shown in Notifications and counted on the bell. */
+  notices?: ActivityNotice[]
+  /** Activities they waved off when the Crew page suggested a crew for it, so it is not suggested again. */
+  crewOfferDismissed?: string[]
   extras: Record<string, string[]> // date -> exercise ids added
   removed: Record<string, string[]> // date -> exercise ids removed
   skipAsked?: string // the day we last asked about skipped lifts mid-workout (at most once a day)

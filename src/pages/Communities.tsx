@@ -17,6 +17,8 @@ import AreaPicker from '../AreaPicker'
 import { roundCoord, type Place } from '../geo'
 import { postPhotos, deletePhotoBlob, CREW_BUCKET, withTimeout } from '../photos'
 import { Icon } from '../icons'
+import { ActivityCrewCard } from '../ActivityCrewCard'
+import { activityCount, crewNameFor, crewOffer } from '../cardio'
 
 export const MAX_CREWS = 3
 
@@ -24,6 +26,7 @@ export default function Communities() {
   const { data, update, userId, avatarUrl } = useApp()
   const ci = useCheckin()
   const all = allCommunities(data.custom)
+  const offer = crewOffer(data, all) // a sport they have done 5 times, with no crew for it yet
   const counts = useCrewCounts()
   const myName = data.name || 'You'
   const yours = all.filter((c) => data.joined.includes(c.id)).sort((a, b) => (a.id === data.primary ? -1 : b.id === data.primary ? 1 : 0))
@@ -105,6 +108,12 @@ export default function Communities() {
       setLeaving(null); setAlsoDelete(false); setSel(null)
     } catch (error) { window.alert(error instanceof Error ? error.message : String(error)) }
   }
+  // the suggestion fills in the "Start a new crew" form (they still pick the time and place) and brings it into view
+  const startOffered = (activity: string) => {
+    setName(crewNameFor(activity)); setNewCat('interest'); setVibe('')
+    if (crew) setFinder(true)
+    setTimeout(() => document.getElementById('new-crew-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)
+  }
   const create = () => {
     if (!name.trim()) return
     if (data.joined.length >= MAX_CREWS) { setSwapFor({ id: 'new', name: name.trim(), time, members: 1, rate: 0.7, vibe, blurb: '' }); return }
@@ -172,7 +181,7 @@ export default function Communities() {
         </>
       )}
       </>}
-      <section className="card">
+      <section className="card" id="new-crew-form">
         <h2>Start a new crew</h2>
         <p className="small mute">Build a crew around anything: a team, a job, a goal, a lifestyle, or a time.</p>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 5:45 AM Legs Crew" /></label>
@@ -210,6 +219,7 @@ export default function Communities() {
         <>
           <header className="crew-heading"><div className="overline">YOUR CREW</div><h1 className="crew-title">Find your people.</h1><p className="small mute">Join a crew around who you are and how you train: your life, your team, your goals, or your schedule. You can be in up to {MAX_CREWS}.</p></header>
           <SocialTabs />
+          {offer && <ActivityCrewCard activity={offer} count={activityCount(data, offer)} onStart={() => startOffered(offer)} onDismiss={() => update((d) => ({ ...d, crewOfferDismissed: [...(d.crewOfferDismissed ?? []), offer] }))} />}
           {Finder}
         </>
       ) : (
@@ -225,6 +235,8 @@ export default function Communities() {
             {archived(crew) && <div className="banner">This crew has been quiet for {INACTIVE_DAYS}+ days. Post something to wake it up.</div>}
           </header>
           <SocialTabs />
+
+          {offer && <ActivityCrewCard activity={offer} count={activityCount(data, offer)} onStart={() => startOffered(offer)} onDismiss={() => update((d) => ({ ...d, crewOfferDismissed: [...(d.crewOfferDismissed ?? []), offer] }))} />}
 
           <Qotd viewing={crew.id} />
 

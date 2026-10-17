@@ -1,6 +1,6 @@
 import { addDays, fromISO } from './engine'
 import { sportOf } from './sports'
-import type { AppData, CardioActive, CardioGoal, CardioLog } from './types'
+import type { ActivityNotice, AppData, CardioActive, CardioGoal, CardioLog } from './types'
 
 export type CardioField = 'speed' | 'incline' | 'level' | 'miles'
 export interface Machine { id: string; modes?: string[]; fields: CardioField[] }
@@ -38,8 +38,11 @@ export function activityBadge(kind: string): string | null {
   return MACHINES.some((m) => m.id === kind) || sportOf(kind) ? kind : null
 }
 
-/** Every activity they have logged at least once, the ones they do most first. Nothing is listed until it has been done. */
-export function activitiesDone(d: AppData): string[] {
+/** An activity badge (the small oval on the profile) is earned after this many sessions of it. */
+export const ACTIVITY_BADGE_AT = 5
+
+/** Sessions logged per activity, with when the latest was. */
+function activityTally(d: AppData) {
   const seen = new Map<string, { n: number; last: number }>()
   d.cardio.forEach((c, i) => {
     const name = activityBadge(c.kind)
@@ -47,7 +50,47 @@ export function activitiesDone(d: AppData): string[] {
     const cur = seen.get(name)
     seen.set(name, { n: (cur?.n ?? 0) + 1, last: Math.max(cur?.last ?? 0, Date.parse(c.date) * 1000 + i) })
   })
-  return [...seen.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).map(([name]) => name)
+  return seen
+}
+export const activityCount = (d: AppData, name: string) => activityTally(d).get(name)?.n ?? 0
+
+/** The activities they have done 5 times or more (the badges on their profile), the ones they do most first. Nothing is listed before then. */
+export function activitiesDone(d: AppData): string[] {
+  return [...activityTally(d).entries()].filter(([, v]) => v.n >= ACTIVITY_BADGE_AT).sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).map(([name]) => name)
+}
+
+/**
+ * After a session of this kind is saved: a note on the first session of an activity ("do it 4 more times for the badge") and a note when
+ * the 5th earns the badge. Only for the activity just logged, once each, so older sessions don't make a burst of notes.
+ */
+export function withActivityNotice(d: AppData, kind: string, now = Date.now()): AppData {
+  const name = activityBadge(kind)
+  if (!name) return d
+  const n = activityCount(d, name)
+  const have = (k: ActivityNotice['kind']) => (d.notices ?? []).some((x) => x.activity === name && x.kind === k)
+  const add: ActivityNotice[] = []
+  if (n === 1 && !have('start')) add.push({ id: `n${now}s${name}`, kind: 'start', activity: name, ts: now })
+  if (n >= ACTIVITY_BADGE_AT && !have('badge')) add.push({ id: `n${now}b${name}`, kind: 'badge', activity: name, ts: now })
+  return add.length ? { ...d, notices: [...add, ...(d.notices ?? [])].slice(0, 60) } : d
+}
+
+/** The name a suggested crew starts with: "Tennis crew" (brackets dropped). */
+export const crewNameFor = (activity: string) => `${activity.replace(/\s*\(.*\)/, '')} crew`
+
+/**
+ * A sport they have done 5 times or more that no crew is named for yet (and they have not waved off): the Crew page suggests starting one.
+ * Machines and the "Other" group make no sense as a crew, so only the sports count.
+ */
+export function crewOffer(d: AppData, crews: { name: string }[]): string | null {
+  const dismissed = d.crewOfferDismissed ?? []
+  for (const name of activitiesDone(d)) {
+    const sport = sportOf(name)
+    if (!sport || sport.cat === 'Other' || dismissed.includes(name)) continue
+    const base = name.replace(/\s*\(.*\)/, '').toLowerCase()
+    if (crews.some((c) => c.name.toLowerCase().includes(base))) continue
+    return name
+  }
+  return null
 }
 
 /** Sports they have logged at least twice, most recent first, so the ones they play show in the machine row without searching. */

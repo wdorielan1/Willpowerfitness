@@ -5,7 +5,7 @@ import { useApp } from '../store'
 import { CARDIO_SESSION_MIN, cardioFinisher, dayFor, fromISO, todayISO } from '../engine'
 import {
   CARDIO_ASK_HOURS, DEFAULT_MACHINE, DEFAULT_MODE, GOAL_DAY_MINUTES, GOAL_MILES, MACHINES, SESSION_NOTE, UNIT_LABEL,
-  cardioName, clockText, elapsedMs, goalProgress, goalText, machineOf, newCardioId, recentSports, sameLog, shouldOfferGoal, weekCardio, workoutRunning,
+  cardioName, clockText, elapsedMs, goalProgress, goalText, machineOf, newCardioId, recentSports, sameLog, shouldOfferGoal, weekCardio, withActivityNotice, workoutRunning,
 } from '../cardio'
 import { POPULAR_SPORTS, SPORTS, SPORT_CATEGORIES, findSports, sportOf } from '../sports'
 import { TimerConflict } from '../TimerConflict'
@@ -209,12 +209,12 @@ export default function Cardio() {
     setSheet({ kind: 'finish', minutes: Math.min(600, Math.max(1, Math.round(ms / 60000))), long: ms > 3 * 3600_000 })
   }
   const saved = (log: CardioLog, timer = false) => {
-    update((d) => ({ ...d, cardio: [...d.cardio, log], ...(timer ? { cardioActive: undefined } : {}) }))
+    update((d) => withActivityNotice({ ...d, cardio: [...d.cardio, log], ...(timer ? { cardioActive: undefined } : {}) }, log.kind))
     setSheet(null)
     setMsg(log.minutes >= CARDIO_SESSION_MIN ? `Saved. ${log.date === today ? 'Today counts' : 'That day counts'} as a workout day.` : 'Saved.')
   }
   const edited = (old: CardioLog, next: CardioLog) => {
-    update((d) => { const i = d.cardio.findIndex((c) => sameLog(c, old)); return i < 0 ? d : { ...d, cardio: d.cardio.map((c, j) => (j === i ? next : c)) } })
+    update((d) => { const i = d.cardio.findIndex((c) => sameLog(c, old)); return i < 0 ? d : withActivityNotice({ ...d, cardio: d.cardio.map((c, j) => (j === i ? next : c)) }, next.kind) })
     setSheet(null); setMsg('Saved.')
   }
   const remove = (old: CardioLog) => {
