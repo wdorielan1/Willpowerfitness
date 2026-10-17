@@ -543,6 +543,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Change a day and then finish the workout on it: the rotation carries on from where it was (the next day is not thrown off)
 - [ ] The press-and-hold drag and "Move this workout" on a day still work
 
+## Train page: calendar on top, one Start button
+- [ ] Order on Train: This week (top), then "Switch today's workout" with the workout buttons, then "Your next workout" with Start workout (bottom). There is no second list of exercises and no second Start lifting button
+- [ ] The Train calendar works like Home: press and hold a day and drag it onto another day to swap; Edit week sets any day; tap a day to see its lifts, Move this workout or Share this workout
+- [ ] A missed day: the "You missed ..." note sits above the buttons. Tap the day: Do it today, Let it roll, or Skip it and move on
+- [ ] Tap a workout in the picker (say Legs): "Your next workout" below changes to Legs right away. Tap Usual plan: it goes back. Chest + Triceps and Back + Biceps work the same
+- [ ] Build your own still opens its exercise picker; Cardio / recovery opens the cardio log; a saved workout can be picked, and the delete link shows for it
+- [ ] The first time you tap Start workout it asks which equipment you use (skippable). After that it goes straight in
+- [ ] Inside the workout (after Start) the calendar is not shown again. The first screen has the warm-up and today's lifts with press-and-hold reorder, swipe to remove or add, and Short on time?
+- [ ] The heading reads "Switch today's workout." with "Not feeling it?" above it, not "What are you training?"
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
