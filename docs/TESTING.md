@@ -498,6 +498,7 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Tap Unlock: the card tile gets ‹ › arrows. Slide it later; the order in the sheet changes and so does the post. Lock to front puts it back first
 - [ ] Posted with the card locked: the card is the first panel in the feed, then the video, then your photos. Posted unlocked and slid back: it follows your order
 - [ ] With nothing added (just the card) there is no lock row
+- [ ] In a post with 2 or more pictures every photo fills its panel edge to edge with no bars above, below or beside it (a wide or tall photo is trimmed to the panel shape). Tap a photo to see all of it
 - [ ] A single photo still fills the post and shows whole
 - [ ] A single video fills the post at its own shape (tall for a phone video held upright, wide for sideways) with no black bars at the sides
 - [ ] The video starts by itself without sound as you scroll to it, and tapping it opens it with sound
