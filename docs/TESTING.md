@@ -528,6 +528,11 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Switch it off in Settings: it stays off after closing and reopening the app, and the notice never comes back
 - [ ] After the switch to public, new posts show in Explore. Posts made before it stay crew-only
 
+## Share box position on Home
+- [ ] On Home the order is: the greeting (such as "Late night workout, Will?"), the "Share something with your crew" box, then This week, Today's nutrition, Invite friends and the feed
+- [ ] The box still works from there: type and Post, Add photos, Add video, Share workout, and the crew chips when you are in more than one crew
+- [ ] With no crew yet, the box does not show and the week sits right under the greeting
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
