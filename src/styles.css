@@ -1682,3 +1682,11 @@ p.focus-note { margin: -4px 0 0; }
 .cardio-row b { font-weight: 600; overflow-wrap: anywhere; }
 .cardio-row time { color: var(--mute); font-size: 11px; }
 .cardio-row > span:last-child { color: var(--mute); white-space: nowrap; font-size: 13px; }
+
+/* Cardio: the "More activities" chip and the grouped list */
+.chip.more { background: transparent; border-style: dashed; color: var(--mute); }
+.activity-cats { display: grid; gap: 2px; }
+.activity-cat { border-top: 1px solid var(--line); padding: 4px 0; }
+.activity-cat summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; font-weight: 600; font-size: 14px; list-style: none; }
+.activity-cat summary > span { color: var(--mute); font-size: 12px; font-weight: 500; }
+.activity-cat[open] .chips { padding: 4px 0 12px; }

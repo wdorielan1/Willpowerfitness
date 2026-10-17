@@ -5,27 +5,60 @@ import { useApp } from '../store'
 import { CARDIO_SESSION_MIN, cardioFinisher, dayFor, fromISO, todayISO } from '../engine'
 import {
   DEFAULT_MACHINE, DEFAULT_MODE, GOAL_DAY_MINUTES, GOAL_MILES, MACHINES, SESSION_NOTE, UNIT_LABEL,
-  cardioName, clockText, elapsedMs, goalProgress, goalText, machineOf, newCardioId, sameLog, shouldOfferGoal, weekCardio,
+  cardioName, clockText, elapsedMs, goalProgress, goalText, machineOf, newCardioId, recentSports, sameLog, shouldOfferGoal, weekCardio, workoutRunning,
 } from '../cardio'
+import { POPULAR_SPORTS, SPORTS, SPORT_CATEGORIES, findSports, sportOf } from '../sports'
+import { TimerConflict } from '../TimerConflict'
 import type { CardioGoal, CardioLog } from '../types'
 
 const dayLabel = (date: string) => fromISO(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 const miles = (n?: number) => (n ? ` · ${Math.round(n * 10) / 10} mi` : '')
 
 /** Pick the machine; the treadmill also asks how it was used (walk, incline, run or sprints). */
-function MachinePicker({ kind, mode, onKind, onMode }: { kind: string; mode: string; onKind: (k: string) => void; onMode: (m: string) => void }) {
+function MachinePicker({ kind, mode, onKind, onMode, extras, onMore }: { kind: string; mode: string; onKind: (k: string) => void; onMode: (m: string) => void; extras: string[]; onMore: () => void }) {
   const machine = MACHINES.find((m) => m.id === kind)
-  const legacy = !machine // an older session keeps its old kind (like "Incline walk") when edited
+  const isSport = !machine && !!sportOf(kind)
+  const legacy = !machine && !isSport // an older session keeps its old kind (like "Incline walk") when edited
+  const sports = [...new Set([...(isSport ? [kind] : []), ...extras])] // the sports they play most, and the one picked now
   return (
     <>
       <div className="chips" role="group" aria-label="Machine">
         {legacy && <button type="button" className="chip on" aria-pressed="true">{kind}</button>}
         {MACHINES.map((m) => <button type="button" key={m.id} className={`chip ${kind === m.id ? 'on' : ''}`} aria-pressed={kind === m.id} onClick={() => onKind(m.id)}>{m.id}</button>)}
+        {sports.map((name) => <button type="button" key={name} className={`chip ${kind === name ? 'on' : ''}`} aria-pressed={kind === name} onClick={() => onKind(name)}>{name}</button>)}
+        <button type="button" className="chip more" onClick={onMore}>More activities…</button>
       </div>
       {machine?.modes && <div className="chips" role="group" aria-label={`${kind} mode`}>
         {machine.modes.map((m) => <button type="button" key={m} className={`chip ${mode === m ? 'on' : ''}`} aria-pressed={mode === m} onClick={() => onMode(m)}>{m}</button>)}
       </div>}
     </>
+  )
+}
+
+/** Sports, classes and outdoor activities with no machine. Search finds them by name or another name people use; the full list is tucked into groups. */
+function ActivitySheet({ current, onPick, onClose }: { current: string; onPick: (name: string) => void; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const found = findSports(q)
+  const chip = (name: string) => <button type="button" key={name} className={`chip ${current === name ? 'on' : ''}`} aria-pressed={current === name} onClick={() => onPick(name)}>{name}</button>
+  return (
+    <Sheet title="More activities" onClose={onClose} z={60}>
+      <input type="search" aria-label="Search activities" placeholder="Search: tennis, yoga, ping pong…" value={q} onChange={(e) => setQ(e.target.value)} />
+      {q.trim() ? (
+        found.length ? <div className="chips">{found.map((s) => chip(s.name))}</div> : <p className="small mute">Nothing matches. Pick Other on the machine row and add a note.</p>
+      ) : (
+        <>
+          <h3>Popular</h3>
+          <div className="chips">{POPULAR_SPORTS.map((s) => chip(s.name))}</div>
+          <h3>All activities</h3>
+          <div className="activity-cats">
+            {SPORT_CATEGORIES.map((cat) => {
+              const items = SPORTS.filter((s) => s.cat === cat)
+              return <details key={cat} className="activity-cat"><summary>{cat}<span>{items.length}</span></summary><div className="chips">{items.map((s) => chip(s.name))}</div></details>
+            })}
+          </div>
+        </>
+      )}
+    </Sheet>
   )
 }
 
@@ -54,8 +87,9 @@ function toLog(d: Draft, today: string, base: Partial<CardioLog>, source: 'manua
 }
 
 /** The log form: used to log one you already did, to finish the timer, and to edit an older session. */
-function CardioSheet({ title, initial, base = {}, source, note, onSave, onDelete, onClose }: {
+function CardioSheet({ title, initial, base = {}, source, note, extras, onMore, onSave, onDelete, onClose }: {
   title: string; initial?: Partial<CardioLog>; base?: Partial<CardioLog>; source: 'manual' | 'timer'; note?: string
+  extras: string[]; onMore: (current: string, apply: (name: string) => void) => void
   onSave: (log: CardioLog) => void; onDelete?: () => void; onClose: () => void
 }) {
   const today = todayISO()
@@ -68,18 +102,18 @@ function CardioSheet({ title, initial, base = {}, source, note, onSave, onDelete
   return (
     <Sheet title={title} onClose={onClose}>
       {note && <p className="small mute">{note}</p>}
-      <MachinePicker kind={d.kind} mode={d.mode} onKind={(k) => set({ kind: k, mode: k === 'Treadmill' ? d.mode || DEFAULT_MODE : '' })} onMode={(m) => set({ mode: m })} />
+      <MachinePicker kind={d.kind} mode={d.mode} onKind={(k) => set({ kind: k, mode: k === 'Treadmill' ? d.mode || DEFAULT_MODE : '' })} onMode={(m) => set({ mode: m })} extras={extras} onMore={() => onMore(d.kind, (name) => set({ kind: name, mode: '' }))} />
       <div className="grid2">
         <label>Minutes<input inputMode="numeric" value={d.minutes} onChange={(e) => set({ minutes: e.target.value.replace(/[^0-9]/g, '') })} placeholder="30" /></label>
         <label>Day<input type="date" max={today} value={d.date} onChange={(e) => set({ date: e.target.value })} /></label>
       </div>
       {Number(d.minutes) >= CARDIO_SESSION_MIN && <p className="small ok-text">This counts as a workout day.</p>}
-      <details className="cardio-details" open={hasDetails}>
+      {machine.fields.length > 0 && <details className="cardio-details" open={hasDetails}>
         <summary>More details (optional)</summary>
         <div className="grid2">
           {machine.fields.map((f) => <label key={f}>{UNIT_LABEL[f]}<input inputMode="decimal" value={d[f]} onChange={(e) => set({ [f]: e.target.value.replace(/[^0-9.]/g, '') } as Partial<Draft>)} /></label>)}
         </div>
-      </details>
+      </details>}
       <label>Notes<input value={d.note} onChange={(e) => set({ note: e.target.value })} placeholder="How it felt" /></label>
       {err && <p role="alert" className="err small">{err}</p>}
       <button type="button" className="primary" onClick={save}>Save</button>
@@ -136,6 +170,8 @@ export default function Cardio() {
   const [askDelete, setAskDelete] = useState<CardioLog | null>(null)
   const [shown, setShown] = useState(10)
   const [msg, setMsg] = useState('')
+  const [more, setMore] = useState<null | { current: string; apply: (name: string) => void }>(null)
+  const [conflict, setConflict] = useState(false) // a workout is running, so a cardio timer can't start
   const [now, setNow] = useState(() => Date.now())
   const active = data.cardioActive
   const running = !!active && !active.pausedAt
@@ -153,7 +189,12 @@ export default function Cardio() {
   const wk = weekCardio(data, today)
   const goal = data.cardioGoal ? goalProgress(data, data.cardioGoal, today) : null
 
-  const start = () => update((d) => ({ ...d, cardioActive: { kind, mode: kind === 'Treadmill' ? mode : undefined, startedAt: Date.now(), pausedMs: 0 } }))
+  const extras = recentSports(data)
+  const openMore = (current: string, apply: (name: string) => void) => setMore({ current, apply })
+  const start = () => {
+    if (workoutRunning(data, today)) { setConflict(true); return } // cardio and lifting can't be timed at the same time
+    update((d) => ({ ...d, cardioActive: { kind, mode: kind === 'Treadmill' ? mode : undefined, startedAt: Date.now(), pausedMs: 0 } }))
+  }
   const pause = () => update((d) => (d.cardioActive && !d.cardioActive.pausedAt ? { ...d, cardioActive: { ...d.cardioActive, pausedAt: Date.now() } } : d))
   const resume = () => update((d) => (d.cardioActive?.pausedAt ? { ...d, cardioActive: { ...d.cardioActive, pausedMs: d.cardioActive.pausedMs + (Date.now() - d.cardioActive.pausedAt), pausedAt: undefined } } : d))
   const finish = () => {
@@ -197,7 +238,7 @@ export default function Cardio() {
         <section className="card">
           <h2>Start a session</h2>
           {suggestion && <p className="small mute">Suggested today: {suggestion}</p>}
-          <MachinePicker kind={kind} mode={mode} onKind={setKind} onMode={setMode} />
+          <MachinePicker kind={kind} mode={mode} onKind={(k) => { setKind(k); if (k === 'Treadmill' && !mode) setMode(DEFAULT_MODE) }} onMode={setMode} extras={extras} onMore={() => openMore(kind, (name) => setKind(name))} />
           <button type="button" className="primary" onClick={start}>Start timer</button>
           <button type="button" className="ghost" onClick={() => setSheet({ kind: 'log' })}>Log one I already did</button>
           <p className="small mute">{SESSION_NOTE(CARDIO_SESSION_MIN)}</p>
@@ -248,13 +289,15 @@ export default function Cardio() {
         <button type="button" className="ghost" onClick={() => nav('/workout?change=1')}>Add a workout</button>
       </section>
 
-      {sheet?.kind === 'log' && <CardioSheet title="Log cardio" source="manual" onSave={(l) => saved(l)} onClose={() => setSheet(null)} />}
-      {sheet?.kind === 'finish' && active && <CardioSheet title="Finish session" source="timer" initial={{ kind: active.kind, mode: active.mode, minutes: sheet.minutes }}
+      {sheet?.kind === 'log' && <CardioSheet title="Log cardio" source="manual" extras={extras} onMore={openMore} onSave={(l) => saved(l)} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'finish' && active && <CardioSheet title="Finish session" source="timer" extras={extras} onMore={openMore} initial={{ kind: active.kind, mode: active.mode, minutes: sheet.minutes }}
         note={sheet.long ? 'The timer ran for a long time. Set the minutes you really did.' : 'Check the minutes, then save.'} onSave={(l) => saved(l, true)} onClose={() => setSheet(null)} />}
-      {sheet?.kind === 'edit' && <CardioSheet title="Edit cardio" source="manual" initial={sheet.log} base={sheet.log} onSave={(l) => edited(sheet.log, l)} onDelete={() => setAskDelete(sheet.log)} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'edit' && <CardioSheet title="Edit cardio" source="manual" extras={extras} onMore={openMore} initial={sheet.log} base={sheet.log} onSave={(l) => edited(sheet.log, l)} onDelete={() => setAskDelete(sheet.log)} onClose={() => setSheet(null)} />}
       {sheet?.kind === 'goal' && <GoalSheet goal={data.cardioGoal} onClose={() => setSheet(null)}
         onSave={(g) => { update((d) => ({ ...d, cardioGoal: g, cardioGoalAsked: today })); setSheet(null); setMsg('Goal saved.') }}
         onRemove={() => { update((d) => ({ ...d, cardioGoal: undefined, cardioGoalAsked: today })); setSheet(null) }} />}
+      {more && <ActivitySheet current={more.current} onPick={(name) => { more.apply(name); setMore(null) }} onClose={() => setMore(null)} />}
+      {conflict && <TimerConflict running="workout" onClose={() => setConflict(false)} />}
       {askDiscard && <ConfirmSheet title="Discard this session?" message="The time so far will not be saved." confirmLabel="Discard" onConfirm={() => { update((d) => ({ ...d, cardioActive: undefined })); setAskDiscard(false) }} onCancel={() => setAskDiscard(false)} />}
       {askDelete && <ConfirmSheet title="Delete this session?" message="It is removed from your history and can't be recovered." confirmLabel="Yes, delete it" onConfirm={() => remove(askDelete)} onCancel={() => setAskDelete(null)} />}
     </>

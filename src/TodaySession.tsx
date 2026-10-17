@@ -7,6 +7,7 @@ import { ConfirmSheet, fmtClock } from './components'
 import { Icon } from './icons'
 import { summaryFromLog } from './shareCard'
 import { ShareWorkoutSheet } from './pages/Feed'
+import { TimerConflict } from './TimerConflict'
 import type { DayType } from './types'
 
 const sessionDescription: Record<DayType, string> = {
@@ -50,7 +51,8 @@ export function TodaySession({ onChange, beforeStart }: { onChange?: () => void;
   const focus = data.workoutFocus?.[today]
   const sessionName = workoutName(day, focus)
   const go = () => { ci.start(); nav('/workout') }
-  const start = () => { if (beforeStart) beforeStart(go); else go() }
+  const [cardioBusy, setCardioBusy] = useState(false) // a cardio timer is running, so a workout can't start
+  const start = () => { if (data.cardioActive) { setCardioBusy(true); return } if (beforeStart) beforeStart(go); else go() }
 
   return (
     <>
@@ -91,6 +93,7 @@ export function TodaySession({ onChange, beforeStart }: { onChange?: () => void;
       </section>
       {askUndo && <ConfirmSheet title="Undo completion?" message="This marks today’s workout as not done, which can lower your streak. Your logged sets are kept, and you can finish the workout again anytime." confirmLabel="Yes, undo it" onConfirm={() => { setAskUndo(false); ci.undo() }} onCancel={() => setAskUndo(false)} />}
       {sharing && todaysLog && <ShareWorkoutSheet log={todaysLog} onClose={() => setSharing(false)} />}
+      {cardioBusy && <TimerConflict running="cardio" onClose={() => setCardioBusy(false)} />}
     </>
   )
 }

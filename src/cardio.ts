@@ -1,4 +1,5 @@
 import { addDays, fromISO } from './engine'
+import { sportOf } from './sports'
 import type { AppData, CardioActive, CardioGoal, CardioLog } from './types'
 
 export type CardioField = 'speed' | 'incline' | 'level' | 'miles'
@@ -19,8 +20,27 @@ export const DEFAULT_MODE = 'Incline'
 export const GOAL_DAY_MINUTES = [20, 30, 45, 60]
 export const GOAL_MILES = [5, 10, 15, 20]
 
-/** Sessions logged before the machines changed keep their old kind (like "Incline walk"), which has no extra fields beyond distance. */
-export const machineOf = (kind: string): Machine => MACHINES.find((m) => m.id === kind) ?? { id: kind, fields: ['miles'] }
+/**
+ * What a session can record. A sport has no machine settings (only miles, where distance is worth logging), and sessions logged before
+ * the machines changed keep their old kind (like "Incline walk"), which has miles only.
+ */
+export function machineOf(kind: string): Machine {
+  const machine = MACHINES.find((m) => m.id === kind)
+  if (machine) return machine
+  const sport = sportOf(kind)
+  return { id: kind, fields: sport ? (sport.miles ? ['miles'] : []) : ['miles'] }
+}
+
+/** Sports they have logged at least twice, most recent first, so the ones they play show in the machine row without searching. */
+export function recentSports(d: AppData, max = 2): string[] {
+  const seen = new Map<string, { n: number; last: number }>()
+  d.cardio.forEach((c, i) => { if (sportOf(c.kind)) { const cur = seen.get(c.kind); seen.set(c.kind, { n: (cur?.n ?? 0) + 1, last: Math.max(cur?.last ?? 0, Date.parse(c.date) * 1000 + i) }) } })
+  return [...seen.entries()].filter(([, v]) => v.n >= 2).sort((a, b) => b[1].last - a[1].last).slice(0, max).map(([name]) => name)
+}
+
+/** A lifting workout that was started today and not finished. Cardio and lifting can't be timed at the same time. */
+export const workoutRunning = (d: AppData, today: string) =>
+  !!d.started[today] && !d.checkins[today]?.done && !d.logs.some((l) => l.date === today && !l.baseline)
 export const cardioName = (c: Pick<CardioLog, 'kind' | 'mode'>) => (c.mode ? `${c.kind} · ${c.mode}` : c.kind)
 export const newCardioId = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 

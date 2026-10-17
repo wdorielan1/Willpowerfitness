@@ -18,6 +18,7 @@ import { ShareWorkoutSheet, usePostActions } from './Feed'
 import { TodaySession } from '../TodaySession'
 import { WeekPlanner } from '../WeekPlanner'
 import { CardioCard } from '../CardioCard'
+import { TimerConflict } from '../TimerConflict'
 import { Icon } from '../icons'
 import { ReorderList } from '../Reorder'
 import { SwipeRow } from '../SwipeRow'
@@ -336,6 +337,7 @@ export default function Workout() {
   const [buildIds, setBuildIds] = useState<string[]>(data.customSession?.[today] ?? [])
   const [askEquip, setAskEquip] = useState<(() => void) | null>(null) // the first start of a workout offers the equipment screen
   const [equipNote, setEquipNote] = useState(false)
+  const [cardioBusy, setCardioBusy] = useState(false) // a cardio timer is running, so a workout can't start
   const [sheet, setSheet] = useState<null | { kind: 'day' } | { kind: 'build' } | { kind: 'swap'; orig: string; cur: string } | { kind: 'add' } | { kind: 'rpe' } | { kind: 'options'; exId: string } | { kind: 'dislike'; exId: string }>(null)
   const [sp, setSp] = useSearchParams()
   useEffect(() => {
@@ -441,6 +443,7 @@ export default function Workout() {
     extras: tweaks?.extras.length ? { ...stripToday(d.extras), [today]: tweaks.extras } : stripToday(d.extras), removed: tweaks?.removed.length ? { ...stripToday(d.removed), [today]: tweaks.removed } : stripToday(d.removed), swaps: stripToday(d.swaps), drafts: stripToday(d.drafts),
   })
   const beginWith = (day: DayType, focus?: WorkoutFocus, ids?: string[], tweaks?: { removed: string[]; extras: string[]; order?: string[] }) => {
+    if (day !== 'Rest/Cardio' && data.cardioActive) { setCardioBusy(true); return } // cardio and lifting can't be timed at the same time
     timer.stop(); update((d) => selectSession(d, day, focus, ids, tweaks)); setIdx(0)
     if (day === 'Rest/Cardio') { nav('/cardio'); return }
     ci.start()
@@ -641,6 +644,7 @@ export default function Workout() {
           onSkip={() => { update((d) => ({ ...d, settings: { ...d.settings, equipAsked: Date.now() } })); askEquip(); setAskEquip(null) }}
           onSave={(equip) => { update((d) => ({ ...d, profile: { ...d.profile!, equip }, settings: { ...d.settings, equipAsked: Date.now() } })); setAskEquip(null); setEquipNote(true) }} />}
         <CardioCard />
+        {cardioBusy && <TimerConflict running="cardio" onClose={() => setCardioBusy(false)} />}
         <div id="train-chooser" />
         <Chooser data={data} today={today} short={short} suggested={suggested} current={plan.day}
           onPick={chooseDay} onStart={beginWith}
@@ -828,7 +832,7 @@ export default function Workout() {
               {UndoNote}
               <button className="ghost" onClick={() => setSheet({ kind: 'add' })}><Icon name="plus" />Add an exercise</button>
             </section>
-            {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p><div className="row wrap"><Link className="btn primary" to="/cardio">Start cardio</Link><Link className="btn ghost" to="/cardio?log=1">Log cardio</Link></div></section>}
+            {cardio && <section className="card"><h3>Optional cardio finisher</h3><p>{cardio}</p>{!ci.done && <p className="small mute">Finish your workout first, then start cardio. Cardio and lifting can’t be timed at the same time.</p>}<div className="row wrap">{ci.done && <Link className="btn primary" to="/cardio">Start cardio</Link>}<Link className={`btn ${ci.done ? 'ghost' : 'primary'}`} to="/cardio?log=1">Log cardio</Link></div></section>}
             {todaysLog && todaysLog.entries.some((e) => e.sets.length) && <button className="ghost" onClick={() => setResharing(true)}>Share this workout</button>}
             {todaysLog && ci.done && <button className="quiet-action" onClick={() => setAsk('undo')}>Undo completion</button>}
             <button className="link-danger" onClick={() => setAsk(todaysLog ? 'delete' : 'discard')}>{todaysLog ? 'Delete this workout' : 'Discard this workout'}</button>

@@ -18,7 +18,7 @@ export default function Go() {
       case 'cardio': nav('/cardio?log=1', { replace: true }); break
       case 'weight': nav('/log?t=weight', { replace: true }); break
       case 'workout': nav('/workout', { replace: true }); break
-      case 'start': ci.start(); nav('/workout', { replace: true }); break
+      case 'start': if (!data.cardioActive) ci.start(); nav('/workout', { replace: true }); break // a running cardio timer blocks it; Train explains why
       // the phone (Apple's own location) tells us where they are; the app is only told the answer and never sees a place
       case 'gym':
       case 'home':
@@ -32,7 +32,7 @@ export default function Go() {
         const now = new Date()
         const [h, mi] = (crew?.time ?? '').split(':').map(Number)
         const diff = crew ? Math.abs(now.getHours() * 60 + now.getMinutes() - (h * 60 + mi)) : Infinity
-        if (crew && diff <= 90) ci.start()
+        if (crew && diff <= 90 && !data.cardioActive) ci.start()
         nav('/workout', { replace: true })
         break
       }
