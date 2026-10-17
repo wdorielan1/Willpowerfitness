@@ -5,6 +5,8 @@ export interface ProfileStats {
   streak?: number
   workouts30?: number
   workoutsTotal?: number
+  minutesTotal?: number
+  volumeTotal?: number
   since?: string
   /** dates (YYYY-MM-DD) with a finished workout in the last 12 weeks */
   days?: string[]
@@ -24,10 +26,13 @@ export const BADGES: { id: string; label: string; emoji: string; hint: string }[
 ]
 
 /** What other people can see about you. Built from your own data on this device, then published to your profile card. */
-export function computeStats(d: AppData, today = todayISO()): ProfileStats {
+export function computeStats(d: AppData, today = todayISO(), options: { includePrivate?: boolean } = {}): ProfileStats {
   const done = new Set<string>()
-  for (const [date, c] of Object.entries(d.checkins)) if (c.done) done.add(date)
-  for (const l of d.logs) if (!l.baseline && !l.imported) done.add(l.date)
+  const logs = d.logs.filter((l) => !l.baseline && !l.imported && !l.skipped && l.date <= today)
+  for (const [date, c] of Object.entries(d.checkins)) if (c.done && date <= today) done.add(date)
+  for (const l of logs) done.add(l.date)
+  const timed = logs.filter((l) => l.minutes != null && Number.isFinite(l.minutes) && l.minutes! >= 0)
+  const volume = logs.reduce((total, l) => total + l.entries.reduce((sum, e) => sum + e.sets.reduce((n, s) => n + (Number.isFinite(s.weight * s.reps) ? Math.max(0, s.weight) * Math.max(0, s.reps) : 0), 0), 0), 0)
   const all = [...done].sort()
   const from84 = addDays(today, -83)
   const from30 = addDays(today, -29)
@@ -46,6 +51,8 @@ export function computeStats(d: AppData, today = todayISO()): ProfileStats {
     streak: st,
     workouts30: all.filter((x) => x >= from30).length,
     workoutsTotal: all.length,
+    minutesTotal: timed.length ? Math.round(timed.reduce((sum, l) => sum + l.minutes!, 0)) : all.length ? undefined : 0,
+    ...(options.includePrivate || d.settings.shareLifts !== false ? { volumeTotal: logs.length || !all.length ? Math.round(volume) : undefined } : {}),
     since: all[0],
     days: all.filter((x) => x >= from84),
     badges,

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../icons'
 import { useApp } from '../store'
 import ProfileView from '../ProfileView'
-import { CommentThread } from '../Comments'
 import { profileLink } from '../ProfileSettings'
 import { computeStats } from '../profileStats'
 import { avatarFromFile } from '../photos'
@@ -20,15 +19,19 @@ export default function Profile() {
   const file = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
   const [posts, setPosts] = useState<PublicPost[] | null>(null)
-  const postCount = data.posts.length
+  const [postsError, setPostsError] = useState('')
+  const [retry, setRetry] = useState(0)
   const [counts, setCounts] = useState<{ followers: number; following: number } | null>(null)
   useEffect(() => {
     if (cloudEnabled && userId) void fetchConnections(userId, []).then((c) => setCounts({ followers: c.friends.length + c.followers.length, following: c.friends.length + c.following.length })).catch(() => {})
   }, [userId])
   useEffect(() => {
-    if (cloudEnabled && userId) void fetchUserPosts(userId).then(setPosts)
-    else setPosts(data.posts.filter((x) => x.mine).map((x) => ({ id: x.id, crewId: x.crewId, kind: x.kind, text: x.text, ts: x.ts, hasPhoto: !!(x.imagePaths?.length || x.imageIds?.length), isPublic: false })))
-  }, [userId, postCount]) // eslint-disable-line react-hooks/exhaustive-deps
+    let alive = true
+    setPosts(null); setPostsError('')
+    if (cloudEnabled && userId) void fetchUserPosts(userId).then((x) => { if (alive) setPosts(x) }).catch(() => { if (alive) setPostsError('Could not load your posts.') })
+    else setPosts(data.posts.filter((x) => x.mine).sort((a, b) => b.ts - a.ts).map((x) => ({ ...x, imagePaths: x.imagePaths?.length ? x.imagePaths : x.imagePath ? [x.imagePath] : [], imageIds: x.imageIds?.length ? x.imageIds : x.imageId ? [x.imageId] : [], hasPhoto: !!(x.imagePaths?.length || x.imageIds?.length || x.imagePath || x.imageId), isPublic: !!x.isPublic })))
+    return () => { alive = false }
+  }, [userId, data.posts, retry])
   const pick = async (f: File | undefined) => {
     if (!f) return
     try { setAvatar(await avatarFromFile(f)); setMsg('Photo updated.') } catch (e) { setMsg(e instanceof Error ? e.message : 'Could not use that photo.') }
@@ -50,40 +53,41 @@ export default function Profile() {
     <>
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} />
       <ProfileView
-        name={data.name} handle={data.handle} avatar={avatarUrl} bio={data.bio} stats={computeStats(data)} posts={posts} showLocked
+        name={data.name} handle={data.handle} avatar={avatarUrl} bio={data.bio} stats={computeStats(data, undefined, { includePrivate: true })} posts={posts} showLocked
         followers={counts?.followers ?? (cloudEnabled ? null : 0)} following={counts?.following ?? (cloudEnabled ? null : 0)} countsLink={cloudEnabled}
         crewName={(c) => all.find((x) => x.id === c)?.name ?? c}
         emptyPosts="No posts yet. Post in a crew and it shows here."
-        renderPost={(x) => userId ? <CommentThread postId={x.id} count={x.comments} me={{ id: userId }} postMine /> : null}
+        postsError={postsError} onRetryPosts={() => setRetry((n) => n + 1)}
+        onEditAvatar={() => file.current?.click()}
+        status={msg && <p className="small mute" role="status">{msg}</p>}
         actions={<>
-          <button className="ghost small-btn" onClick={() => file.current?.click()}>{avatarUrl ? 'Change photo' : 'Add photo'}</button>
-          {data.avatar && <button className="ghost small-btn" onClick={() => { setAvatar(null); setMsg(googlePhoto ? 'Back to your Google photo.' : 'Photo removed.') }}>{googlePhoto ? 'Use my Google photo' : 'Remove photo'}</button>}
-          <button className="ghost small-btn" onClick={() => void share()}>Share profile</button>
-          <Link to="/settings" className="ghost small-btn" style={{ textDecoration: 'none' }}>Edit bio and privacy</Link>
-          {msg && <span className="small mute" role="status" style={{ flexBasis: '100%' }}>{msg}</span>}
+          <Link to="/settings" className="ghost small-btn">Edit profile</Link>
+          <button className="ghost small-btn pv-share" onClick={() => void share()} aria-label="Share profile"><Icon name="upload" size={18} /><span>Share</span></button>
+        </>}
+        about={<>
+          <p className="small mute">{data.profilePublic ? 'Your profile is public. Anyone with your link can see it, and your posts show in Explore.' : 'Your profile is private.'}</p>
+          {data.avatar && <button className="ghost small-btn" onClick={() => { setAvatar(null); setMsg(googlePhoto ? 'Back to your Google photo.' : 'Photo removed.') }}>{googlePhoto ? 'Use my Google photo' : 'Remove profile photo'}</button>}
+          <Link to="/friends" className="card profile-friends" aria-label="Open Friends">
+            <span className="icon-surface"><Icon name="crew" /></span>
+            <span className="grow"><b>Friends</b><span className="small mute">{counts ? `${counts.followers} follower${counts.followers === 1 ? '' : 's'} · ${counts.following} following` : 'Followers, following, and who to invite'}</span></span>
+            <Icon name="chevron" />
+          </Link>
+          <section className="card">
+            <h3>Your details</h3>
+            <span className="small mute">{email}</span>
+            {rows.map(([k, v]) => <div key={k} className="row small"><span className="mute">{k}</span><b>{v}</b></div>)}
+            <Link to="/settings" className="btn ghost">Change these in Settings</Link>
+          </section>
+          <section className="card">
+            <h3>Plans</h3>
+            <p className="small mute">Will Power is free during beta. Pro, premium 5 AM Club, paid challenges and coaching are coming later.</p>
+            <span className="tag ok">Free beta</span>
+          </section>
+          <Link to="/privacy" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Privacy Policy</Link>
+          <Link to="/terms" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Terms of Service</Link>
+          <button className="ghost" onClick={logOut}>Log out</button>
         </>}
       />
-      <p className="small mute" style={{ textAlign: 'center' }}>{data.profilePublic ? 'Your profile is public. Anyone with your link can see it, and your posts show in Explore.' : 'Your profile is private.'}</p>
-
-      <Link to="/friends" className="card profile-friends" aria-label="Open Friends">
-        <span className="icon-surface"><Icon name="crew" /></span>
-        <span className="grow"><b>Friends</b><span className="small mute">{counts ? `${counts.followers} follower${counts.followers === 1 ? '' : 's'} · ${counts.following} following` : 'Followers, following, and who to invite'}</span></span>
-        <Icon name="chevron" />
-      </Link>
-      <section className="card">
-        <h3>Your details</h3>
-        <span className="small mute">{email}</span>
-        {rows.map(([k, v]) => <div key={k} className="row small"><span className="mute">{k}</span><b>{v}</b></div>)}
-        <Link to="/settings" className="btn ghost">Change these in Settings</Link>
-      </section>
-      <section className="card">
-        <h3>Plans</h3>
-        <p className="small mute">Will Power is free during beta. Pro, premium 5 AM Club, paid challenges and coaching are coming later.</p>
-        <span className="tag ok">Free beta</span>
-      </section>
-      <Link to="/privacy" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Privacy Policy</Link>
-      <Link to="/terms" className="small mute" style={{ textAlign: 'center', textDecoration: 'underline' }}>Terms of Service</Link>
-      <button className="ghost" onClick={logOut}>Log out</button>
     </>
   )
 }
