@@ -297,9 +297,9 @@ export function HomeFeed() {
   const posts = useMemo(() => {
     const all = groupPosts(raw)
     if (tab !== 'explore') return all
-    // Explore mixes in lots of people: at most two posts from each, newest first, so nobody fills the page
+    // Explore mixes in lots of people: at most two posts from each, newest first, so nobody fills the page. Your own posts always show.
     const seen = new Map<string, number>()
-    return all.filter((p) => { const k = p.userId ?? p.name, n = (seen.get(k) ?? 0) + 1; seen.set(k, n); return n <= 2 }).slice(0, 60)
+    return all.filter((p) => { if (p.mine) return true; const k = p.userId ?? p.name, n = (seen.get(k) ?? 0) + 1; seen.set(k, n); return n <= 2 }).slice(0, 60)
   }, [raw, tab])
   const avatars = useFeedAvatars(posts.map((p) => p.userId ?? ''), crewIds)
   const tabs: [FeedTab, string][] = [['explore', 'Explore'], ['crews', 'My crews'], ['following', 'Following']]
