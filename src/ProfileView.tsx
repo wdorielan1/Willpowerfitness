@@ -16,6 +16,7 @@ const TABS = [
 ] as const
 const postDate = (post: PublicPost) => new Date(post.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 const timeTotal = (minutes?: number) => minutes == null ? '—' : minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 6) / 10}h`
+const ACTIVITY_PILLS = 12
 const badgeIcon = (id: string): IconName => id.startsWith('streak') ? 'flame' : id === 'early' ? 'clock' : id === 'crew' ? 'crew' : 'trophy'
 
 function Calendar({ days }: { days: string[] }) {
@@ -119,8 +120,11 @@ export interface ProfileViewProps {
 export default function ProfileView(p: ProfileViewProps) {
   const [tab, setTab] = useState<typeof TABS[number]['id']>('posts')
   const [selected, setSelected] = useState<PublicPost | null>(null)
+  const [allActivities, setAllActivities] = useState(false)
   const id = useId()
   const st = p.stats ?? {}
+  const activities = st.activities ?? [] // hidden until one has been done
+  const shownActivities = allActivities ? activities : activities.slice(0, ACTIVITY_PILLS)
   const earned = new Set(st.badges ?? [])
   const badges = BADGES.filter((b) => p.showLocked || earned.has(b.id))
   const crews = st.crews ?? []
@@ -170,6 +174,8 @@ export default function ProfileView(p: ProfileViewProps) {
         <section className="card pv-consistency"><div className="row"><h2>Consistency</h2><span className="tag accent">{st.workouts30 ?? '—'} in 30 days</span></div><p className="small mute">12 weeks of showing up. One square, one day.</p><Calendar days={st.days ?? []} /><div className="pv-calendar-key"><span>Less</span><i /><i className="filled" /><span>More</span></div></section>
         <section className="card"><h2>The work adds up</h2><div className="pv-stat-line"><Icon name="weight" /><span>Workouts completed</span><b>{st.workoutsTotal ?? '—'}</b></div><div className="pv-stat-line"><Icon name="clock" /><span>Recorded training time</span><b>{timeTotal(st.minutesTotal)}</b></div><div className="pv-stat-line"><Icon name="chart" /><span>Total lifted</span><b>{st.volumeTotal == null ? '—' : `${st.volumeTotal.toLocaleString()} lb`}</b></div>{st.since && <p className="small mute">Training since {fromISO(st.since).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>}</section>
       </>}
+      {tab === 'achievements' && activities.length > 0 && <section className="card pv-activities" aria-label="Activities"><div className="row"><h2>Activities</h2><span className="tag">{activities.length}</span></div>
+        <div className="pv-activity-list">{shownActivities.map((a) => <span key={a} className="pv-activity">{a}</span>)}{activities.length > shownActivities.length && <button type="button" className="pv-activity more" onClick={() => setAllActivities(true)}>+{activities.length - shownActivities.length} more</button>}</div></section>}
       {tab === 'achievements' && <section className="card"><div className="row"><h2>Earned through effort</h2><span className="tag accent">{earned.size} earned</span></div><p className="small mute">Small wins. Strong foundations.</p>{badges.length ? <div className="pv-badges">{badges.map((b) => <div key={b.id} className={`pv-badge ${earned.has(b.id) ? 'is-earned' : 'is-locked'}`}><Icon name={badgeIcon(b.id)} size={28} /><b>{b.label}</b><span>{b.hint}</span><small>{earned.has(b.id) ? 'Earned' : 'Keep going'}</small></div>)}</div> : <p className="mute small">Achievements will appear with completed workouts.</p>}</section>}
       {tab === 'about' && <>
         <section className="card"><h2>About {p.name.split(' ')[0]}</h2><p className="pv-about-bio">{p.bio || 'Building a stronger everyday.'}</p>{st.since && <p className="small mute">Training since {fromISO(st.since).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>}</section>

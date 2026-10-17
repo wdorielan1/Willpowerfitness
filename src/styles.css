@@ -1709,3 +1709,8 @@ p.focus-note { margin: -4px 0 0; }
 .cardio-pic-icon > span:first-child { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--card); color: var(--text); }
 .activity-cat-name { display: inline-flex; align-items: center; gap: 10px; }
 .activity-cat-name svg { color: var(--mute); }
+
+/* Profile: the cardio activities a person has done, as small ovals. Nothing shows until there is one. */
+.pv-activity-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-activity { display: inline-flex; align-items: center; min-height: 0; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2); color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.pv-activity.more { color: var(--mute); background: transparent; font-weight: 500; }

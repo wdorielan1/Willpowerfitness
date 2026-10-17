@@ -1,4 +1,5 @@
 import { addDays, sessionDays, streak, todayISO } from './engine'
+import { activitiesDone } from './cardio'
 import type { AppData } from './types'
 
 export interface ProfileStats {
@@ -11,6 +12,8 @@ export interface ProfileStats {
   /** dates (YYYY-MM-DD) with a finished workout in the last 12 weeks */
   days?: string[]
   badges?: string[]
+  /** Cardio activities they have done (like "Tennis" or "StairMaster"), most done first. Hidden until there is one; shown as small ovals. */
+  activities?: string[]
   crews?: string[]
 }
 
@@ -38,6 +41,7 @@ export function computeStats(d: AppData, today = todayISO(), options: { includeP
   const from30 = addDays(today, -29)
   const st = streak(d, today)
   const early = [...done].some((date) => d.started[date] && new Date(d.started[date]).getHours() < 6)
+  const activities = activitiesDone(d)
   const badges: string[] = []
   if (all.length >= 1) badges.push('first')
   if (all.length >= 10) badges.push('w10')
@@ -56,6 +60,7 @@ export function computeStats(d: AppData, today = todayISO(), options: { includeP
     since: all[0],
     days: all.filter((x) => x >= from84),
     badges,
+    ...(activities.length ? { activities } : {}),
     crews: d.joined,
   }
 }

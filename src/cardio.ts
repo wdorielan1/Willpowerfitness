@@ -31,6 +31,25 @@ export function machineOf(kind: string): Machine {
   return { id: kind, fields: sport ? (sport.miles ? ['miles'] : []) : ['miles'] }
 }
 
+/** The activity a session adds to a profile: a machine or one of the activities ("Other" adds nothing). Older kinds map to their machine. */
+export function activityBadge(kind: string): string | null {
+  if (kind === 'Incline walk') return 'Treadmill'
+  if (kind === 'Other') return null
+  return MACHINES.some((m) => m.id === kind) || sportOf(kind) ? kind : null
+}
+
+/** Every activity they have logged at least once, the ones they do most first. Nothing is listed until it has been done. */
+export function activitiesDone(d: AppData): string[] {
+  const seen = new Map<string, { n: number; last: number }>()
+  d.cardio.forEach((c, i) => {
+    const name = activityBadge(c.kind)
+    if (!name) return
+    const cur = seen.get(name)
+    seen.set(name, { n: (cur?.n ?? 0) + 1, last: Math.max(cur?.last ?? 0, Date.parse(c.date) * 1000 + i) })
+  })
+  return [...seen.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).map(([name]) => name)
+}
+
 /** Sports they have logged at least twice, most recent first, so the ones they play show in the machine row without searching. */
 export function recentSports(d: AppData, max = 2): string[] {
   const seen = new Map<string, { n: number; last: number }>()
