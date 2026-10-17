@@ -506,7 +506,8 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 ## Explore: the public feed (needs an account online; run supabase/public-feed.sql first)
 - [ ] Owner step: run `supabase/public-feed.sql` in the Supabase SQL editor, then Reload schema. Without it, posts show but other people's pictures and videos stay blank, and Report says "Reporting is not switched on yet."
 - [ ] Home feed tabs are Explore, My crews, Following. Explore is the one open on first visit. If you had picked All before, it opens on Explore
-- [ ] Explore shows the newest public posts from people on the app, not just your crews. No more than 2 posts from the same person
+- [ ] Explore shows the newest public posts from people on the app, not just your crews. No more than 5 posts from any one other person, and all of your own public posts always show
+- [ ] Explore shows every kind of public post: text, photos, a video, a shared workout, a question of the day
 - [ ] Posts from people with a private profile never show in Explore, and neither do posts made before their profile was public
 - [ ] Pictures and videos from strangers' public posts load (after the SQL step). Open a post's pictures and play a video
 - [ ] No "Following" label on strangers' posts. Posts from your own crews still show the crew name when you are in more than one
