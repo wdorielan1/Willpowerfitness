@@ -591,6 +591,9 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Home shows a quiet "Cardio running" bar (the activity and the time, counting up) while a cardio timer runs, and "Cardio paused" while it is paused. Tapping it opens the timer. With no timer there is no bar
 - [ ] After 4 hours of running, "Still doing cardio?" appears on any page. Yes, keep going (+1 hour) closes it and it asks again an hour later. Finish it now opens the finish sheet on the Cardio page with the minutes filled in (up to 600) and a note to check them
 - [ ] If nobody answers within 30 minutes, the timer is paused at the 4-hour mark (not discarded). The Cardio page says "Paused automatically after 4 hours" and Finish saves the time so far. Resume works and gives another hour before it asks again. A timer you paused yourself is never changed by this
+- [ ] Cardio pictures: on the Start card, Treadmill shows a walking photo for Walk and Incline and a running photo for Run and Sprints; StairMaster, Elliptical, Bike and Outdoor walk each show their own photo. The photo flips between two frames. Other shows nothing, with no empty box
+- [ ] In More activities, Jump rope, Rowing machine, Spin class, Running (outdoors), Trail running and 5K/10K race show a photo; Tennis, Yoga, Hiking and the other activities show a small icon and their group name (like "Racquet and paddle"). Each of the 13 groups in the list has an icon
+- [ ] The running timer shows the same picture, and Pause holds the flip. With Reduce motion on in the phone's settings the photo does not flip
 
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
