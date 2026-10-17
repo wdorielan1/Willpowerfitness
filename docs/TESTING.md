@@ -556,6 +556,12 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Inside the workout (after Start) the calendar is not shown again. The first screen has the warm-up and today's lifts with press-and-hold reorder, swipe to remove or add, and Short on time?
 - [ ] The heading reads "Switch today's workout." with "Not feeling it?" above it, not "What are you training?"
 
+## Profile ring only with a new post
+- [ ] Open a profile (yours, a friend's, or a public one) where the person has posted in the last 24 hours: the photo has the orange ring
+- [ ] Open one where the last post is older than a day, or there are no posts: no ring, and the photo does not shift or change size
+- [ ] Post something on your own account and open your Profile: the ring is there. Check again the next day (after 24 hours) and it is gone
+- [ ] Hovering or long-pressing the ringed photo shows "New post"
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
