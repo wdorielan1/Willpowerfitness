@@ -503,6 +503,20 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] A single video fills the post at its own shape (tall for a phone video held upright, wide for sideways) with no black bars at the sides
 - [ ] The video starts by itself without sound as you scroll to it, and tapping it opens it with sound
 
+## Explore: the public feed (needs an account online; run supabase/public-feed.sql first)
+- [ ] Owner step: run `supabase/public-feed.sql` in the Supabase SQL editor, then Reload schema. Without it, posts show but other people's pictures and videos stay blank, and Report says "Reporting is not switched on yet."
+- [ ] Home feed tabs are Explore, My crews, Following. Explore is the one open on first visit. If you had picked All before, it opens on Explore
+- [ ] Explore shows the newest public posts from people on the app, not just your crews. No more than 2 posts from the same person
+- [ ] Posts from people with a private profile never show in Explore, and neither do posts made before their profile was public
+- [ ] Pictures and videos from strangers' public posts load (after the SQL step). Open a post's pictures and play a video
+- [ ] No "Following" label on strangers' posts. Posts from your own crews still show the crew name when you are in more than one
+- [ ] Every post that is not yours has a quiet Report button. Tap it, confirm "Report it": you see "Reported. Thank you, we will take a look." The report appears in the post_reports table in Supabase
+- [ ] You can comment on a stranger's public post. There is no heart on it (hearts are for crew mates until that is added)
+- [ ] My crews shows only your crews' posts. Following shows only the public posts of people you follow
+- [ ] Turn your profile private in Settings, post, and check from a second account: your new post is not in Explore. Turn it back on, post: it is
+- [ ] With nothing public yet Explore says "Nothing to explore yet."
+- [ ] The Privacy page, the Public profile card in Settings and the line on your Profile all say posts show in Explore, including photos and videos
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
