@@ -1699,3 +1699,6 @@ p.focus-note { margin: -4px 0 0; }
 .cardio-bar-text b { font-weight: 600; }
 .cardio-bar-text span { color: var(--mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cardio-bar time { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; }
+
+/* the ringed profile photo opens the newest post, like a story ring */
+.pv-avatar-open { display: block; min-height: 0; padding: 0; border-radius: 50%; background: transparent; line-height: 0; }

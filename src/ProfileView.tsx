@@ -102,7 +102,8 @@ function PostTile({ post, url, onOpen }: { post: PublicPost; url?: string; onOpe
 
 /** The orange ring on a profile photo means a post in the last day, like a story ring. Without a recent post the photo has no ring. */
 const NEW_POST_MS = 24 * 3600 * 1000
-const hasNewPost = (posts?: PublicPost[] | null, now = Date.now()) => (posts ?? []).some((x) => now - x.ts < NEW_POST_MS)
+/** The newest post from the last day: it is why the photo has a ring, and what tapping the ringed photo opens. */
+const latestNewPost = (posts?: PublicPost[] | null, now = Date.now()) => (posts ?? []).filter((x) => now - x.ts < NEW_POST_MS).sort((a, b) => b.ts - a.ts)[0]
 
 export interface ProfileViewProps {
   name: string; handle?: string | null; avatar?: string | null; bio?: string | null
@@ -125,11 +126,15 @@ export default function ProfileView(p: ProfileViewProps) {
   const crews = st.crews ?? []
   const thumbnails = (p.posts ?? []).flatMap((post) => postPhotos(post).slice(0, 1))
   const urls = usePhotoUrls(thumbnails, CREW_BUCKET)
-  const fresh = hasNewPost(p.posts)
+  const latest = latestNewPost(p.posts)
+  const fresh = !!latest
+  const photo = <Avatar key={p.avatar} name={p.name} url={p.avatar} />
   return <div className="pv">
     <section className="pv-head" aria-label="Profile">
       <div className="pv-identity">
-        <div className={`pv-avatar${fresh ? ' has-new' : ''}`} title={fresh ? 'New post' : undefined}><Avatar key={p.avatar} name={p.name} url={p.avatar} />{p.onEditAvatar && <button className="pv-avatar-edit" aria-label="Change profile photo" onClick={p.onEditAvatar}><Icon name="edit" size={17} /></button>}</div>
+        <div className={`pv-avatar${fresh ? ' has-new' : ''}`} title={fresh ? 'New post' : undefined}>{latest
+          ? <button type="button" className="pv-avatar-open" aria-label="See the new post" onClick={() => setSelected(latest)}>{photo}</button>
+          : photo}{p.onEditAvatar && <button className="pv-avatar-edit" aria-label="Change profile photo" onClick={p.onEditAvatar}><Icon name="edit" size={17} /></button>}</div>
         <div className="pv-intro"><h1 className="pv-name">{p.name}</h1>{p.handle && <p className="pv-handle">@{p.handle}</p>}{p.bio && <p className="pv-bio">{p.bio}</p>}</div>
       </div>
       {p.actions && <div className="pv-actions">{p.actions}</div>}
