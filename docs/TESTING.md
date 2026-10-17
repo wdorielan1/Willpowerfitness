@@ -605,6 +605,17 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] In More activities, Jump rope, Rowing machine, Spin class, Running (outdoors), Trail running and 5K/10K race show a photo; Tennis, Yoga, Hiking and the other activities show a small icon and their group name (like "Racquet and paddle"). Each of the 13 groups in the list has an icon
 - [ ] The running timer shows the same picture, and Pause holds the flip. With Reduce motion on in the phone's settings the photo does not flip
 
+## Sharing activities (tennis, yoga, a run, anything on the Cardio page)
+- [ ] Log or time a session (try Yoga for 60 minutes): the "Saved" message has a Share button. Tap it: the same sheet as a workout opens ("Share to your crew")
+- [ ] The recap shows time, miles (only if you logged some) and day streak. It does not show lb moved or sets, and there is no "No new records today" line
+- [ ] Under Workout cards there are two styles, Scorecard and Photo Flex ("2 styles"). The card shows the activity name in big letters, the date, your typed place if you left one, time, miles for golf, hiking, running or riding, and the day streak. A treadmill session reads "Treadmill run"
+- [ ] Post to crew with the card: it appears in your crew's feed as "Finished Yoga in 60 min" with the card picture (and your caption and any extra photos or video). Opening Share again says it is already posted. A workout you posted on the same day does not stop an activity from posting, and the other way round
+- [ ] Share card (on a phone) opens the phone's share sheet: choose Instagram, in Story or Post size. Save to photos keeps it in your photo library. There is no direct posting into Instagram
+- [ ] Photo Flex with your own photo, and the transparent sticker laid over a photo, both work for an activity
+- [ ] Your cardio list: every row has a small share icon (older sessions too). A session from an earlier day says "from Sat, Oct 10" on the share sheet and posts with that day
+- [ ] An activity post that has no picture (for example older ones) shows the activity, time, miles and streak, with no exercises, sets or lb lifted
+- [ ] Workout sharing is unchanged: finish a workout and share it, and the Share workout box on Home still lists lifting workouts. Activities are never posted by themselves
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
