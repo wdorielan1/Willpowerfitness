@@ -1714,3 +1714,8 @@ p.focus-note { margin: -4px 0 0; }
 .pv-activity-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .pv-activity { display: inline-flex; align-items: center; min-height: 0; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2); color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.5; }
 .pv-activity.more { color: var(--mute); background: transparent; font-weight: 500; }
+
+/* Badge colours: each badge has its own hue (--bh, from its name, see badgeColor.ts); earned only, locked ones stay grey */
+.pv-activity[style] { background: hsl(var(--bh) 42% 16%); border-color: hsl(var(--bh) 48% 30%); color: hsl(var(--bh) 85% 80%); }
+.pv-badge.is-earned[style] { border-color: hsl(var(--bh) 45% 28%); background: linear-gradient(135deg, hsl(var(--bh) 40% 15%), #171819); }
+.pv-badge.is-earned[style] svg, .pv-badge.is-earned[style] small { color: hsl(var(--bh) 85% 70%); }
