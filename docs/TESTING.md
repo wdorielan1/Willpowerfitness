@@ -517,6 +517,16 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] With nothing public yet Explore says "Nothing to explore yet."
 - [ ] The Privacy page, the Public profile card in Settings and the line on your Profile all say posts show in Explore, including photos and videos
 
+## Public by default, and the profile photo step in setup
+- [ ] Sign up a new account: after "Your numbers" there is an "Add a profile photo" step (step 4 of 7 with a community, 4 of 5 without; each count went up by one). It says we recommend it and why. The button says Skip for now until you pick a photo
+- [ ] Choose a photo: your face shows in a circle, the button becomes Next, with Change photo and Remove photo. Finish setup, open Profile: the photo is there. Post something: it shows on the post
+- [ ] Skip it: setup carries on, and Profile shows your initial. You can add one later with Add photo
+- [ ] Signed in with Google: the step says it is using your Google photo and you can choose another
+- [ ] A brand new account is public from the start (Settings > Public profile says On) and sees no "Your profile is now public" notice
+- [ ] An account that was private (made before public profiles, or switched off before): the first time it opens the app after this goes live, Home shows "Your profile is now public" with Settings and OK. Settings > Public profile now says On. OK hides it for good
+- [ ] Switch it off in Settings: it stays off after closing and reopening the app, and the notice never comes back
+- [ ] After the switch to public, new posts show in Explore. Posts made before it stay crew-only
+
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
 - [ ] Payment processor approved paid-entry contests
