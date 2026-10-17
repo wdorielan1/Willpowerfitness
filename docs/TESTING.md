@@ -578,6 +578,14 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] Weekly goal is not mentioned at sign-up. It is not offered after one session. After the second session "Want a weekly cardio goal?" appears; Not now hides it for good (it is still under This week > Set a goal)
 - [ ] The goal sheet offers Days a week (1 to 7, with 20, 30, 45 or 60 minutes each) or Miles a week, never total minutes. This week shows a progress bar and the line, for example "1 of 4 days this week · 30+ min each" or "0 of 12 miles this week". Only sessions where miles were logged count toward miles. Change goal and Remove my goal work
 - [ ] Progress > Cardio lists each session with its mode and miles, and its Log button opens the Cardio page
+- [ ] More activities: the machine row has the six machines and one dashed "More activities…" chip. It opens a sheet with a search box, Popular (Tennis, Pickleball, Basketball, Soccer, Golf, Hiking, Running (outdoors), Swimming, Cycling (outdoors), Boxing, HIIT, Yoga) and "All activities" in 13 collapsed groups (97 in all)
+- [ ] Search finds by name and by other names: "ping pong" finds Table tennis, "bjj" finds Brazilian jiu-jitsu, "water" lists the water group, and a word that matches nothing says so
+- [ ] Pick Tennis: the sheet closes, Tennis shows in the row as picked, the treadmill modes disappear, and the timer and the log form both work. A sport has no machine details; Golf, Hiking, Running (outdoors) and Cycling (outdoors) ask for miles only
+- [ ] The log form's "More activities…" opens the list over the form and puts the pick in the form
+- [ ] Log the same sport twice: it shows in the machine row without opening More (at most the last two sports). A sport logged once does not
+- [ ] Two timers cannot run at once. With a workout started and not finished, Start timer on the Cardio page shows "Finish your workout first" (Back to my workout, Cancel) and no cardio timer starts. Logging a past session is still allowed
+- [ ] With a cardio timer running, Start workout (Home and Train) and Start in the Train picker show "Finish your cardio first" with the cardio name and time, a Go to my cardio button, and "I forgot it. Discard the cardio timer" (asks first). The Siri Shortcuts "start" and "arrive" do not start a workout while cardio runs
+- [ ] At the end of a workout that is not finished, the cardio finisher says to finish first and offers Log cardio only; after Finish it also offers Start cardio. The Train page cardio card says "Your workout is still running" while one is
 
 ## Before real money (paid challenges)
 - [ ] Lawyer signed off on the rules and blocked states
