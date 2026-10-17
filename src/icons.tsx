@@ -35,6 +35,19 @@ const paths = {
   calendar: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 2v6M17 2v6M3 11h18" /></>,
   settings: <><path d="M3 6h18M3 12h18M3 18h18" /><circle cx="8" cy="6" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="9" cy="18" r="2" /></>,
   close: <path d="m6 6 12 12M6 18 18 6" />,
+  // activity groups (the "More activities" list and the Cardio page)
+  racquet: <><ellipse cx="9" cy="9" rx="5" ry="6.5" transform="rotate(-45 9 9)" /><path d="m13.2 13.2 7.3 7.3" /><circle cx="18" cy="6" r="2" /></>,
+  ball: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></>,
+  flag: <path d="M6 21V3l11 4.5L6 12M3 21h8" />,
+  track: <><rect x="3" y="7" width="18" height="10" rx="5" /><rect x="7" y="10.5" width="10" height="3" rx="1.5" /></>,
+  waves: <path d="M2 9c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0M2 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0" />,
+  snow: <path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9.5 3.8l2.5 2 2.5-2M9.5 20.2l2.5-2 2.5 2" />,
+  wheel: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="2" /><path d="M12 3v7M12 14v7M3 12h7M14 12h7" /></>,
+  glove: <path d="M6 12V9a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v4a6 6 0 0 1-6 6h-1a4 4 0 0 1-4-4ZM6 12c-2 0-3 1-3 2.5S4.5 17 7 17M8 19v3h8v-3" />,
+  lotus: <path d="M12 20c-4 0-8-3-9-8 4 0 7 1.5 9 4 2-2.5 5-4 9-4-1 5-5 8-9 8ZM12 16c-2-2-3-5 0-11 3 6 2 9 0 11Z" />,
+  note: <><path d="M9 18V5l11-2v13" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="16" r="2.5" /></>,
+  mountain: <path d="m2 20 7-12 4 6 3-4 6 10Z" />,
+  sparkle: <path d="M12 3c.8 5 2 6.2 7 7-5 .8-6.2 2-7 7-.8-5-2-6.2-7-7 5-.8 6.2-2 7-7Z" />,
   thumbDown: <><path d="M17 14V2" /><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" /></>,
 } satisfies Record<string, ReactNode>
 export type IconName = keyof typeof paths

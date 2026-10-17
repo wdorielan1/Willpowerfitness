@@ -1702,3 +1702,10 @@ p.focus-note { margin: -4px 0 0; }
 
 /* the ringed profile photo opens the newest post, like a story ring */
 .pv-avatar-open { display: block; min-height: 0; padding: 0; border-radius: 50%; background: transparent; line-height: 0; }
+
+/* Cardio pictures: a compact two-frame photo (the lift Motion preview, shorter) or a group icon */
+.cardio-pic { aspect-ratio: 16 / 9; margin-bottom: 0; }
+.cardio-pic-icon { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--card2); color: var(--mute); font-size: 13px; text-align: left; }
+.cardio-pic-icon > span:first-child { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--card); color: var(--text); }
+.activity-cat-name { display: inline-flex; align-items: center; gap: 10px; }
+.activity-cat-name svg { color: var(--mute); }

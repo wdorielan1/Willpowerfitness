@@ -9,6 +9,9 @@ import {
 } from '../cardio'
 import { POPULAR_SPORTS, SPORTS, SPORT_CATEGORIES, findSports, sportOf } from '../sports'
 import { TimerConflict } from '../TimerConflict'
+import { CardioPicture } from '../CardioPicture'
+import { CATEGORY_ICON } from '../cardioMedia'
+import { Icon } from '../icons'
 import type { CardioGoal, CardioLog } from '../types'
 
 const dayLabel = (date: string) => fromISO(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -53,7 +56,7 @@ function ActivitySheet({ current, onPick, onClose }: { current: string; onPick: 
           <div className="activity-cats">
             {SPORT_CATEGORIES.map((cat) => {
               const items = SPORTS.filter((s) => s.cat === cat)
-              return <details key={cat} className="activity-cat"><summary>{cat}<span>{items.length}</span></summary><div className="chips">{items.map((s) => chip(s.name))}</div></details>
+              return <details key={cat} className="activity-cat"><summary><span className="activity-cat-name">{CATEGORY_ICON[cat] && <Icon name={CATEGORY_ICON[cat]} size={18} />}{cat}</span><span>{items.length}</span></summary><div className="chips">{items.map((s) => chip(s.name))}</div></details>
             })}
           </div>
         </>
@@ -229,6 +232,7 @@ export default function Cardio() {
         <section className="card cardio-active" aria-label="Cardio session in progress">
           <p className="overline">{active.pausedAt ? 'Paused' : 'In progress'}</p>
           <h2>{cardioName(active)}</h2>
+          <CardioPicture kind={active.kind} mode={active.mode} paused={!!active.pausedAt} />
           <div className="cardio-clock" role="timer" aria-label="Time so far">{clockText(elapsedMs(active, now))}</div>
           {active.autoPaused && <p className="small mute">Paused automatically after {CARDIO_ASK_HOURS + (active.extendHours ?? 0)} hours. Finish to save the time so far, or Resume.</p>}
           <div className="row wrap">
@@ -242,6 +246,7 @@ export default function Cardio() {
           <h2>Start a session</h2>
           {suggestion && <p className="small mute">Suggested today: {suggestion}</p>}
           <MachinePicker kind={kind} mode={mode} onKind={(k) => { setKind(k); if (k === 'Treadmill' && !mode) setMode(DEFAULT_MODE) }} onMode={setMode} extras={extras} onMore={() => openMore(kind, (name) => setKind(name))} />
+          <CardioPicture kind={kind} mode={mode} />
           <button type="button" className="primary" onClick={start}>Start timer</button>
           <button type="button" className="ghost" onClick={() => setSheet({ kind: 'log' })}>Log one I already did</button>
           <p className="small mute">{SESSION_NOTE(CARDIO_SESSION_MIN)}</p>
