@@ -518,15 +518,18 @@ Needs at least 2 crews (join up to 3 on the Crew tab). With one crew there is no
 - [ ] With nothing public yet Explore says "Nothing to explore yet."
 - [ ] The Privacy page, the Public profile card in Settings and the line on your Profile all say posts show in Explore, including photos and videos
 
-## Public by default, and the profile photo step in setup
-- [ ] Sign up a new account: after "Your numbers" there is an "Add a profile photo" step (step 4 of 7 with a community, 4 of 5 without; each count went up by one). It says we recommend it and why. The button says Skip for now until you pick a photo
-- [ ] Choose a photo: your face shows in a circle, the button becomes Next, with Change photo and Remove photo. Finish setup, open Profile: the photo is there. Post something: it shows on the post
-- [ ] Skip it: setup carries on, and Profile shows your initial. You can add one later with Add photo
-- [ ] Signed in with Google: the step says it is using your Google photo and you can choose another
-- [ ] A brand new account is public from the start (Settings > Public profile says On) and sees no "Your profile is now public" notice
-- [ ] An account that was private (made before public profiles, or switched off before): the first time it opens the app after this goes live, Home shows "Your profile is now public" with Settings and OK. Settings > Public profile now says On. OK hides it for good
-- [ ] Switch it off in Settings: it stays off after closing and reopening the app, and the notice never comes back
-- [ ] After the switch to public, new posts show in Explore. Posts made before it stay crew-only
+## Age page, public for adults, and the profile photo step in setup
+- [ ] Sign up a new account: the age page says "Before you start" with a tick box "I confirm that I am 13 years old or older" (Terms and Privacy linked), "Are you 18 or older?" with Yes and No, Continue, and "I'm under 13". There is no date of birth box
+- [ ] Continue without the box ticked says to tick it. Ticked but no Yes/No says to choose. Tick, Yes, Continue: setup starts
+- [ ] "I'm under 13": a page says Will Power is for people 13 and older and offers Delete my account. Reloading does not let them back in
+- [ ] Yes (18 or older): Settings > Public profile is On from the start, and no "now public" notice shows. Posts show in Explore
+- [ ] No (13 to 17): the profile is Off from the start. Settings says they are under 18 and the profile starts private. Turning it on asks "Make your profile public?" with a parent or guardian warning; Cancel leaves it off, Yes, make it public turns it on
+- [ ] An account made before this change: Home shows "Are you 18 or older?" with Yes, I'm 18 or older and No, I'm 13 to 17 and Not now. Until it is answered the profile is private (also for an account the first version had made public)
+- [ ] Yes there: the profile turns public and Home shows the "Your profile is now public" notice (OK hides it for good). No: it stays private and the question goes away. Not now: it comes back next visit
+- [ ] In Settings, an account that has not answered sees the same question where the switch would be
+- [ ] Switch the profile off in Settings: it stays off after closing and reopening, and nothing flips it back
+- [ ] Setup has an "Add a profile photo" step after your numbers (4 of 7 with a community, 4 of 5 without). It recommends a photo and says why. Skip for now until a photo is chosen, then Next. Google sign in: it says it is using your Google photo
+- [ ] Privacy page: the Age check line says we ask you to confirm 13 or older and yes or no for 18 or older, and that we do not keep a date of birth
 
 ## Share box position on Home
 - [ ] On Home the order is: the greeting (such as "Late night workout, Will?"), the "Share something with your crew" box, then This week, Today's nutrition, Invite friends and the feed
